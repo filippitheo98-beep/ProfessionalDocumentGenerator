@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Plus, Trash2, Settings } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPin, Plus, Trash2, Settings, X } from "lucide-react";
 import type { Location, WorkUnit } from "@shared/schema";
 import RiskTable from "./RiskTable";
 import PreventionSection from "./PreventionSection";
@@ -130,6 +131,58 @@ export default function LocationSection({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+            </div>
+
+            {/* Quick Prevention Measures Input */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h5 className="text-sm font-medium text-blue-900">
+                  Mesures de prévention initiales (optionnel)
+                </h5>
+                <div className="flex gap-1">
+                  {['EPI obligatoires', 'Formation sécurité', 'Ventilation adaptée', 'Signalisation'].map((measure) => (
+                    <Button
+                      key={measure}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-6 px-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-100"
+                      onClick={() => {
+                        const currentMeasures = workUnit.preventionMeasures;
+                        const newMeasure = { id: crypto.randomUUID(), description: measure };
+                        const exists = currentMeasures.some(m => m.description === measure);
+                        if (!exists) {
+                          onUpdateWorkUnit(workUnit.id, { 
+                            preventionMeasures: [...currentMeasures, newMeasure] 
+                          });
+                        }
+                      }}
+                    >
+                      +{measure}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <Textarea
+                value={workUnit.preventionMeasures.map(m => m.description).join('\n')}
+                placeholder="Décrivez les mesures de prévention existantes pour cette unité de travail..."
+                className="min-h-[60px] bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-200"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.trim()) {
+                    // Split by line breaks and create measures
+                    const measures = value.split('\n').filter(m => m.trim()).map(desc => ({
+                      id: crypto.randomUUID(),
+                      description: desc.trim()
+                    }));
+                    onUpdateWorkUnit(workUnit.id, { preventionMeasures: measures });
+                  } else {
+                    onUpdateWorkUnit(workUnit.id, { preventionMeasures: [] });
+                  }
+                }}
+              />
+              <p className="text-xs text-blue-700 mt-1">
+                Séparez chaque mesure par une nouvelle ligne ou utilisez les boutons ci-dessus
+              </p>
             </div>
 
             <RiskTable risks={workUnit.risks} />

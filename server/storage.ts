@@ -22,7 +22,7 @@ export class MemStorage implements IStorage {
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
     const id = this.currentId++;
-    const company: Company = { ...insertCompany, id };
+    const company: Company = { ...insertCompany, id, locations: insertCompany.locations || [] };
     this.companies.set(id, company);
     return company;
   }
