@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export async function generateExcelFile(risks: any[], companyName: string): Promise<Buffer> {
   // Prepare data for Excel
@@ -78,7 +78,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   ]);
   
   // Generate table
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: [headers],
     body: tableData,
     startY: 55,
