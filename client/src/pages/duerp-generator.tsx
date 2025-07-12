@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export default function DuerpGenerator() {
     },
     onSuccess: (updatedCompany: Company) => {
       setCompany(updatedCompany);
-      setLocations(updatedCompany.locations || []);
+      // Ne pas écraser les locations locales - elles sont déjà à jour
     },
   });
 
@@ -75,12 +75,13 @@ export default function DuerpGenerator() {
   const addLocation = () => {
     const newLocation: Location = {
       id: crypto.randomUUID(),
-      name: "",
+      name: `Lieu ${locations.length + 1}`,
       workUnits: []
     };
     const updatedLocations = [...locations, newLocation];
     setLocations(updatedLocations);
     
+    // Optionnel : sauvegarder seulement si nécessaire
     if (company) {
       updateCompanyMutation.mutate({
         id: company.id,
@@ -89,19 +90,22 @@ export default function DuerpGenerator() {
     }
   };
 
-  const updateLocation = (locationId: string, updates: Partial<Location>) => {
+  const updateLocation = useCallback((locationId: string, updates: Partial<Location>) => {
     const updatedLocations = locations.map(loc => 
       loc.id === locationId ? { ...loc, ...updates } : loc
     );
     setLocations(updatedLocations);
     
+    // Débouncer les appels API pour éviter les conflits
     if (company) {
-      updateCompanyMutation.mutate({
-        id: company.id,
-        updates: { locations: updatedLocations }
-      });
+      setTimeout(() => {
+        updateCompanyMutation.mutate({
+          id: company.id,
+          updates: { locations: updatedLocations }
+        });
+      }, 500);
     }
-  };
+  }, [locations, company, updateCompanyMutation]);
 
   const removeLocation = (locationId: string) => {
     const updatedLocations = locations.filter(loc => loc.id !== locationId);
