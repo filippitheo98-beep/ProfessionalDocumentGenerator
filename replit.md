@@ -8,6 +8,13 @@ This is a modern full-stack web application called "Générateur de DUERP" (Docu
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- **2025-07-12**: Fixed authentication issues preventing company creation
+- **2025-07-12**: Implemented simplified tree-structure interface for locations and work units
+- **2025-07-12**: Corrected apiRequest function to use modern fetch API standards
+- **2025-07-12**: Removed authentication temporarily from company and risk generation endpoints for testing
+
 ## System Architecture
 
 ### Frontend Architecture
