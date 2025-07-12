@@ -12,6 +12,7 @@ export const companies = pgTable("companies", {
   address: text("address"),
   siret: text("siret"),
   logo: text("logo"),
+  existingPreventionMeasures: jsonb("existing_prevention_measures").$type<PreventionMeasure[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -140,6 +141,11 @@ export const insertCompanySchema = createInsertSchema(companies).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  existingPreventionMeasures: z.array(z.object({
+    id: z.string(),
+    description: z.string(),
+  })).optional(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

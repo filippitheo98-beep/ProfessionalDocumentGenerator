@@ -54,10 +54,7 @@ export class DatabaseStorage implements IStorage {
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
     const [company] = await db
       .insert(companies)
-      .values({
-        ...insertCompany,
-        updatedAt: new Date()
-      })
+      .values(insertCompany)
       .returning();
     return company;
   }
