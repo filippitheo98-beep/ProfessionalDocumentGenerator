@@ -17,6 +17,8 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
+import crypto from 'crypto';
+import OpenAI from 'openai';
 
 export interface IStorage {
   // Company operations
@@ -137,7 +139,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async generateRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]> {
-    // Try to get risks from database templates first
+    // Use OpenAI to generate contextual risks
+    try {
+      const aiRisks = await this.generateAIRisks(workUnitName, locationName, companyActivity);
+      if (aiRisks.length > 0) {
+        return aiRisks;
+      }
+    } catch (error) {
+      console.error('Error generating AI risks:', error);
+    }
+
+    // Fallback to template-based system if AI fails
     const templates = await this.getRiskTemplates();
     const workUnitLower = workUnitName.toLowerCase();
     const activityLower = companyActivity.toLowerCase();
@@ -166,6 +178,52 @@ export class DatabaseStorage implements IStorage {
     }));
 
     return risks;
+  }
+
+  private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]> {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    
+    const prompt = `En tant qu'expert en santé et sécurité au travail français, analysez le poste "${workUnitName}" dans le lieu "${locationName}" d'une entreprise de "${companyActivity}".
+
+Générez 5-8 risques professionnels principaux selon la réglementation française. Pour chaque risque, indiquez :
+- type: Type de risque (TMS, Chute, Bruit, Incendie, etc.)
+- danger: Description précise du danger
+- gravity: "Faible", "Moyenne", ou "Élevée"  
+- frequency: "Rare", "Occasionnel", "Hebdomadaire", ou "Quotidien"
+- control: "Faible", "Moyenne", ou "Élevée"
+- finalRisk: "Faible", "Moyen", ou "Important" (calculé selon gravity × frequency ÷ control)
+- measures: Mesures de prévention spécifiques
+
+Répondez uniquement avec un JSON valide contenant un tableau "risks".`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          { role: "system", content: "Vous êtes un expert en évaluation des risques professionnels français. Répondez uniquement avec du JSON valide." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
+      
+      return result.risks.map((risk: any) => ({
+        id: crypto.randomUUID(),
+        type: risk.type || 'Risque général',
+        danger: risk.danger || 'Danger non spécifié',
+        gravity: risk.gravity || 'Moyenne',
+        frequency: risk.frequency || 'Occasionnel',
+        control: risk.control || 'Moyenne',
+        finalRisk: risk.finalRisk || 'Moyen',
+        measures: risk.measures || 'Mesures de prévention à définir'
+      }));
+    } catch (error) {
+      console.error('Error calling OpenAI API:', error);
+      return [];
+    }
   }
 
   private generateFallbackRisks(workUnitName: string, locationName: string, companyActivity: string): Risk[] {
