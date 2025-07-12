@@ -109,12 +109,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Create or get company
-  app.post("/api/companies", isAuthenticated, async (req, res) => {
+  app.post("/api/companies", async (req, res) => {
     try {
+      console.log("Creating company with data:", req.body);
       const validatedData = insertCompanySchema.parse(req.body);
+      console.log("Validated data:", validatedData);
       const company = await storage.createCompany(validatedData);
+      console.log("Created company:", company);
       res.json(company);
     } catch (error) {
+      console.error("Error creating company:", error);
       res.status(400).json({ 
         message: error instanceof z.ZodError ? "Données invalides" : "Erreur lors de la création de l'entreprise" 
       });
@@ -149,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate risks for a work unit
-  app.post("/api/generate-risks", isAuthenticated, async (req, res) => {
+  app.post("/api/generate-risks", async (req, res) => {
     try {
       const validatedData = generateRisksRequestSchema.parse(req.body);
       const risks = await storage.generateRisks(

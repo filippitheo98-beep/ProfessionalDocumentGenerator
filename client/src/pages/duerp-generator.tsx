@@ -63,6 +63,7 @@ export default function DuerpGenerator() {
   // Mutations
   const createCompanyMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("Sending company data:", data);
       const response = await apiRequest('/api/companies', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -77,10 +78,11 @@ export default function DuerpGenerator() {
       });
     },
     onError: (error) => {
+      console.error("Error creating company:", error);
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Non connecté",
+          description: "Vous n'êtes pas connecté. Redirection vers la page de connexion...",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -90,7 +92,7 @@ export default function DuerpGenerator() {
       }
       toast({
         title: "Erreur",
-        description: "Impossible de créer l'entreprise. Veuillez réessayer.",
+        description: `Impossible de créer l'entreprise: ${error.message}`,
         variant: "destructive",
       });
     },
