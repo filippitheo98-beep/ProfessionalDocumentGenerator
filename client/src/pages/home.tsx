@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getQueryFn } from "@/lib/queryClient";
+import { Header } from "@/components/Header";
+import { StatsCards } from "@/components/StatsCards";
 
 interface DashboardStats {
   totalCompanies: number;

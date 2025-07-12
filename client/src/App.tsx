@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import DuerpGenerator from "@/pages/duerp-generator";
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
+import { ThemeProvider } from "./components/ThemeProvider";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -41,10 +42,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="light" storageKey="duerp-theme">
+        <TooltipProvider>
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

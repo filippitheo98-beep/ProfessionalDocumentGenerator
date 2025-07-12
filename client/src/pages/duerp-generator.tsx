@@ -12,7 +12,11 @@ import {
   Shield, 
   Download,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  History,
+  Camera,
+  Lightbulb,
+  Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,11 +24,19 @@ import { isUnauthorizedError } from '@/lib/authUtils';
 import { apiRequest } from '@/lib/queryClient';
 import CompanyForm from '@/components/CompanyForm';
 import RiskTable from '@/components/RiskTable';
+import { Header } from '@/components/Header';
+import { StatsCards } from '@/components/StatsCards';
+import { SmartSuggestions } from '@/components/SmartSuggestions';
+import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
+import { PhotoAnalysis } from '@/components/PhotoAnalysis';
+import { VersionHistory } from '@/components/VersionHistory';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { 
   Company, 
   Location, 
   WorkStation, 
-  Risk
+  Risk,
+  PreventionMeasure
 } from '@shared/schema';
 
 export default function DuerpGenerator() {
@@ -38,6 +50,9 @@ export default function DuerpGenerator() {
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
   const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
   const [isGeneratingFinalRisks, setIsGeneratingFinalRisks] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
 
   // Redirect if not authenticated
   useEffect(() => {
