@@ -81,6 +81,10 @@ export function PhotoAnalysis({ onRisksDetected, companyActivity }: PhotoAnalysi
   };
 
   const analyzePhoto = async (photoId: string) => {
+    // Trouver la photo pour obtenir ses informations
+    const currentPhoto = photos.find(p => p.id === photoId);
+    const photoLocation = currentPhoto?.location || currentPhoto?.caption || "Photo sans nom";
+    
     setPhotos(prev => prev.map(photo => 
       photo.id === photoId ? { ...photo, isAnalyzing: true } : photo
     ));
@@ -100,7 +104,7 @@ export function PhotoAnalysis({ onRisksDetected, companyActivity }: PhotoAnalysi
           control: "Faible",
           finalRisk: "Moyen",
           measures: "Dégager les passages, signaler les obstacles",
-          source: "Analyse photo",
+          source: photoLocation,
           sourceType: "Lieu"
         },
         {
@@ -112,7 +116,7 @@ export function PhotoAnalysis({ onRisksDetected, companyActivity }: PhotoAnalysi
           control: "Moyenne",
           finalRisk: "Important",
           measures: "Protéger les câbles, installer des gaines de protection",
-          source: "Analyse photo",
+          source: photoLocation,
           sourceType: "Lieu"
         },
         {
@@ -124,7 +128,7 @@ export function PhotoAnalysis({ onRisksDetected, companyActivity }: PhotoAnalysi
           control: "Faible",
           finalRisk: "Moyen",
           measures: "Ajuster la hauteur du poste, formation aux bonnes postures",
-          source: "Analyse photo",
+          source: photoLocation,
           sourceType: "Poste"
         }
       ];
@@ -303,16 +307,26 @@ export function PhotoAnalysis({ onRisksDetected, companyActivity }: PhotoAnalysi
               
               <CardContent className="p-4">
                 <div className="space-y-2">
-                  {photo.caption && (
+                  {photo.caption ? (
                     <div className="flex items-start gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <p className="text-sm">{photo.caption}</p>
                     </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <FileText className="h-4 w-4 mt-0.5" />
+                      <p className="text-sm italic">Cliquez sur modifier pour ajouter une légende</p>
+                    </div>
                   )}
-                  {photo.location && (
+                  {photo.location ? (
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <p className="text-sm text-muted-foreground">{photo.location}</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4 mt-0.5" />
+                      <p className="text-sm italic">Localisation non définie</p>
                     </div>
                   )}
                   
