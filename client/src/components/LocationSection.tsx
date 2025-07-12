@@ -144,117 +144,99 @@ export default function LocationSection({
         )}
         
         {location.workUnits.map((workUnit) => (
-          <div key={workUnit.id} className="border-l-4 border-orange-400 pl-6 bg-orange-50/50 rounded-r-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="bg-orange-100 text-orange-600 p-2 rounded-lg">
-                  <Settings className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded">UNITÉ DE TRAVAIL</span>
+          <Card key={workUnit.id} className="border-orange-200 bg-orange-50">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-orange-100 text-orange-600 p-2 rounded-lg">
+                    <Settings className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-300">
+                        <Settings className="h-3 w-3 mr-1" />
+                        Unité de travail
+                      </Badge>
+                    </div>
                     <Input
                       value={workUnit.name}
                       onChange={(e) => onUpdateWorkUnit(workUnit.id, { name: e.target.value })}
                       placeholder="Ex: Poste de soudage, Bureau comptable, Zone de stockage..."
-                      className="text-lg font-medium border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+                      className="text-lg font-medium border-none bg-transparent p-0 h-auto focus-visible:ring-0 text-orange-900"
                     />
+                    <p className="text-sm text-orange-600 mt-1">
+                      Zone d'activité spécifique : machines, outils, produits utilisés
+                    </p>
                   </div>
-                  <p className="text-sm text-orange-600">
-                    ⚠️ {workUnit.risks.length} risque{workUnit.risks.length !== 1 ? 's' : ''} identifié{workUnit.risks.length !== 1 ? 's' : ''}
-                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onGenerateRisks(workUnit.id)}
+                    disabled={isGeneratingRisks || !workUnit.name}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isGeneratingRisks ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4 mr-1" />
+                        Générer les risques
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAddPreventionMeasure(workUnit.id)}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Mesure
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRemoveWorkUnit(workUnit.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  size="sm"
-                  onClick={() => onGenerateRisks(workUnit.id)}
-                  disabled={isGeneratingRisks || !workUnit.name}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {isGeneratingRisks ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <>
-                      <Settings className="h-4 w-4 mr-1" />
-                      Générer les risques
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onRemoveWorkUnit(workUnit.id)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            </CardHeader>
 
-            {/* Quick Prevention Measures Input */}
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h5 className="text-sm font-medium text-blue-900">
-                  Mesures de prévention initiales (optionnel)
-                </h5>
-                <div className="flex gap-1">
-                  {['EPI obligatoires', 'Formation sécurité', 'Ventilation adaptée', 'Signalisation'].map((measure) => (
-                    <Button
-                      key={measure}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-6 px-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-100"
-                      onClick={() => {
-                        const currentMeasures = workUnit.preventionMeasures;
-                        const newMeasure = { id: crypto.randomUUID(), description: measure };
-                        const exists = currentMeasures.some(m => m.description === measure);
-                        if (!exists) {
-                          onUpdateWorkUnit(workUnit.id, { 
-                            preventionMeasures: [...currentMeasures, newMeasure] 
-                          });
-                        }
-                      }}
-                    >
-                      +{measure}
-                    </Button>
-                  ))}
+            <CardContent className="pt-0 space-y-4">
+              {/* Risks */}
+              <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-base font-medium text-orange-900 flex items-center">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Risques de l'unité de travail
+                  </h5>
+                  <span className="text-sm text-orange-600">
+                    {workUnit.risks.length} risque{workUnit.risks.length !== 1 ? 's' : ''} identifié{workUnit.risks.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
+                <p className="text-sm text-orange-700 mb-3">
+                  Risques liés aux activités : machines, outils, produits, postures, etc.
+                </p>
+                {workUnit.risks.length > 0 && <RiskTable risks={workUnit.risks} />}
               </div>
-              <Textarea
-                value={workUnit.preventionMeasures.map(m => m.description).join('\n')}
-                placeholder="Décrivez les mesures de prévention existantes pour cette unité de travail..."
-                className="min-h-[60px] bg-white border-blue-200 focus:border-blue-400 focus:ring-blue-200"
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value.trim()) {
-                    // Split by line breaks and create measures
-                    const measures = value.split('\n').filter(m => m.trim()).map(desc => ({
-                      id: crypto.randomUUID(),
-                      description: desc.trim()
-                    }));
-                    onUpdateWorkUnit(workUnit.id, { preventionMeasures: measures });
-                  } else {
-                    onUpdateWorkUnit(workUnit.id, { preventionMeasures: [] });
+
+              {/* Prevention Measures */}
+              {workUnit.preventionMeasures.length > 0 && (
+                <PreventionSection
+                  measures={workUnit.preventionMeasures}
+                  onAddMeasure={() => onAddPreventionMeasure(workUnit.id)}
+                  onUpdateMeasure={(measureId, description) => 
+                    onUpdatePreventionMeasure(workUnit.id, measureId, description)
                   }
-                }}
-              />
-              <p className="text-xs text-blue-700 mt-1">
-                Séparez chaque mesure par une nouvelle ligne ou utilisez les boutons ci-dessus
-              </p>
-            </div>
-
-            <RiskTable risks={workUnit.risks} />
-
-            <PreventionSection
-              measures={workUnit.preventionMeasures}
-              onAddMeasure={() => onAddPreventionMeasure(workUnit.id)}
-              onUpdateMeasure={(measureId, description) => 
-                onUpdatePreventionMeasure(workUnit.id, measureId, description)
-              }
-              onRemoveMeasure={(measureId) => onRemovePreventionMeasure(workUnit.id, measureId)}
-            />
-          </div>
+                  onRemoveMeasure={(measureId) => onRemovePreventionMeasure(workUnit.id, measureId)}
+                />
+              )}
+            </CardContent>
+          </Card>
         ))}
       </CardContent>
     </Card>
