@@ -204,6 +204,8 @@ export interface WorkUnit {
 export interface Location {
   id: string;
   name: string;
+  risks: Risk[];
+  preventionMeasures: PreventionMeasure[];
   workUnits: WorkUnit[];
 }
 

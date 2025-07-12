@@ -15,6 +15,7 @@ interface LocationSectionProps {
   onUpdateWorkUnit: (workUnitId: string, updates: Partial<WorkUnit>) => void;
   onRemoveWorkUnit: (workUnitId: string) => void;
   onGenerateRisks: (workUnitId: string) => void;
+  onGenerateLocationRisks: () => void;
   onAddPreventionMeasure: (workUnitId: string) => void;
   onUpdatePreventionMeasure: (workUnitId: string, measureId: string, description: string) => void;
   onRemovePreventionMeasure: (workUnitId: string, measureId: string) => void;
@@ -30,6 +31,7 @@ export default function LocationSection({
   onUpdateWorkUnit,
   onRemoveWorkUnit,
   onGenerateRisks,
+  onGenerateLocationRisks,
   onAddPreventionMeasure,
   onUpdatePreventionMeasure,
   onRemovePreventionMeasure,
@@ -70,6 +72,21 @@ export default function LocationSection({
           </div>
           <div className="flex items-center space-x-2">
             <Button
+              size="sm"
+              onClick={onGenerateLocationRisks}
+              disabled={isGeneratingRisks || !location.name}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isGeneratingRisks ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4 mr-1" />
+                  Générer risques du lieu
+                </>
+              )}
+            </Button>
+            <Button
               variant="ghost"
               size="sm"
               onClick={onAddWorkUnit}
@@ -91,6 +108,33 @@ export default function LocationSection({
       </CardHeader>
 
       <CardContent className="p-6 space-y-8">
+        {/* Risques du lieu */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-blue-900 flex items-center">
+              <MapPin className="h-5 w-5 mr-2" />
+              Risques généraux du lieu
+            </h4>
+            <span className="text-sm text-blue-600">
+              {location.risks.length} risque{location.risks.length !== 1 ? 's' : ''} identifié{location.risks.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <p className="text-sm text-blue-700 mb-4">
+            Risques liés à l'espace physique : accès, circulation, évacuation, structure, éclairage, etc.
+          </p>
+          {location.risks.length > 0 && <RiskTable risks={location.risks} />}
+        </div>
+
+        {/* Séparateur */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-slate-50 text-gray-500">Unités de travail dans ce lieu</span>
+          </div>
+        </div>
+
         {location.workUnits.length === 0 && (
           <div className="text-center py-8 text-slate-500">
             <Settings className="h-12 w-12 mx-auto mb-4 text-slate-300" />

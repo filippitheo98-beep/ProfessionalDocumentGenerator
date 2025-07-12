@@ -76,6 +76,8 @@ export default function DuerpGenerator() {
     const newLocation: Location = {
       id: crypto.randomUUID(),
       name: `Lieu ${locations.length + 1}`,
+      risks: [],
+      preventionMeasures: [],
       workUnits: []
     };
     const updatedLocations = [...locations, newLocation];
@@ -165,6 +167,24 @@ export default function DuerpGenerator() {
       });
       
       updateWorkUnit(locationId, workUnitId, { risks: response.risks });
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  const generateLocationRisks = async (locationId: string) => {
+    const location = locations.find(l => l.id === locationId);
+    
+    if (!location || !company) return;
+    
+    try {
+      const response = await generateRisksMutation.mutateAsync({
+        workUnitName: "Lieu général",
+        locationName: location.name,
+        companyActivity: company.activity
+      });
+      
+      updateLocation(locationId, { risks: response.risks });
     } catch (error) {
       // Error handled by mutation
     }
@@ -287,6 +307,7 @@ export default function DuerpGenerator() {
               onUpdateWorkUnit={(workUnitId, updates) => updateWorkUnit(location.id, workUnitId, updates)}
               onRemoveWorkUnit={(workUnitId) => removeWorkUnit(location.id, workUnitId)}
               onGenerateRisks={(workUnitId) => generateRisks(location.id, workUnitId)}
+              onGenerateLocationRisks={() => generateLocationRisks(location.id)}
               onAddPreventionMeasure={(workUnitId) => addPreventionMeasure(location.id, workUnitId)}
               onUpdatePreventionMeasure={(workUnitId, measureId, description) => 
                 updatePreventionMeasure(location.id, workUnitId, measureId, description)
