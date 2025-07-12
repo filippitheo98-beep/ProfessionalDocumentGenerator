@@ -4,7 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Download, Plus, MapPin, Settings, Trash2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Shield, Download, Plus, MapPin, Settings, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Company, Location, WorkStation, Risk, PreventionMeasure } from "@shared/schema";
 import CompanyForm from "@/components/CompanyForm";
@@ -16,6 +17,7 @@ export default function DuerpGenerator() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
   const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
+  const [expandedRiskSections, setExpandedRiskSections] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -371,6 +373,31 @@ export default function DuerpGenerator() {
     });
   };
 
+  const toggleRiskSection = (sectionId: string) => {
+    const newExpanded = new Set(expandedRiskSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
+    } else {
+      newExpanded.add(sectionId);
+    }
+    setExpandedRiskSections(newExpanded);
+  };
+
+  const toggleAllRiskSections = () => {
+    const allSections = [
+      ...locations.map(loc => `location-${loc.id}`),
+      ...workStations.map(ws => `workstation-${ws.id}`)
+    ];
+    
+    const allExpanded = allSections.every(id => expandedRiskSections.has(id));
+    
+    if (allExpanded) {
+      setExpandedRiskSections(new Set());
+    } else {
+      setExpandedRiskSections(new Set(allSections));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -387,6 +414,19 @@ export default function DuerpGenerator() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {(locations.length > 0 || workStations.length > 0) && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={toggleAllRiskSections}
+                  className="text-xs"
+                >
+                  {[
+                    ...locations.map(loc => `location-${loc.id}`),
+                    ...workStations.map(ws => `workstation-${ws.id}`)
+                  ].every(id => expandedRiskSections.has(id)) ? 'Réduire tout' : 'Développer tout'}
+                </Button>
+              )}
               <Button className="bg-primary hover:bg-primary/90">
                 <Download className="h-4 w-4 mr-2" />
                 Exporter PDF
@@ -492,24 +532,37 @@ export default function DuerpGenerator() {
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-base font-medium text-blue-900 flex items-center">
-                      <Shield className="h-4 w-4 mr-2" />
-                      Risques du lieu
-                    </h5>
-                    <span className="text-sm text-blue-600">
-                      {location.risks.length} risque{location.risks.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {location.risks.length > 0 ? (
-                    <RiskTable risks={location.risks} />
-                  ) : (
-                    <div className="text-center py-6 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
-                      <Shield className="h-8 w-8 mx-auto mb-2 text-blue-400" />
-                      <p className="text-sm text-blue-700 font-medium">Aucun risque généré</p>
-                      <p className="text-xs text-blue-600 mt-1">Cliquez sur "Générer risques" pour analyser ce lieu</p>
-                    </div>
-                  )}
+                  <Collapsible 
+                    open={expandedRiskSections.has(`location-${location.id}`)}
+                    onOpenChange={() => toggleRiskSection(`location-${location.id}`)}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between mb-3 cursor-pointer hover:bg-blue-50 rounded p-2 -m-2">
+                        <h5 className="text-base font-medium text-blue-900 flex items-center">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Risques du lieu
+                          {expandedRiskSections.has(`location-${location.id}`) ? 
+                            <ChevronDown className="h-4 w-4 ml-2" /> : 
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                          }
+                        </h5>
+                        <span className="text-sm text-blue-600">
+                          {location.risks.length} risque{location.risks.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {location.risks.length > 0 ? (
+                        <RiskTable risks={location.risks} />
+                      ) : (
+                        <div className="text-center py-6 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
+                          <Shield className="h-8 w-8 mx-auto mb-2 text-blue-400" />
+                          <p className="text-sm text-blue-700 font-medium">Aucun risque généré</p>
+                          <p className="text-xs text-blue-600 mt-1">Cliquez sur "Générer risques" pour analyser ce lieu</p>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
               </CardContent>
             </Card>
@@ -597,24 +650,37 @@ export default function DuerpGenerator() {
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="text-base font-medium text-orange-900 flex items-center">
-                      <Shield className="h-4 w-4 mr-2" />
-                      Risques du poste
-                    </h5>
-                    <span className="text-sm text-orange-600">
-                      {workStation.risks.length} risque{workStation.risks.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {workStation.risks.length > 0 ? (
-                    <RiskTable risks={workStation.risks} />
-                  ) : (
-                    <div className="text-center py-6 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50">
-                      <Shield className="h-8 w-8 mx-auto mb-2 text-orange-400" />
-                      <p className="text-sm text-orange-700 font-medium">Aucun risque généré</p>
-                      <p className="text-xs text-orange-600 mt-1">Cliquez sur "Générer risques" pour analyser ce poste</p>
-                    </div>
-                  )}
+                  <Collapsible 
+                    open={expandedRiskSections.has(`workstation-${workStation.id}`)}
+                    onOpenChange={() => toggleRiskSection(`workstation-${workStation.id}`)}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center justify-between mb-3 cursor-pointer hover:bg-orange-50 rounded p-2 -m-2">
+                        <h5 className="text-base font-medium text-orange-900 flex items-center">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Risques du poste
+                          {expandedRiskSections.has(`workstation-${workStation.id}`) ? 
+                            <ChevronDown className="h-4 w-4 ml-2" /> : 
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                          }
+                        </h5>
+                        <span className="text-sm text-orange-600">
+                          {workStation.risks.length} risque{workStation.risks.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {workStation.risks.length > 0 ? (
+                        <RiskTable risks={workStation.risks} />
+                      ) : (
+                        <div className="text-center py-6 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50">
+                          <Shield className="h-8 w-8 mx-auto mb-2 text-orange-400" />
+                          <p className="text-sm text-orange-700 font-medium">Aucun risque généré</p>
+                          <p className="text-xs text-orange-600 mt-1">Cliquez sur "Générer risques" pour analyser ce poste</p>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
               </CardContent>
             </Card>
