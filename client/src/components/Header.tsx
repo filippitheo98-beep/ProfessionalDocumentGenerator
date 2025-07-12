@@ -1,4 +1,4 @@
-import { Bell, Building, FileText, Home, LogOut, Settings, User } from 'lucide-react';
+import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import {
@@ -45,8 +45,35 @@ export function Header() {
               onClick={() => navigate('/duerp-generator')}
               className="transition-all"
             >
-              <FileText className="h-4 w-4 mr-2" />
+              <Shield className="h-4 w-4 mr-2" />
               Générateur
+            </Button>
+            <Button
+              variant={location === '/documents' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/documents')}
+              className="transition-all"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Documents
+            </Button>
+            <Button
+              variant={location === '/collaborators' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/collaborators')}
+              className="transition-all"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Équipe
+            </Button>
+            <Button
+              variant={location === '/reports' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/reports')}
+              className="transition-all"
+            >
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Rapports
             </Button>
           </nav>
         </div>

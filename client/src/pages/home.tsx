@@ -131,9 +131,11 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" size="sm" className="w-full">
-                  Voir tous
-                </Button>
+                <Link href="/documents">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Voir tous
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 
@@ -145,9 +147,11 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" size="sm" className="w-full">
-                  Gérer l'équipe
-                </Button>
+                <Link href="/collaborators">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Gérer l'équipe
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 
@@ -159,9 +163,11 @@ export default function Home() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" size="sm" className="w-full">
-                  Voir les stats
-                </Button>
+                <Link href="/reports">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Voir les stats
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>

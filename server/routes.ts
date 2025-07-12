@@ -197,6 +197,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   res.status(503).json({ message: 'PDF export temporarily disabled' });
   // });
 
+  // Documents API
+  app.get('/api/documents', (req, res) => {
+    const mockDocuments = [
+      {
+        id: 1,
+        companyName: 'TechCorp',
+        createdAt: '2024-01-15T10:00:00Z',
+        updatedAt: '2024-02-01T14:30:00Z',
+        status: 'active',
+        nextReviewDate: '2024-12-15T10:00:00Z',
+        riskCount: 23
+      },
+      {
+        id: 2,
+        companyName: 'BuildingCorp',
+        createdAt: '2024-02-10T09:15:00Z',
+        updatedAt: '2024-02-20T16:45:00Z',
+        status: 'expired',
+        nextReviewDate: '2024-01-10T09:15:00Z',
+        riskCount: 45
+      },
+      {
+        id: 3,
+        companyName: 'HealthCorp',
+        createdAt: '2024-03-05T11:30:00Z',
+        updatedAt: '2024-03-15T13:20:00Z',
+        status: 'draft',
+        nextReviewDate: '2024-06-05T11:30:00Z',
+        riskCount: 12
+      }
+    ];
+    res.json(mockDocuments);
+  });
+
+  // Collaborators API
+  app.get('/api/collaborators', (req, res) => {
+    const mockCollaborators = [
+      {
+        id: 1,
+        name: 'Marie Dupont',
+        email: 'marie.dupont@entreprise.com',
+        role: 'admin',
+        status: 'active',
+        lastLogin: '2024-03-15T10:30:00Z',
+        joinedAt: '2024-01-10T09:00:00Z'
+      },
+      {
+        id: 2,
+        name: 'Jean Martin',
+        email: 'jean.martin@entreprise.com',
+        role: 'editor',
+        status: 'active',
+        lastLogin: '2024-03-14T16:45:00Z',
+        joinedAt: '2024-02-01T14:00:00Z'
+      },
+      {
+        id: 3,
+        name: 'Sophie Bernard',
+        email: 'sophie.bernard@entreprise.com',
+        role: 'viewer',
+        status: 'pending',
+        lastLogin: '2024-03-10T08:15:00Z',
+        joinedAt: '2024-03-01T10:30:00Z'
+      }
+    ];
+    res.json(mockCollaborators);
+  });
+
+  app.post('/api/collaborators/invite', (req, res) => {
+    const { email, role } = req.body;
+    res.json({ 
+      success: true, 
+      message: 'Invitation envoyée',
+      invitedEmail: email,
+      role: role
+    });
+  });
+
+  // Reports API
+  app.get('/api/reports', (req, res) => {
+    const mockReportData = {
+      totalRisks: 247,
+      highRisks: 23,
+      mediumRisks: 89,
+      lowRisks: 135,
+      completedActions: 156,
+      pendingActions: 34,
+      companiesAnalyzed: 12,
+      riskTrends: [
+        { month: 'Jan', risks: 45, actions: 32 },
+        { month: 'Fév', risks: 52, actions: 38 },
+        { month: 'Mar', risks: 48, actions: 45 },
+        { month: 'Avr', risks: 61, actions: 52 },
+        { month: 'Mai', risks: 58, actions: 48 },
+        { month: 'Jun', risks: 67, actions: 59 },
+      ],
+      risksByCategory: [
+        { category: 'Chutes', count: 45, percentage: 18.2 },
+        { category: 'Électrique', count: 38, percentage: 15.4 },
+        { category: 'Chimique', count: 32, percentage: 13.0 },
+        { category: 'Ergonomique', count: 41, percentage: 16.6 },
+        { category: 'Mécanique', count: 29, percentage: 11.7 },
+        { category: 'Autres', count: 62, percentage: 25.1 },
+      ],
+      performanceMetrics: {
+        averageResolutionTime: 12.5,
+        complianceRate: 94.2,
+        preventionEffectiveness: 87.8,
+      }
+    };
+    res.json(mockReportData);
+  });
+
+  app.get('/api/reports/export', (req, res) => {
+    const { format, period } = req.query;
+    // Simuler un export
+    res.json({ 
+      success: true, 
+      message: `Export ${format} pour la période ${period} généré`,
+      downloadUrl: `/api/download/report_${period}.${format}`
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
