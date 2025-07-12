@@ -15,6 +15,7 @@ export default function DuerpGenerator() {
   const [company, setCompany] = useState<Company | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
+  const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -295,6 +296,78 @@ export default function DuerpGenerator() {
     }
   };
 
+  // Final table functions
+  const canGenerateFinalTable = () => {
+    const locationRisks = locations.some(loc => loc.risks.length > 0);
+    const workStationRisks = workStations.some(ws => ws.risks.length > 0);
+    return locationRisks || workStationRisks;
+  };
+
+  const generateFinalTable = () => {
+    const allRisks: Risk[] = [];
+    
+    // Ajouter les risques des lieux
+    locations.forEach(location => {
+      location.risks.forEach(risk => {
+        allRisks.push({
+          ...risk,
+          type: `${risk.type} (Lieu: ${location.name})`
+        });
+      });
+    });
+    
+    // Ajouter les risques des postes de travail
+    workStations.forEach(workStation => {
+      workStation.risks.forEach(risk => {
+        allRisks.push({
+          ...risk,
+          type: `${risk.type} (Poste: ${workStation.name})`
+        });
+      });
+    });
+    
+    setFinalRisks(allRisks);
+    
+    toast({
+      title: "Tableau final généré",
+      description: `${allRisks.length} risques consolidés dans le tableau final.`,
+    });
+  };
+
+  const downloadDocument = () => {
+    if (!company || finalRisks.length === 0) return;
+    
+    const csvContent = [
+      ["Type de risque", "Danger", "Gravité", "Fréquence", "Maîtrise", "Risque final", "Mesures de prévention"],
+      ...finalRisks.map(risk => [
+        risk.type,
+        risk.danger,
+        risk.gravity,
+        risk.frequency,
+        risk.control,
+        risk.finalRisk,
+        risk.measures
+      ])
+    ];
+    
+    const csvString = csvContent.map(row => row.join(";")).join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `DUERP_${company.name}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Document téléchargé",
+      description: "Le DUERP a été téléchargé avec succès.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -545,24 +618,54 @@ export default function DuerpGenerator() {
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-center space-x-4 mt-12">
-          <Button 
-            size="lg" 
-            className="bg-green-600 hover:bg-green-700 text-white"
-            disabled={generateRisksMutation.isPending}
-          >
-            <Shield className="h-4 w-4 mr-2" />
-            Générer tous les risques
-          </Button>
-          <Button 
-            size="lg" 
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Exporter le DUERP
-          </Button>
-        </div>
+        {/* Section Tableau Final */}
+        {(locations.length > 0 || workStations.length > 0) && (
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 mt-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-green-800 flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                Tableau final des risques
+              </h2>
+              <Button 
+                onClick={generateFinalTable}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!canGenerateFinalTable()}
+              >
+                Générer le tableau final
+              </Button>
+            </div>
+            
+            {finalRisks.length > 0 ? (
+              <div className="space-y-4">
+                <div className="text-sm text-green-700 mb-4">
+                  <p className="font-medium">Tableau consolidé avec {finalRisks.length} risque{finalRisks.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs">Comprend les risques de {locations.length} lieu{locations.length !== 1 ? 'x' : ''} et {workStations.length} poste{workStations.length !== 1 ? 's' : ''}</p>
+                </div>
+                <RiskTable risks={finalRisks} />
+                <div className="flex justify-end mt-4">
+                  <Button 
+                    onClick={downloadDocument}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Télécharger le DUERP
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-green-300 rounded-lg bg-green-50">
+                <Shield className="h-12 w-12 mx-auto mb-4 text-green-400" />
+                <p className="text-green-700 font-medium mb-2">Tableau final non généré</p>
+                <p className="text-sm text-green-600">
+                  {!canGenerateFinalTable() 
+                    ? "Générez des risques pour vos lieux et postes de travail avant de créer le tableau final"
+                    : "Cliquez sur 'Générer le tableau final' pour consolider tous les risques"
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
