@@ -54,21 +54,6 @@ export default function DuerpGenerator() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
-
   // Create company mutation
   const createCompanyMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -83,6 +68,7 @@ export default function DuerpGenerator() {
       setCompany(newCompany);
       setLocations(variables.locations || []);
       setWorkStations(variables.workStations || []);
+      setLastSaved(new Date());
       toast({
         title: "Entreprise créée",
         description: "Les informations de l'entreprise ont été enregistrées avec succès.",
@@ -115,6 +101,7 @@ export default function DuerpGenerator() {
       setCompany({ ...company, ...data });
       setLocations(data.locations || []);
       setWorkStations(data.workStations || []);
+      setLastSaved(new Date());
       toast({
         title: "Entreprise mise à jour",
         description: "Les informations ont été mises à jour avec succès.",
@@ -237,43 +224,6 @@ export default function DuerpGenerator() {
     }
   };
 
-  const exportToPDF = async () => {
-    try {
-      const response = await fetch('/api/export/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          risks: finalRisks,
-          companyName: company?.name || 'Export',
-          companyActivity: company?.activity || 'Non renseigné'
-        })
-      });
-
-      if (!response.ok) throw new Error('Export failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `DUERP_${company?.name || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "Export réussi",
-        description: "Le fichier PDF a été téléchargé avec succès.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur d'export",
-        description: "Impossible d'exporter en PDF.",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -286,147 +236,193 @@ export default function DuerpGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Générateur de DUERP</h1>
-                <p className="text-sm text-slate-600">Document Unique d'Évaluation des Risques Professionnels</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              {canGenerateFinalTable() && (
-                <Button 
-                  onClick={generateFinalTable}
-                  disabled={isGeneratingFinalRisks}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {isGeneratingFinalRisks ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Génération en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="h-4 w-4 mr-2" />
-                      Générer le tableau des risques
-                    </>
-                  )}
-                </Button>
-              )}
-              {finalRisks.length > 0 && (
-                <>
-                  <Button 
-                    onClick={exportToExcel}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Exporter Excel
-                  </Button>
-                  <Button 
-                    onClick={exportToPDF}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Exporter PDF
-                  </Button>
-                </>
-              )}
-            </div>
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="animate-fade-in">
+            <h1 className="text-2xl font-bold">Générateur de DUERP</h1>
+            <p className="text-muted-foreground">
+              Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <AutoSaveIndicator 
+              lastSaved={lastSaved} 
+              hasUnsavedChanges={hasUnsavedChanges}
+              isAutoSaving={createCompanyMutation.isPending}
+            />
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Company Information */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Création du DUERP</CardTitle>
-              <Badge variant="secondary">Configuration complète</Badge>
+        <Tabs defaultValue="creation" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="creation" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Création
+            </TabsTrigger>
+            <TabsTrigger value="analysis" className="flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              Analyse IA
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4" />
+              Suggestions
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Historique
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="creation" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Company Form */}
+              <div className="lg:col-span-2">
+                <CompanyForm
+                  onSubmit={handleCompanySubmit}
+                  isLoading={createCompanyMutation.isPending || isGeneratingFinalRisks}
+                  initialData={company}
+                  locations={locations}
+                  workStations={workStations}
+                />
+              </div>
+
+              {/* Actions Panel */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button
+                      onClick={generateFinalTable}
+                      disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
+                      className="w-full transition-all hover:scale-105"
+                    >
+                      {isGeneratingFinalRisks ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Génération en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Générer le tableau des risques
+                        </>
+                      )}
+                    </Button>
+                    
+                    {finalRisks.length > 0 && (
+                      <div className="space-y-2">
+                        <Button
+                          onClick={exportToExcel}
+                          variant="outline"
+                          className="w-full transition-all hover:scale-105"
+                        >
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Exporter Excel
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Stats */}
+                {finalRisks.length > 0 && (
+                  <StatsCards 
+                    stats={{
+                      totalCompanies: company ? 1 : 0,
+                      totalDocuments: company ? 1 : 0,
+                      pendingActions: 0,
+                      expiringSoon: 0,
+                      completedActions: 0,
+                      riskScore: 85
+                    }}
+                    risks={finalRisks}
+                  />
+                )}
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <CompanyForm 
-              onSubmit={handleCompanySubmit} 
-              isLoading={createCompanyMutation.isPending}
-              initialData={company}
-              locations={locations}
-              workStations={workStations}
+          </TabsContent>
+
+          <TabsContent value="analysis" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PhotoAnalysis
+                onRisksDetected={(risks) => setFinalRisks(prev => [...prev, ...risks])}
+                companyActivity={company?.activity || ''}
+              />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Analyse automatique</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    L'IA analyse vos photos pour détecter automatiquement les risques et suggérer des mesures de prévention adaptées.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">✓ Détection d'obstacles</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">✓ Risques électriques</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">✓ Postures de travail</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">✓ Équipements de protection</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="suggestions" className="space-y-6">
+            <SmartSuggestions
+              risks={finalRisks}
+              companyActivity={company?.activity || ''}
+              onAddSuggestion={(suggestion) => {
+                setPreventionMeasures(prev => [...prev, suggestion]);
+                setHasUnsavedChanges(true);
+              }}
             />
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        {/* Final Risk Table */}
+          <TabsContent value="history" className="space-y-6">
+            <VersionHistory
+              companyId={company?.id}
+              onRestore={(version) => {
+                toast({
+                  title: "Version restaurée",
+                  description: `Document restauré à la version ${version.version}`,
+                });
+              }}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Risk Table */}
         {finalRisks.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <div className="flex items-center justify-between">
+          <div className="mt-8 animate-fade-in">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-green-600" />
-                  Tableau final des risques
+                  <FileText className="h-5 w-5" />
+                  Tableau des risques consolidé
+                  <Badge variant="secondary">{finalRisks.length} risques</Badge>
                 </CardTitle>
-                <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  {finalRisks.length} risque{finalRisks.length !== 1 ? 's' : ''} identifié{finalRisks.length !== 1 ? 's' : ''}
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-600 mt-1">
-                Synthèse de tous les risques identifiés pour votre entreprise
-              </p>
-            </CardHeader>
-            <CardContent>
-              <RiskTable risks={finalRisks} showSource={true} />
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <RiskTable risks={finalRisks} showSource={true} />
+              </CardContent>
+            </Card>
+          </div>
         )}
-
-        {/* Instructions */}
-        {!company && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Comment utiliser ce générateur ?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <div className="bg-blue-100 text-blue-600 rounded-full p-2 text-sm font-semibold">1</div>
-                  <div>
-                    <h3 className="font-medium">Remplissez les informations de votre entreprise</h3>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Nom, activité et mesures de prévention déjà en place
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="bg-blue-100 text-blue-600 rounded-full p-2 text-sm font-semibold">2</div>
-                  <div>
-                    <h3 className="font-medium">Ajoutez vos lieux et postes de travail</h3>
-                    <p className="text-sm text-slate-600 mt-1">
-                      Définissez tous les espaces et postes où s'exercent les activités
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="bg-green-100 text-green-600 rounded-full p-2 text-sm font-semibold">3</div>
-                  <div>
-                    <h3 className="font-medium">Générez le tableau des risques</h3>
-                    <p className="text-sm text-slate-600 mt-1">
-                      L'IA analysera automatiquement tous vos lieux et postes pour identifier les risques
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+      </div>
     </div>
   );
 }
