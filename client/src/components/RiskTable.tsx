@@ -4,9 +4,10 @@ import type { Risk } from "@shared/schema";
 
 interface RiskTableProps {
   risks: Risk[];
+  showSource?: boolean;
 }
 
-export default function RiskTable({ risks }: RiskTableProps) {
+export default function RiskTable({ risks, showSource = false }: RiskTableProps) {
   const getGravityColor = (gravity: string) => {
     switch (gravity) {
       case 'Faible': return 'bg-green-100 text-green-800';
@@ -60,6 +61,7 @@ export default function RiskTable({ risks }: RiskTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              {showSource && <TableHead className="font-medium text-slate-700">Source</TableHead>}
               <TableHead className="font-medium text-slate-700">Risque</TableHead>
               <TableHead className="font-medium text-slate-700">Danger potentiel</TableHead>
               <TableHead className="font-medium text-slate-700">Gravité</TableHead>
@@ -72,6 +74,13 @@ export default function RiskTable({ risks }: RiskTableProps) {
           <TableBody>
             {risks.map((risk) => (
               <TableRow key={risk.id} className="hover:bg-slate-50">
+                {showSource && (
+                  <TableCell className="font-medium text-slate-900">
+                    <Badge variant="outline" className={risk.sourceType === 'Lieu' ? 'border-blue-300 text-blue-700' : 'border-orange-300 text-orange-700'}>
+                      {risk.sourceType}: {risk.source}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="font-medium text-slate-900">{risk.type}</TableCell>
                 <TableCell className="text-slate-700">{risk.danger}</TableCell>
                 <TableCell>

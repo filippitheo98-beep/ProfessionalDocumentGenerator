@@ -187,6 +187,8 @@ export interface Risk {
   control: 'Faible' | 'Moyenne' | 'Élevée';
   finalRisk: 'Faible' | 'Moyen' | 'Important';
   measures: string;
+  source?: string;
+  sourceType?: 'Lieu' | 'Poste';
 }
 
 export interface PreventionMeasure {

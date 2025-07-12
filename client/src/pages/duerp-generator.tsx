@@ -311,7 +311,8 @@ export default function DuerpGenerator() {
       location.risks.forEach(risk => {
         allRisks.push({
           ...risk,
-          type: `${risk.type} (Lieu: ${location.name})`
+          source: location.name,
+          sourceType: 'Lieu'
         });
       });
     });
@@ -321,7 +322,8 @@ export default function DuerpGenerator() {
       workStation.risks.forEach(risk => {
         allRisks.push({
           ...risk,
-          type: `${risk.type} (Poste: ${workStation.name})`
+          source: workStation.name,
+          sourceType: 'Poste'
         });
       });
     });
@@ -338,8 +340,9 @@ export default function DuerpGenerator() {
     if (!company || finalRisks.length === 0) return;
     
     const csvContent = [
-      ["Type de risque", "Danger", "Gravité", "Fréquence", "Maîtrise", "Risque final", "Mesures de prévention"],
+      ["Source", "Type de risque", "Danger", "Gravité", "Fréquence", "Maîtrise", "Risque final", "Mesures de prévention"],
       ...finalRisks.map(risk => [
+        `${risk.sourceType}: ${risk.source}`,
         risk.type,
         risk.danger,
         risk.gravity,
@@ -641,7 +644,7 @@ export default function DuerpGenerator() {
                   <p className="font-medium">Tableau consolidé avec {finalRisks.length} risque{finalRisks.length !== 1 ? 's' : ''}</p>
                   <p className="text-xs">Comprend les risques de {locations.length} lieu{locations.length !== 1 ? 'x' : ''} et {workStations.length} poste{workStations.length !== 1 ? 's' : ''}</p>
                 </div>
-                <RiskTable risks={finalRisks} />
+                <RiskTable risks={finalRisks} showSource={true} />
                 <div className="flex justify-end mt-4">
                   <Button 
                     onClick={downloadDocument}
