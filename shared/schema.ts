@@ -206,7 +206,15 @@ export interface Location {
   name: string;
   risks: Risk[];
   preventionMeasures: PreventionMeasure[];
-  workUnits: WorkUnit[];
+}
+
+export interface WorkStation {
+  id: string;
+  name: string;
+  description?: string;
+  risks: Risk[];
+  preventionMeasures: PreventionMeasure[];
+  locationId?: string; // Optionnel - peut être rattaché à un lieu
 }
 
 export const generateRisksRequestSchema = z.object({
