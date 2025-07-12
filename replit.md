@@ -10,6 +10,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-07-12**: Restructured DUERP creation workflow - integrated locations and work stations directly into company form
+- **2025-07-12**: Replaced individual risk generation with consolidated final risk table generation
+- **2025-07-12**: Simplified user interface - single form for complete company setup instead of step-by-step process
+- **2025-07-12**: Enhanced CompanyForm component to manage locations and work stations inline
+- **2025-07-12**: Implemented batch risk generation for all locations and work stations at once
+- **2025-07-12**: Fixed database connection issues and application startup problems
 - **2025-07-12**: Added existing prevention measures management to company form
 - **2025-07-12**: Fixed database schema to include existing_prevention_measures column
 - **2025-07-12**: Enhanced company creation with prevention measures tracking
