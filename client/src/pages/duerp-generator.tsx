@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Shield, 
-  Download
+  Download,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -183,6 +185,80 @@ export default function DuerpGenerator() {
     );
   };
 
+  // Export functions
+  const exportToExcel = async () => {
+    try {
+      const response = await fetch('/api/export/excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          risks: finalRisks,
+          companyName: company?.name || 'Export'
+        })
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DUERP_${company?.name || 'Export'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export réussi",
+        description: "Le fichier Excel a été téléchargé avec succès.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter en Excel.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          risks: finalRisks,
+          companyName: company?.name || 'Export',
+          companyActivity: company?.activity || 'Non renseigné'
+        })
+      });
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DUERP_${company?.name || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export réussi",
+        description: "Le fichier PDF a été téléchargé avec succès.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter en PDF.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -229,10 +305,24 @@ export default function DuerpGenerator() {
                   )}
                 </Button>
               )}
-              <Button className="bg-primary hover:bg-primary/90">
-                <Download className="h-4 w-4 mr-2" />
-                Exporter PDF
-              </Button>
+              {finalRisks.length > 0 && (
+                <>
+                  <Button 
+                    onClick={exportToExcel}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Exporter Excel
+                  </Button>
+                  <Button 
+                    onClick={exportToPDF}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Exporter PDF
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
