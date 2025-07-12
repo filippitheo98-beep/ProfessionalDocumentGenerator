@@ -379,8 +379,8 @@ export default function DuerpGenerator() {
                         type="text"
                         value={location.name}
                         onChange={(e) => updateLocation(location.id, { name: e.target.value })}
-                        className="text-lg font-medium bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-blue-900 placeholder-blue-400"
-                        placeholder="Nom du lieu"
+                        className="text-lg font-medium bg-white border-2 border-blue-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-blue-900 placeholder-blue-500"
+                        placeholder="Ex: Atelier principal, Bureau comptable, Entrepôt..."
                       />
                       <p className="text-sm text-blue-600 mt-1">
                         Espace physique : structure, accès, circulation, éclairage
@@ -428,7 +428,11 @@ export default function DuerpGenerator() {
                   {location.risks.length > 0 ? (
                     <RiskTable risks={location.risks} />
                   ) : (
-                    <p className="text-sm text-blue-700 italic">Aucun risque généré</p>
+                    <div className="text-center py-6 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-blue-400" />
+                      <p className="text-sm text-blue-700 font-medium">Aucun risque généré</p>
+                      <p className="text-xs text-blue-600 mt-1">Cliquez sur "Générer risques" pour analyser ce lieu</p>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -476,15 +480,15 @@ export default function DuerpGenerator() {
                         type="text"
                         value={workStation.name}
                         onChange={(e) => updateWorkStation(workStation.id, { name: e.target.value })}
-                        className="text-lg font-medium bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-orange-900 placeholder-orange-400"
-                        placeholder="Nom du poste"
+                        className="text-lg font-medium bg-white border-2 border-orange-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-orange-900 placeholder-orange-500"
+                        placeholder="Ex: Poste de soudage, Réception téléphonique, Machine CNC..."
                       />
                       <input
                         type="text"
                         value={workStation.description || ''}
                         onChange={(e) => updateWorkStation(workStation.id, { description: e.target.value })}
-                        className="text-sm bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-orange-600 placeholder-orange-400 mt-1"
-                        placeholder="Description du poste (optionnel)"
+                        className="text-sm bg-white border-2 border-orange-200 rounded-lg px-3 py-2 mt-2 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-orange-700 placeholder-orange-400"
+                        placeholder="Ex: Soudure à l'arc, Accueil clients, Usinage de précision..."
                       />
                     </div>
                   </div>
@@ -529,7 +533,11 @@ export default function DuerpGenerator() {
                   {workStation.risks.length > 0 ? (
                     <RiskTable risks={workStation.risks} />
                   ) : (
-                    <p className="text-sm text-orange-700 italic">Aucun risque généré</p>
+                    <div className="text-center py-6 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-orange-400" />
+                      <p className="text-sm text-orange-700 font-medium">Aucun risque généré</p>
+                      <p className="text-xs text-orange-600 mt-1">Cliquez sur "Générer risques" pour analyser ce poste</p>
+                    </div>
                   )}
                 </div>
               </CardContent>
