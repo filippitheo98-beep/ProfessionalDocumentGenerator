@@ -185,8 +185,8 @@ export class DatabaseStorage implements IStorage {
     
     const prompt = `En tant qu'expert en santé et sécurité au travail français, analysez le poste "${workUnitName}" dans le lieu "${locationName}" d'une entreprise de "${companyActivity}".
 
-Générez exactement 4 risques professionnels principaux selon la réglementation française. Pour chaque risque, indiquez :
-- type: Type de risque (TMS, Chute, Bruit, Incendie, etc.)
+Identifiez TOUS les risques professionnels pertinents selon la réglementation française. Soyez exhaustif mais restez cohérent avec le contexte. Pour chaque risque identifié, indiquez :
+- type: Type de risque (TMS, Chute, Bruit, Incendie, Chimique, Électrique, etc.)
 - danger: Description précise du danger
 - gravity: "Faible", "Moyenne", ou "Élevée"  
 - frequency: "Rare", "Occasionnel", "Hebdomadaire", ou "Quotidien"
@@ -194,7 +194,7 @@ Générez exactement 4 risques professionnels principaux selon la réglementatio
 - finalRisk: "Faible", "Moyen", ou "Important" (calculé selon gravity × frequency ÷ control)
 - measures: Mesures de prévention spécifiques
 
-Répondez uniquement avec un JSON valide contenant un tableau "risks" avec exactement 4 éléments.`;
+Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous les risques identifiés.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -210,10 +210,7 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec exact
 
       const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
       
-      // Limiter à 4 risques maximum
-      const limitedRisks = result.risks.slice(0, 4);
-      
-      return limitedRisks.map((risk: any) => ({
+      return result.risks.map((risk: any) => ({
         id: crypto.randomUUID(),
         type: risk.type || 'Risque général',
         danger: risk.danger || 'Danger non spécifié',
