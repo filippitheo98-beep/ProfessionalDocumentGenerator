@@ -256,12 +256,26 @@ export default function DuerpGenerator() {
         {/* Locations Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">Lieux et unités de travail</h2>
-            <Button onClick={addLocation} className="bg-primary hover:bg-primary/90">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Lieux et unités de travail</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Un <strong>lieu</strong> est un espace physique (atelier, bureau, entrepôt). 
+                Une <strong>unité de travail</strong> est une zone spécifique dans ce lieu (poste de soudage, zone de stockage).
+              </p>
+            </div>
+            <Button onClick={addLocation} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4 mr-2" />
               Ajouter un lieu
             </Button>
           </div>
+
+          {locations.length === 0 && (
+            <div className="text-center py-12 text-slate-500">
+              <MapPin className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+              <p className="text-lg font-medium mb-2">Aucun lieu défini</p>
+              <p className="text-sm">Commencez par ajouter un lieu de travail pour votre entreprise</p>
+            </div>
+          )}
 
           {locations.map((location) => (
             <LocationSection

@@ -46,22 +46,25 @@ export default function LocationSection({
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="bg-slate-50 border-b border-slate-200">
+    <Card className="overflow-hidden border-2 border-blue-200">
+      <CardHeader className="bg-blue-50 border-b border-blue-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-primary/10 text-primary p-2 rounded-lg">
-              <MapPin className="h-5 w-5" />
+            <div className="bg-blue-100 text-blue-600 p-3 rounded-lg">
+              <MapPin className="h-6 w-6" />
             </div>
             <div>
-              <Input
-                value={location.name}
-                onChange={(e) => onUpdateLocation({ name: e.target.value })}
-                placeholder="Nom du lieu"
-                className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
-              />
-              <p className="text-sm text-slate-600">
-                {location.workUnits.length} unité{location.workUnits.length !== 1 ? 's' : ''} de travail
+              <div className="flex items-center space-x-2 mb-1">
+                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">LIEU</span>
+                <Input
+                  value={location.name}
+                  onChange={(e) => onUpdateLocation({ name: e.target.value })}
+                  placeholder="Ex: Atelier principal, Bureau, Entrepôt..."
+                  className="text-lg font-semibold border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+                />
+              </div>
+              <p className="text-sm text-blue-600">
+                📍 {location.workUnits.length} unité{location.workUnits.length !== 1 ? 's' : ''} de travail dans ce lieu
               </p>
             </div>
           </div>
@@ -70,9 +73,10 @@ export default function LocationSection({
               variant="ghost"
               size="sm"
               onClick={onAddWorkUnit}
-              className="text-primary hover:text-primary hover:bg-primary/10"
+              className="text-green-600 hover:text-green-700 hover:bg-green-50"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1" />
+              Ajouter une unité
             </Button>
             <Button
               variant="ghost"
@@ -87,22 +91,33 @@ export default function LocationSection({
       </CardHeader>
 
       <CardContent className="p-6 space-y-8">
+        {location.workUnits.length === 0 && (
+          <div className="text-center py-8 text-slate-500">
+            <Settings className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+            <p className="text-lg font-medium mb-2">Aucune unité de travail</p>
+            <p className="text-sm">Cliquez sur "Ajouter une unité" pour commencer</p>
+          </div>
+        )}
+        
         {location.workUnits.map((workUnit) => (
-          <div key={workUnit.id} className="border-l-4 border-primary pl-6">
+          <div key={workUnit.id} className="border-l-4 border-orange-400 pl-6 bg-orange-50/50 rounded-r-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <div className="bg-amber-100 text-amber-600 p-2 rounded-lg">
+                <div className="bg-orange-100 text-orange-600 p-2 rounded-lg">
                   <Settings className="h-5 w-5" />
                 </div>
                 <div>
-                  <Input
-                    value={workUnit.name}
-                    onChange={(e) => onUpdateWorkUnit(workUnit.id, { name: e.target.value })}
-                    placeholder="Nom de l'unité de travail"
-                    className="text-lg font-medium border-none bg-transparent p-0 h-auto focus-visible:ring-0"
-                  />
-                  <p className="text-sm text-slate-600">
-                    {workUnit.risks.length} risque{workUnit.risks.length !== 1 ? 's' : ''} identifié{workUnit.risks.length !== 1 ? 's' : ''}
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded">UNITÉ DE TRAVAIL</span>
+                    <Input
+                      value={workUnit.name}
+                      onChange={(e) => onUpdateWorkUnit(workUnit.id, { name: e.target.value })}
+                      placeholder="Ex: Poste de soudage, Bureau comptable, Zone de stockage..."
+                      className="text-lg font-medium border-none bg-transparent p-0 h-auto focus-visible:ring-0"
+                    />
+                  </div>
+                  <p className="text-sm text-orange-600">
+                    ⚠️ {workUnit.risks.length} risque{workUnit.risks.length !== 1 ? 's' : ''} identifié{workUnit.risks.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
