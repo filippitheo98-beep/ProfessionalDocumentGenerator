@@ -28,7 +28,15 @@ export interface IStorage {
   
   // DUERP document operations
   getDuerpDocument(companyId: number): Promise<DuerpDocument | undefined>;
-  createDuerpDocument(companyId: number, locations: Location[]): Promise<DuerpDocument>;
+  getDuerpDocuments(companyId: number): Promise<DuerpDocument[]>;
+  createDuerpDocument(data: {
+    companyId: number;
+    title: string;
+    locations: Location[];
+    workStations: any[];
+    finalRisks: Risk[];
+    preventionMeasures: PreventionMeasure[];
+  }): Promise<DuerpDocument>;
   updateDuerpDocument(id: number, updates: Partial<DuerpDocument>): Promise<DuerpDocument>;
   
   // Risk operations
@@ -88,13 +96,33 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
-  async createDuerpDocument(companyId: number, locations: Location[]): Promise<DuerpDocument> {
+  async getDuerpDocuments(companyId: number): Promise<DuerpDocument[]> {
+    const documents = await db
+      .select()
+      .from(duerpDocuments)
+      .where(eq(duerpDocuments.companyId, companyId))
+      .orderBy(desc(duerpDocuments.createdAt));
+    return documents;
+  }
+
+  async createDuerpDocument(data: {
+    companyId: number;
+    title: string;
+    locations: Location[];
+    workStations: any[];
+    finalRisks: Risk[];
+    preventionMeasures: PreventionMeasure[];
+  }): Promise<DuerpDocument> {
     const [document] = await db
       .insert(duerpDocuments)
       .values({
-        companyId,
+        companyId: data.companyId,
+        title: data.title,
         version: "1.0",
-        locations,
+        locations: data.locations,
+        workStations: data.workStations,
+        finalRisks: data.finalRisks,
+        preventionMeasures: data.preventionMeasures,
         status: "draft",
         nextReviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
         updatedAt: new Date()

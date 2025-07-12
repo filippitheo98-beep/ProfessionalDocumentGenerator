@@ -33,9 +33,13 @@ export const users = pgTable("users", {
 export const duerpDocuments = pgTable("duerp_documents", {
   id: serial("id").primaryKey(),
   companyId: integer("company_id").references(() => companies.id).notNull(),
-  version: varchar("version", { length: 20 }).notNull(),
+  title: text("title").notNull(),
+  version: varchar("version", { length: 20 }).default("1.0"),
   status: varchar("status", { length: 50 }).default("draft"), // draft, pending, approved, archived
   locations: jsonb("locations").$type<Location[]>().default([]),
+  workStations: jsonb("work_stations").$type<WorkStation[]>().default([]),
+  finalRisks: jsonb("final_risks").$type<Risk[]>().default([]),
+  preventionMeasures: jsonb("prevention_measures").$type<PreventionMeasure[]>().default([]),
   approvedBy: integer("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   nextReviewDate: timestamp("next_review_date"),

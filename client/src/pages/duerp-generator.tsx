@@ -16,7 +16,9 @@ import {
   History,
   Camera,
   Lightbulb,
-  Settings
+  Settings,
+  Save,
+  FolderOpen
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +33,9 @@ import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
 import { PhotoAnalysis } from '@/components/PhotoAnalysis';
 import { VersionHistory } from '@/components/VersionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { 
   Company, 
   Location, 
@@ -53,6 +58,9 @@ export default function DuerpGenerator() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
+  const [duerpTitle, setDuerpTitle] = useState("");
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
 
   // Create company mutation
   const createCompanyMutation = useMutation({
@@ -224,6 +232,111 @@ export default function DuerpGenerator() {
     }
   };
 
+  // Save DUERP document mutation
+  const saveDuerpMutation = useMutation({
+    mutationFn: async (title: string) => {
+      if (!company) {
+        throw new Error("Aucune entreprise sélectionnée");
+      }
+      
+      const response = await apiRequest('/api/duerp/save', {
+        method: 'POST',
+        body: JSON.stringify({
+          companyId: company.id,
+          title,
+          locations,
+          workStations,
+          finalRisks,
+          preventionMeasures
+        }),
+      });
+      return response;
+    },
+    onSuccess: (savedDocument) => {
+      setShowSaveDialog(false);
+      setDuerpTitle("");
+      toast({
+        title: "Document sauvegardé",
+        description: "Le document DUERP a été sauvegardé avec succès.",
+      });
+      // Refresh saved documents list
+      loadSavedDocuments();
+    },
+    onError: (error) => {
+      toast({
+        title: "Erreur de sauvegarde",
+        description: "Une erreur s'est produite lors de la sauvegarde du document.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Load saved documents function
+  const loadSavedDocuments = async () => {
+    if (!company) return;
+    
+    try {
+      const documents = await apiRequest(`/api/duerp/${company.id}`);
+      setSavedDocuments(documents);
+    } catch (error) {
+      console.error('Error loading saved documents:', error);
+    }
+  };
+
+  // Handle save DUERP
+  const handleSaveDuerp = () => {
+    if (!company) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez d'abord créer une entreprise.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (finalRisks.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Générez d'abord le tableau des risques avant de sauvegarder.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setShowSaveDialog(true);
+  };
+
+  // Handle load saved document
+  const handleLoadDocument = async (documentId: number) => {
+    try {
+      const document = await apiRequest(`/api/duerp/document/${documentId}`);
+      
+      // Load document data into current state
+      setLocations(document.locations || []);
+      setWorkStations(document.workStations || []);
+      setFinalRisks(document.finalRisks || []);
+      setPreventionMeasures(document.preventionMeasures || []);
+      
+      toast({
+        title: "Document chargé",
+        description: `Le document "${document.title}" a été chargé avec succès.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger le document.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load saved documents when company changes
+  useEffect(() => {
+    if (company) {
+      loadSavedDocuments();
+    }
+  }, [company]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -325,10 +438,52 @@ export default function DuerpGenerator() {
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
                           Exporter Excel
                         </Button>
+                        
+                        <Button
+                          onClick={handleSaveDuerp}
+                          disabled={saveDuerpMutation.isPending}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all hover:scale-105"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder DUERP'}
+                        </Button>
                       </div>
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Saved Documents */}
+                {savedDocuments.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4" />
+                        Documents sauvegardés
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {savedDocuments.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <p className="font-medium text-sm">{doc.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(doc.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleLoadDocument(doc.id)}
+                            >
+                              Charger
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Stats */}
                 {finalRisks.length > 0 && (
@@ -423,6 +578,47 @@ export default function DuerpGenerator() {
           </div>
         )}
       </div>
+      
+      {/* Save Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sauvegarder le document DUERP</DialogTitle>
+            <DialogDescription>
+              Donnez un nom à votre document DUERP pour le sauvegarder et pouvoir le consulter plus tard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Titre du document</Label>
+              <Input
+                id="title"
+                placeholder="Ex: DUERP Mars 2024"
+                value={duerpTitle}
+                onChange={(e) => setDuerpTitle(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveDialog(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (duerpTitle.trim()) {
+                  saveDuerpMutation.mutate(duerpTitle.trim());
+                }
+              }}
+              disabled={!duerpTitle.trim() || saveDuerpMutation.isPending}
+            >
+              {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

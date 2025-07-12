@@ -2,9 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -167,6 +169,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ 
         message: error instanceof z.ZodError ? "Données invalides" : "Erreur lors de la génération des risques" 
       });
+    }
+  });
+
+  // DUERP Documents API
+  app.get('/api/duerp/:companyId', async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.companyId);
+      const documents = await storage.getDuerpDocuments(companyId);
+      res.json(documents);
+    } catch (error) {
+      console.error('Error fetching DUERP documents:', error);
+      res.status(500).json({ message: 'Failed to fetch documents' });
+    }
+  });
+
+  app.post('/api/duerp/save', async (req, res) => {
+    try {
+      const { companyId, title, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      
+      if (!companyId || !title) {
+        return res.status(400).json({ message: 'Company ID and title are required' });
+      }
+
+      const document = await storage.createDuerpDocument({
+        companyId,
+        title,
+        locations: locations || [],
+        workStations: workStations || [],
+        finalRisks: finalRisks || [],
+        preventionMeasures: preventionMeasures || []
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error('Error saving DUERP document:', error);
+      res.status(500).json({ message: 'Failed to save document' });
+    }
+  });
+
+  app.get('/api/duerp/document/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const documents = await db.select().from(duerpDocuments).where(eq(duerpDocuments.id, id));
+      if (!documents.length) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      res.json(documents[0]);
+    } catch (error) {
+      console.error('Error fetching DUERP document:', error);
+      res.status(500).json({ message: 'Failed to fetch document' });
     }
   });
 
