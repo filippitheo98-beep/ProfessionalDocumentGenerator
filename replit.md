@@ -10,6 +10,9 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2025-07-12**: Added existing prevention measures management to company form
+- **2025-07-12**: Fixed database schema to include existing_prevention_measures column
+- **2025-07-12**: Enhanced company creation with prevention measures tracking
 - **2025-07-12**: Fixed authentication issues preventing company creation
 - **2025-07-12**: Implemented simplified tree-structure interface for locations and work units
 - **2025-07-12**: Corrected apiRequest function to use modern fetch API standards
