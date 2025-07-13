@@ -2,11 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc, count, lt } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -38,14 +38,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard routes
   app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
     try {
-      // Mock data for now - in production, calculate from database
+      // Calculate real stats from database
+      const [companiesCount] = await db.select({ count: count() }).from(companies);
+      const [documentsCount] = await db.select({ count: count() }).from(duerpDocuments);
+      
       const stats = {
-        totalCompanies: 3,
-        totalDocuments: 5,
-        pendingActions: 12,
-        expiringSoon: 2,
-        completedActions: 8,
-        riskScore: 75,
+        totalCompanies: companiesCount?.count || 0,
+        totalDocuments: documentsCount?.count || 0,
+        pendingActions: 0,
+        expiringSoon: 0,
+        completedActions: 0,
+        riskScore: 0,
       };
       res.json(stats);
     } catch (error) {
@@ -56,34 +59,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/dashboard/activity', isAuthenticated, async (req, res) => {
     try {
-      // Mock data for now - in production, fetch from database
-      const activities = [
-        {
-          id: "1",
-          type: "document_created",
-          title: "Nouveau DUERP créé",
-          description: "Document pour l'entreprise TechCorp",
-          timestamp: "Il y a 2 heures",
-          priority: "medium"
-        },
-        {
-          id: "2",
-          type: "action_completed",
-          title: "Action terminée",
-          description: "Installation d'extincteurs supplémentaires",
-          timestamp: "Il y a 4 heures",
-          priority: "high"
-        },
-        {
-          id: "3",
-          type: "document_updated",
-          title: "Document mis à jour",
-          description: "Ajout d'une nouvelle unité de travail",
-          timestamp: "Hier",
-          priority: "low"
-        }
-      ];
-      res.json(activities);
+      // Get recent activity from database
+      const activities = await db
+        .select({
+          id: duerpDocuments.id,
+          title: duerpDocuments.title,
+          companyName: companies.name,
+          timestamp: duerpDocuments.updatedAt
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .orderBy(desc(duerpDocuments.updatedAt))
+        .limit(5);
+      
+      const formattedActivities = activities.map(activity => ({
+        id: activity.id.toString(),
+        type: "document_created",
+        title: activity.title,
+        description: `Document pour l'entreprise ${activity.companyName}`,
+        timestamp: activity.timestamp ? new Date(activity.timestamp).toLocaleDateString() : "Récemment",
+        priority: "medium"
+      }));
+      
+      res.json(formattedActivities);
     } catch (error) {
       console.error("Error fetching activity:", error);
       res.status(500).json({ message: "Failed to fetch activity" });
@@ -92,19 +90,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/documents/expiring', isAuthenticated, async (req, res) => {
     try {
-      // Mock data for now - in production, fetch from database
-      const expiring = [
-        {
-          id: 1,
-          companyName: "TechCorp",
-          nextReviewDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 2,
-          companyName: "InnovSolutions",
-          nextReviewDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ];
+      // Get documents expiring within 30 days
+      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const expiring = await db
+        .select({
+          id: duerpDocuments.id,
+          companyName: companies.name,
+          nextReviewDate: duerpDocuments.nextReviewDate
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .where(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow))
+        .orderBy(duerpDocuments.nextReviewDate);
+      
       res.json(expiring);
     } catch (error) {
       console.error("Error fetching expiring documents:", error);
@@ -211,14 +209,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/duerp/document/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const documents = await db.select().from(duerpDocuments).where(eq(duerpDocuments.id, id));
+      const documents = await db
+        .select()
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .where(eq(duerpDocuments.id, id));
+      
       if (!documents.length) {
         return res.status(404).json({ message: 'Document not found' });
       }
-      res.json(documents[0]);
+      
+      const document = documents[0];
+      res.json({
+        ...document.duerp_documents,
+        company: document.companies
+      });
     } catch (error) {
       console.error('Error fetching DUERP document:', error);
       res.status(500).json({ message: 'Failed to fetch document' });
+    }
+  });
+
+  app.put('/api/duerp/document/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { title, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      
+      const [updatedDocument] = await db
+        .update(duerpDocuments)
+        .set({
+          title,
+          locations,
+          workStations,
+          finalRisks,
+          preventionMeasures,
+          updatedAt: new Date()
+        })
+        .where(eq(duerpDocuments.id, id))
+        .returning();
+      
+      if (!updatedDocument) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      res.json(updatedDocument);
+    } catch (error) {
+      console.error('Error updating DUERP document:', error);
+      res.status(500).json({ message: 'Failed to update document' });
     }
   });
 
@@ -250,71 +287,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // });
 
   // Documents API
-  app.get('/api/documents', (req, res) => {
-    const mockDocuments = [
-      {
-        id: 1,
-        companyName: 'TechCorp',
-        createdAt: '2024-01-15T10:00:00Z',
-        updatedAt: '2024-02-01T14:30:00Z',
-        status: 'active',
-        nextReviewDate: '2024-12-15T10:00:00Z',
-        riskCount: 23
-      },
-      {
-        id: 2,
-        companyName: 'BuildingCorp',
-        createdAt: '2024-02-10T09:15:00Z',
-        updatedAt: '2024-02-20T16:45:00Z',
-        status: 'expired',
-        nextReviewDate: '2024-01-10T09:15:00Z',
-        riskCount: 45
-      },
-      {
-        id: 3,
-        companyName: 'HealthCorp',
-        createdAt: '2024-03-05T11:30:00Z',
-        updatedAt: '2024-03-15T13:20:00Z',
-        status: 'draft',
-        nextReviewDate: '2024-06-05T11:30:00Z',
-        riskCount: 12
-      }
-    ];
-    res.json(mockDocuments);
+  app.get('/api/documents', async (req, res) => {
+    try {
+      const documents = await db
+        .select({
+          id: duerpDocuments.id,
+          companyName: companies.name,
+          title: duerpDocuments.title,
+          createdAt: duerpDocuments.createdAt,
+          updatedAt: duerpDocuments.updatedAt,
+          status: duerpDocuments.status,
+          nextReviewDate: duerpDocuments.nextReviewDate,
+          riskCount: duerpDocuments.finalRisks
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .orderBy(desc(duerpDocuments.updatedAt));
+      
+      const formattedDocuments = documents.map(doc => ({
+        ...doc,
+        riskCount: Array.isArray(doc.riskCount) ? doc.riskCount.length : 0
+      }));
+      
+      res.json(formattedDocuments);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      res.status(500).json({ message: 'Failed to fetch documents' });
+    }
   });
 
   // Collaborators API
   app.get('/api/collaborators', (req, res) => {
-    const mockCollaborators = [
-      {
-        id: 1,
-        name: 'Marie Dupont',
-        email: 'marie.dupont@entreprise.com',
-        role: 'admin',
-        status: 'active',
-        lastLogin: '2024-03-15T10:30:00Z',
-        joinedAt: '2024-01-10T09:00:00Z'
-      },
-      {
-        id: 2,
-        name: 'Jean Martin',
-        email: 'jean.martin@entreprise.com',
-        role: 'editor',
-        status: 'active',
-        lastLogin: '2024-03-14T16:45:00Z',
-        joinedAt: '2024-02-01T14:00:00Z'
-      },
-      {
-        id: 3,
-        name: 'Sophie Bernard',
-        email: 'sophie.bernard@entreprise.com',
-        role: 'viewer',
-        status: 'pending',
-        lastLogin: '2024-03-10T08:15:00Z',
-        joinedAt: '2024-03-01T10:30:00Z'
-      }
-    ];
-    res.json(mockCollaborators);
+    res.json([]);
   });
 
   app.post('/api/collaborators/invite', (req, res) => {
@@ -328,38 +332,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reports API
-  app.get('/api/reports', (req, res) => {
-    const mockReportData = {
-      totalRisks: 247,
-      highRisks: 23,
-      mediumRisks: 89,
-      lowRisks: 135,
-      completedActions: 156,
-      pendingActions: 34,
-      companiesAnalyzed: 12,
-      riskTrends: [
-        { month: 'Jan', risks: 45, actions: 32 },
-        { month: 'Fév', risks: 52, actions: 38 },
-        { month: 'Mar', risks: 48, actions: 45 },
-        { month: 'Avr', risks: 61, actions: 52 },
-        { month: 'Mai', risks: 58, actions: 48 },
-        { month: 'Jun', risks: 67, actions: 59 },
-      ],
-      risksByCategory: [
-        { category: 'Chutes', count: 45, percentage: 18.2 },
-        { category: 'Électrique', count: 38, percentage: 15.4 },
-        { category: 'Chimique', count: 32, percentage: 13.0 },
-        { category: 'Ergonomique', count: 41, percentage: 16.6 },
-        { category: 'Mécanique', count: 29, percentage: 11.7 },
-        { category: 'Autres', count: 62, percentage: 25.1 },
-      ],
-      performanceMetrics: {
-        averageResolutionTime: 12.5,
-        complianceRate: 94.2,
-        preventionEffectiveness: 87.8,
-      }
-    };
-    res.json(mockReportData);
+  app.get('/api/reports', async (req, res) => {
+    try {
+      const [companiesCount] = await db.select({ count: count() }).from(companies);
+      const [documentsCount] = await db.select({ count: count() }).from(duerpDocuments);
+      
+      const reportData = {
+        totalRisks: 0,
+        highRisks: 0,
+        mediumRisks: 0,
+        lowRisks: 0,
+        completedActions: 0,
+        pendingActions: 0,
+        companiesAnalyzed: companiesCount?.count || 0,
+        riskTrends: [],
+        risksByCategory: [],
+        performanceMetrics: {
+          averageResolutionTime: 0,
+          complianceRate: 0,
+          preventionEffectiveness: 0,
+        }
+      };
+      res.json(reportData);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      res.status(500).json({ message: 'Failed to fetch reports' });
+    }
   });
 
   app.get('/api/reports/export', (req, res) => {

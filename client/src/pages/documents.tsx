@@ -202,9 +202,11 @@ export default function Documents() {
                       <Eye className="h-4 w-4 mr-2" />
                       Voir
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Modifier
+                    <Button variant="outline" size="sm" className="flex-1" asChild>
+                      <Link href={`/duerp-generator?edit=${doc.id}`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Modifier
+                      </Link>
                     </Button>
                     <Button variant="outline" size="sm">
                       <Download className="h-4 w-4" />

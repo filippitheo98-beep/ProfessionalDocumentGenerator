@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { 
   Card, 
   CardContent, 
@@ -48,6 +49,10 @@ export default function DuerpGenerator() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
+  
+  // Get edit document ID from URL query
+  const editDocumentId = new URLSearchParams(location.split('?')[1] || '').get('edit');
   
   // State
   const [company, setCompany] = useState<Company | null>(null);
@@ -61,6 +66,20 @@ export default function DuerpGenerator() {
   const [duerpTitle, setDuerpTitle] = useState("");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<number | null>(null);
+  
+  // Load existing document query
+  const { data: existingDocument, isLoading: isLoadingDocument } = useQuery({
+    queryKey: ['/api/duerp/document', editDocumentId],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/duerp/document/${editDocumentId}`, {
+        method: 'GET',
+      });
+      return response;
+    },
+    enabled: !!editDocumentId,
+  });
 
   // Create company mutation
   const createCompanyMutation = useMutation({
@@ -98,6 +117,32 @@ export default function DuerpGenerator() {
       toast({
         title: "Erreur",
         description: `Impossible de créer l'entreprise: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update document mutation
+  const updateDocumentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest(`/api/duerp/document/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      return response;
+    },
+    onSuccess: (updatedDocument) => {
+      setLastSaved(new Date());
+      toast({
+        title: "Document modifié",
+        description: "Le document DUERP a été modifié avec succès.",
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating document:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le document DUERP.",
         variant: "destructive",
       });
     },
@@ -303,7 +348,21 @@ export default function DuerpGenerator() {
       return;
     }
     
-    setShowSaveDialog(true);
+    if (isEditing && editingDocumentId) {
+      // Auto-save for editing mode
+      updateDocumentMutation.mutate({
+        id: editingDocumentId,
+        title: duerpTitle || existingDocument?.title || "Document DUERP",
+        companyId: company.id,
+        locations,
+        workStations,
+        finalRisks,
+        preventionMeasures,
+        nextReviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      });
+    } else {
+      setShowSaveDialog(true);
+    }
   };
 
   // Handle load saved document
@@ -337,7 +396,20 @@ export default function DuerpGenerator() {
     }
   }, [company]);
 
-  if (isLoading) {
+  // Effect to load existing document for editing
+  useEffect(() => {
+    if (existingDocument && !isLoadingDocument) {
+      setLocations(existingDocument.locations || []);
+      setWorkStations(existingDocument.workStations || []);
+      setFinalRisks(existingDocument.finalRisks || []);
+      setPreventionMeasures(existingDocument.preventionMeasures || []);
+      setDuerpTitle(existingDocument.title || "");
+      setIsEditing(true);
+      setEditingDocumentId(existingDocument.id);
+    }
+  }, [existingDocument, isLoadingDocument]);
+
+  if (isLoading || isLoadingDocument) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -356,9 +428,13 @@ export default function DuerpGenerator() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="animate-fade-in">
-            <h1 className="text-2xl font-bold">Générateur de DUERP</h1>
+            <h1 className="text-2xl font-bold">
+              {isEditing ? "Modifier le DUERP" : "Générateur de DUERP"}
+            </h1>
             <p className="text-muted-foreground">
-              Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA
+              {isEditing 
+                ? "Modifiez votre Document Unique d'Évaluation des Risques existant" 
+                : "Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA"}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -396,7 +472,7 @@ export default function DuerpGenerator() {
               <div className="lg:col-span-2">
                 <CompanyForm
                   onSubmit={handleCompanySubmit}
-                  isLoading={createCompanyMutation.isPending || isGeneratingFinalRisks}
+                  isLoading={createCompanyMutation.isPending || isGeneratingFinalRisks || updateDocumentMutation.isPending}
                   initialData={company}
                   locations={locations}
                   workStations={workStations}
