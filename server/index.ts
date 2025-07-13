@@ -57,8 +57,11 @@ app.use((req, res, next) => {
   }
 
   // Serve the app on the configured port
-  // Default to 5000 for Replit, but can be overridden via PORT env var for local deployments
+  // Default to 5000 for Replit compatibility, but can be overridden via PORT env var
   const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+  
+  console.log(`🚀 Tentative de démarrage sur le port ${port}`);
+  console.log(`📊 Variables d'environnement - PORT: ${process.env.PORT}`);
   server.listen({
     port,
     host: "0.0.0.0",
