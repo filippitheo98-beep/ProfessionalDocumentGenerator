@@ -74,7 +74,7 @@ echo ================================================
 echo    APPLICATION DEMARREE !
 echo ================================================
 echo.
-echo Ouvrez votre navigateur et allez a: http://localhost:3000 (ou port configure dans .env)
+echo Ouvrez votre navigateur et allez a: http://localhost:3001
 echo.
 echo Pour arreter l'application, appuyez sur Ctrl+C
 echo.
