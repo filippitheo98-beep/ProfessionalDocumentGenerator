@@ -51,8 +51,12 @@ export default function DuerpGenerator() {
   const queryClient = useQueryClient();
   const [location] = useLocation();
   
-  // Get edit document ID from URL query
-  const editDocumentId = new URLSearchParams(location.split('?')[1] || '').get('edit');
+  // Get document ID from URL query
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const editDocumentId = urlParams.get('edit');
+  const viewDocumentId = urlParams.get('view');
+  const documentId = editDocumentId || viewDocumentId;
+  const isViewMode = !!viewDocumentId;
   
   // State
   const [company, setCompany] = useState<Company | null>(null);
@@ -71,14 +75,14 @@ export default function DuerpGenerator() {
   
   // Load existing document query
   const { data: existingDocument, isLoading: isLoadingDocument } = useQuery({
-    queryKey: ['/api/duerp/document', editDocumentId],
+    queryKey: ['/api/duerp/document', documentId],
     queryFn: async () => {
-      const response = await apiRequest(`/api/duerp/document/${editDocumentId}`, {
+      const response = await apiRequest(`/api/duerp/document/${documentId}`, {
         method: 'GET',
       });
       return response;
     },
-    enabled: !!editDocumentId,
+    enabled: !!documentId,
   });
 
   // Create company mutation
@@ -396,7 +400,7 @@ export default function DuerpGenerator() {
     }
   }, [company]);
 
-  // Effect to load existing document for editing
+  // Effect to load existing document for editing/viewing
   useEffect(() => {
     if (existingDocument && !isLoadingDocument) {
       setLocations(existingDocument.locations || []);
@@ -404,10 +408,15 @@ export default function DuerpGenerator() {
       setFinalRisks(existingDocument.finalRisks || []);
       setPreventionMeasures(existingDocument.preventionMeasures || []);
       setDuerpTitle(existingDocument.title || "");
-      setIsEditing(true);
+      setIsEditing(!!editDocumentId);
       setEditingDocumentId(existingDocument.id);
+      
+      // Load company data if available
+      if (existingDocument.company) {
+        setCompany(existingDocument.company);
+      }
     }
-  }, [existingDocument, isLoadingDocument]);
+  }, [existingDocument, isLoadingDocument, editDocumentId]);
 
   if (isLoading || isLoadingDocument) {
     return (
@@ -429,11 +438,13 @@ export default function DuerpGenerator() {
         <div className="flex items-center justify-between mb-6">
           <div className="animate-fade-in">
             <h1 className="text-2xl font-bold">
-              {isEditing ? "Modifier le DUERP" : "Générateur de DUERP"}
+              {isViewMode ? "Visualisation du DUERP" : isEditing ? "Modifier le DUERP" : "Générateur de DUERP"}
             </h1>
             <p className="text-muted-foreground">
-              {isEditing 
-                ? "Modifiez votre Document Unique d'Évaluation des Risques existant" 
+              {isViewMode 
+                ? `Consultez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
+                : isEditing 
+                ? `Modifiez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
                 : "Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA"}
             </p>
           </div>
@@ -447,36 +458,76 @@ export default function DuerpGenerator() {
         </div>
 
         <Tabs defaultValue="creation" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full ${isViewMode ? 'grid-cols-2' : 'grid-cols-4'}`}>
             <TabsTrigger value="creation" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              Création
+              {isViewMode ? 'Document' : 'Création'}
             </TabsTrigger>
-            <TabsTrigger value="analysis" className="flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              Analyse IA
-            </TabsTrigger>
+            {!isViewMode && (
+              <TabsTrigger value="analysis" className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Analyse IA
+              </TabsTrigger>
+            )}
             <TabsTrigger value="suggestions" className="flex items-center gap-2">
               <Lightbulb className="h-4 w-4" />
-              Suggestions
+              {isViewMode ? 'Infos' : 'Suggestions'}
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Historique
-            </TabsTrigger>
+            {!isViewMode && (
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Historique
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="creation" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Company Form */}
               <div className="lg:col-span-2">
-                <CompanyForm
-                  onSubmit={handleCompanySubmit}
-                  isLoading={createCompanyMutation.isPending || isGeneratingFinalRisks || updateDocumentMutation.isPending}
-                  initialData={company}
-                  locations={locations}
-                  workStations={workStations}
-                />
+                {!isViewMode && (
+                  <CompanyForm
+                    onSubmit={handleCompanySubmit}
+                    isLoading={createCompanyMutation.isPending || isGeneratingFinalRisks || updateDocumentMutation.isPending}
+                    initialData={company}
+                    locations={locations}
+                    workStations={workStations}
+                  />
+                )}
+                
+                {/* Company Info Display for View Mode */}
+                {isViewMode && company && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Informations de l'entreprise</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="font-semibold">Nom:</span> {company.name}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Secteur d'activité:</span> {company.activity}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Adresse:</span> {company.address}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Nombre d'employés:</span> {company.employeeCount}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Contact:</span> {company.contactPerson}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Email:</span> {company.email}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Téléphone:</span> {company.phoneNumber}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Actions Panel */}
@@ -486,25 +537,7 @@ export default function DuerpGenerator() {
                     <CardTitle className="text-lg">Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Button
-                      onClick={generateFinalTable}
-                      disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
-                      className="w-full transition-all hover:scale-105"
-                    >
-                      {isGeneratingFinalRisks ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Génération en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Shield className="h-4 w-4 mr-2" />
-                          Générer le tableau des risques
-                        </>
-                      )}
-                    </Button>
-                    
-                    {finalRisks.length > 0 && (
+                    {isViewMode ? (
                       <div className="space-y-2">
                         <Button
                           onClick={exportToExcel}
@@ -516,14 +549,55 @@ export default function DuerpGenerator() {
                         </Button>
                         
                         <Button
-                          onClick={handleSaveDuerp}
-                          disabled={saveDuerpMutation.isPending}
+                          onClick={() => window.location.href = `/duerp-generator?edit=${documentId}`}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all hover:scale-105"
                         >
-                          <Save className="h-4 w-4 mr-2" />
-                          {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder DUERP'}
+                          <Settings className="h-4 w-4 mr-2" />
+                          Modifier ce document
                         </Button>
                       </div>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={generateFinalTable}
+                          disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
+                          className="w-full transition-all hover:scale-105"
+                        >
+                          {isGeneratingFinalRisks ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Génération en cours...
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4 mr-2" />
+                              Générer le tableau des risques
+                            </>
+                          )}
+                        </Button>
+                        
+                        {finalRisks.length > 0 && (
+                          <div className="space-y-2">
+                            <Button
+                              onClick={exportToExcel}
+                              variant="outline"
+                              className="w-full transition-all hover:scale-105"
+                            >
+                              <FileSpreadsheet className="h-4 w-4 mr-2" />
+                              Exporter Excel
+                            </Button>
+                            
+                            <Button
+                              onClick={handleSaveDuerp}
+                              disabled={saveDuerpMutation.isPending}
+                              className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all hover:scale-105"
+                            >
+                              <Save className="h-4 w-4 mr-2" />
+                              {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder DUERP'}
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>

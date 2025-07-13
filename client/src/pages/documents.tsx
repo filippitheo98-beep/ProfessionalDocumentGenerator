@@ -224,9 +224,11 @@ export default function Documents() {
                   </div>
                   
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Voir
+                    <Button variant="outline" size="sm" className="flex-1" asChild>
+                      <Link href={`/duerp-generator?view=${doc.id}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Voir
+                      </Link>
                     </Button>
                     <Button variant="outline" size="sm" className="flex-1" asChild>
                       <Link href={`/duerp-generator?edit=${doc.id}`}>
