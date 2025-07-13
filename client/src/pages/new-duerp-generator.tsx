@@ -301,6 +301,11 @@ export default function NewDuerpGenerator() {
 
   const handleExportPDF = async () => {
     try {
+      toast({
+        title: "Génération en cours",
+        description: "Capture des graphiques...",
+      });
+      
       // Capturer les graphiques
       const chartImages: { [key: string]: string } = {};
       
@@ -312,11 +317,13 @@ export default function NewDuerpGenerator() {
       if (barChartElement) {
         const canvas = await html2canvas(barChartElement as HTMLElement, {
           backgroundColor: 'white',
-          scale: 2,
+          scale: 1,
           useCORS: true,
-          logging: false
+          logging: false,
+          width: 800,
+          height: 400
         });
-        chartImages.barChart = canvas.toDataURL('image/png');
+        chartImages.barChart = canvas.toDataURL('image/jpeg', 0.8);
       }
       
       // Capturer le graphique en secteurs
@@ -324,12 +331,19 @@ export default function NewDuerpGenerator() {
       if (pieChartElement) {
         const canvas = await html2canvas(pieChartElement as HTMLElement, {
           backgroundColor: 'white',
-          scale: 2,
+          scale: 1,
           useCORS: true,
-          logging: false
+          logging: false,
+          width: 800,
+          height: 400
         });
-        chartImages.pieChart = canvas.toDataURL('image/png');
+        chartImages.pieChart = canvas.toDataURL('image/jpeg', 0.8);
       }
+
+      toast({
+        title: "Génération en cours",
+        description: "Création du document PDF...",
+      });
 
       const response = await fetch('/api/export/pdf', {
         method: 'POST',
@@ -367,9 +381,10 @@ export default function NewDuerpGenerator() {
         });
       }
     } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error);
       toast({
         title: "Erreur d'export",
-        description: "Impossible d'exporter le fichier PDF",
+        description: "Impossible d'exporter le fichier PDF. Vérifiez que les risques sont générés.",
         variant: "destructive",
       });
     }

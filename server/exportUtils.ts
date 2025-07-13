@@ -151,7 +151,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     if (chartImages.barChart) {
       try {
         const barChart = chartImages.barChart.replace(/^data:image\/[a-z]+;base64,/, '');
-        doc.addImage(barChart, 'PNG', 20, yPos, 170, 80);
+        doc.addImage(barChart, 'JPEG', 20, yPos, 170, 80);
         yPos += 90;
         
         doc.setFontSize(12);
@@ -173,7 +173,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
         }
         
         const pieChart = chartImages.pieChart.replace(/^data:image\/[a-z]+;base64,/, '');
-        doc.addImage(pieChart, 'PNG', 20, yPos, 170, 80);
+        doc.addImage(pieChart, 'JPEG', 20, yPos, 170, 80);
         yPos += 90;
         
         doc.setFontSize(12);
