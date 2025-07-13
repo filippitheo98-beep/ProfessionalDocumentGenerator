@@ -547,19 +547,19 @@ export default function DuerpGenerator() {
                           <span className="font-semibold">Secteur d'activité:</span> {company.activity}
                         </div>
                         <div>
-                          <span className="font-semibold">Adresse:</span> {company.address}
+                          <span className="font-semibold">Adresse:</span> {company.address || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Nombre d'employés:</span> {company.employeeCount}
+                          <span className="font-semibold">Nombre d'employés:</span> {company.employeeCount || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Contact:</span> {company.contactPerson}
+                          <span className="font-semibold">Contact:</span> {company.contactPerson || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Email:</span> {company.email}
+                          <span className="font-semibold">Email:</span> {company.email || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Téléphone:</span> {company.phoneNumber}
+                          <span className="font-semibold">Téléphone:</span> {company.phoneNumber || "Non renseigné"}
                         </div>
                       </div>
                     </CardContent>

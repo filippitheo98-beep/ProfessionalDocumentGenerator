@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,22 @@ export default function CompanyForm({ onSubmit, isLoading, initialData, location
       workStations: workStations,
     },
   });
+
+  // Update form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log("Updating CompanyForm with new initialData:", initialData);
+      form.setValue("name", initialData.name || "");
+      form.setValue("activity", initialData.activity || "");
+      form.setValue("existingPreventionMeasures", initialData.existingPreventionMeasures || []);
+    }
+  }, [initialData, form]);
+
+  // Update form when locations/workStations change
+  useEffect(() => {
+    form.setValue("locations", locations);
+    form.setValue("workStations", workStations);
+  }, [locations, workStations, form]);
 
   const addPreventionMeasure = () => {
     const currentMeasures = form.getValues("existingPreventionMeasures");
