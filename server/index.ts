@@ -22,8 +22,20 @@ app.use(express.urlencoded({ extended: false, limit: '50mb' }));
     }
 
     const port = 5000;
+    
+    // Route de test simple
+    app.get('/test', (req, res) => {
+      res.sendFile(__dirname + '/../test.html');
+    });
+    
+    // Route application simple
+    app.get('/simple', (req, res) => {
+      res.sendFile(__dirname + '/../simple.html');
+    });
+    
     server.listen(port, "0.0.0.0", () => {
       console.log(`🚀 DUERP Generator sur http://localhost:${port}`);
+      console.log(`🧪 Test simple disponible sur: http://localhost:${port}/test`);
     });
   } catch (error) {
     console.error('Erreur démarrage:', error);

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DUERP Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .risk-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .risk-table th, .risk-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .risk-table th {
+            background-color: #3498db;
+            color: white;
+        }
+        .risk-faible { background-color: #d4edda; }
+        .risk-moyen { background-color: #fff3cd; }
+        .risk-important { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Générateur de DUERP</h1>
+        
+        <div id="message"></div>
+        
+        <form id="companyForm">
+            <div class="form-group">
+                <label for="companyName">Nom de l'entreprise *</label>
+                <input type="text" id="companyName" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="activity">Activité *</label>
+                <input type="text" id="activity" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Adresse</label>
+                <input type="text" id="address">
+            </div>
+            
+            <div class="form-group">
+                <label for="employeeCount">Nombre d'employés</label>
+                <input type="number" id="employeeCount" min="1" value="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="location">Lieu de travail</label>
+                <input type="text" id="location" placeholder="ex: Atelier, Bureau, Entrepôt">
+            </div>
+            
+            <div class="form-group">
+                <label for="workUnit">Poste de travail</label>
+                <input type="text" id="workUnit" placeholder="ex: Opérateur, Secrétaire, Magasinier">
+            </div>
+            
+            <button type="submit">Créer l'entreprise</button>
+            <button type="button" onclick="generateRisks()">Générer les risques</button>
+        </form>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let currentCompany = null;
+        
+        document.getElementById('companyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            createCompany();
+        });
+        
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => messageDiv.innerHTML = '', 3000);
+        }
+        
+        function createCompany() {
+            const companyData = {
+                name: document.getElementById('companyName').value,
+                activity: document.getElementById('activity').value,
+                address: document.getElementById('address').value || 'Non renseignée',
+                phone: '01 23 45 67 89',
+                email: 'contact@entreprise.com',
+                employeeCount: parseInt(document.getElementById('employeeCount').value) || 1,
+                locations: [],
+                workStations: [],
+                finalRisks: [],
+                preventionMeasures: [],
+                existingPreventionMeasures: []
+            };
+            
+            fetch('/api/companies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(companyData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                currentCompany = data;
+                showMessage('✅ Entreprise créée avec succès!');
+                console.log('Entreprise créée:', data);
+            })
+            .catch(error => {
+                showMessage('❌ Erreur lors de la création: ' + error.message, 'error');
+                console.error('Erreur:', error);
+            });
+        }
+        
+        function generateRisks() {
+            if (!currentCompany) {
+                showMessage('❌ Veuillez d\'abord créer une entreprise', 'error');
+                return;
+            }
+            
+            const location = document.getElementById('location').value || 'Bureau';
+            const workUnit = document.getElementById('workUnit').value || 'Employé';
+            const activity = document.getElementById('activity').value;
+            
+            const riskData = {
+                workUnitName: workUnit,
+                locationName: location,
+                companyActivity: activity
+            };
+            
+            fetch('/api/generate-risks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(riskData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayRisks(data.risks);
+                showMessage('✅ Risques générés avec succès!');
+            })
+            .catch(error => {
+                showMessage('❌ Erreur lors de la génération des risques: ' + error.message, 'error');
+                console.error('Erreur:', error);
+            });
+        }
+        
+        function displayRisks(risks) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<h2>📊 Évaluation des Risques</h2>';
+            html += '<table class="risk-table">';
+            html += '<thead><tr>';
+            html += '<th>Type</th>';
+            html += '<th>Danger</th>';
+            html += '<th>Gravité</th>';
+            html += '<th>Fréquence</th>';
+            html += '<th>Maîtrise</th>';
+            html += '<th>Risque Final</th>';
+            html += '<th>Mesures</th>';
+            html += '</tr></thead>';
+            html += '<tbody>';
+            
+            risks.forEach(risk => {
+                const riskClass = risk.finalRisk === 'Faible' ? 'risk-faible' : 
+                                 risk.finalRisk === 'Moyen' ? 'risk-moyen' : 'risk-important';
+                html += `<tr class="${riskClass}">`;
+                html += `<td>${risk.type}</td>`;
+                html += `<td>${risk.danger}</td>`;
+                html += `<td>${risk.gravity}</td>`;
+                html += `<td>${risk.frequency}</td>`;
+                html += `<td>${risk.control}</td>`;
+                html += `<td><strong>${risk.finalRisk}</strong></td>`;
+                html += `<td>${risk.measures}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            html += '<br><button onclick="exportData()">📄 Exporter PDF</button>';
+            html += '<button onclick="exportExcel()">📊 Exporter Excel</button>';
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function exportData() {
+            if (!currentCompany) {
+                showMessage('❌ Aucune donnée à exporter', 'error');
+                return;
+            }
+            
+            showMessage('🔄 Export en cours...', 'info');
+            
+            fetch('/api/export/pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    companyId: currentCompany.id,
+                    risks: currentCompany.finalRisks || []
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `DUERP_${currentCompany.name}.pdf`;
+                a.click();
+                showMessage('✅ PDF exporté avec succès!');
+            })
+            .catch(error => {
+                showMessage('❌ Erreur lors de l\'export: ' + error.message, 'error');
+            });
+        }
+        
+        function exportExcel() {
+            if (!currentCompany) {
+                showMessage('❌ Aucune donnée à exporter', 'error');
+                return;
+            }
+            
+            showMessage('🔄 Export Excel en cours...', 'info');
+            
+            fetch('/api/export/excel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    companyId: currentCompany.id,
+                    risks: currentCompany.finalRisks || []
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `DUERP_${currentCompany.name}.xlsx`;
+                a.click();
+                showMessage('✅ Excel exporté avec succès!');
+            })
+            .catch(error => {
+                showMessage('❌ Erreur lors de l\'export: ' + error.message, 'error');
+            });
+        }
+    </script>
+</body>
+</html>
