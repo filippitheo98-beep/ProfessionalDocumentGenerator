@@ -15,6 +15,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      const isLocalEnvironment = !process.env.REPLIT_DB_URL && !process.env.REPL_ID;
+      
+      if (isLocalEnvironment) {
+        // Mode local : retourner un utilisateur fictif
+        return res.json({
+          id: "local-user",
+          email: "user@localhost",
+          firstName: "Utilisateur",
+          lastName: "Local",
+          profileImageUrl: null,
+        });
+      }
+      
       const userClaims = req.user?.claims;
       if (!userClaims) {
         return res.status(401).json({ message: "Unauthorized" });
