@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Auth supprimé pour usage local
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
@@ -9,47 +9,22 @@ import { db } from "./db";
 import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Pas d'authentification pour usage local
+  console.log("🔧 Application configurée pour usage local sans authentification");
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const isLocalEnvironment = !process.env.REPLIT_DB_URL && !process.env.REPL_ID;
-      
-      if (isLocalEnvironment) {
-        // Mode local : retourner un utilisateur fictif
-        return res.json({
-          id: "local-user",
-          email: "user@localhost",
-          firstName: "Utilisateur",
-          lastName: "Local",
-          profileImageUrl: null,
-        });
-      }
-      
-      const userClaims = req.user?.claims;
-      if (!userClaims) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const user = {
-        id: userClaims.sub,
-        email: userClaims.email,
-        firstName: userClaims.first_name,
-        lastName: userClaims.last_name,
-        profileImageUrl: userClaims.profile_image_url,
-      };
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
+  // Routes d'authentification simplifiées (pour compatibilité)
+  app.get('/api/auth/user', async (req: any, res) => {
+    res.json({
+      id: "local-user",
+      email: "user@localhost",
+      firstName: "Utilisateur",
+      lastName: "Local",
+      profileImageUrl: null,
+    });
   });
 
   // Dashboard routes
-  app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/stats', async (req, res) => {
     try {
       // Calculate real stats from database
       const [companiesCount] = await db.select({ count: count() }).from(companies);
@@ -70,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/activity', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/activity', async (req, res) => {
     try {
       // Get recent activity from database
       const activities = await db
@@ -101,7 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents/expiring', isAuthenticated, async (req, res) => {
+  app.get('/api/documents/expiring', async (req, res) => {
     try {
       // Get documents expiring within 30 days
       const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -140,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get company by ID
-  app.get("/api/companies/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/companies/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const company = await storage.getCompany(id);
@@ -155,7 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update company
-  app.put("/api/companies/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/companies/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const updates = req.body;

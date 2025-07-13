@@ -26,7 +26,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg shadow-lg">
-                <a href="/api/login" className="flex items-center space-x-2">
+                <a href="/" className="flex items-center space-x-2">
                   <span>Commencer maintenant</span>
                   <Zap className="h-5 w-5" />
                 </a>
