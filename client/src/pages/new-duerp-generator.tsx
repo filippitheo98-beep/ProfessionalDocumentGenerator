@@ -155,7 +155,7 @@ export default function NewDuerpGenerator() {
           method: 'POST',
           body: JSON.stringify({
             workUnitName: location.name,
-            locationType: 'location',
+            locationName: location.name,
             companyActivity: company?.activity || '',
           }),
         });
@@ -175,7 +175,7 @@ export default function NewDuerpGenerator() {
           method: 'POST',
           body: JSON.stringify({
             workUnitName: workStation.name,
-            locationType: 'workstation',
+            locationName: workStation.description || workStation.name,
             companyActivity: company?.activity || '',
           }),
         });
