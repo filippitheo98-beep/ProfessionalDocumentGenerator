@@ -6,7 +6,7 @@ Application web pour créer des documents d'évaluation des risques professionne
 
 1. Installez Node.js : https://nodejs.org/
 2. Double-cliquez sur `START.bat`
-3. Ouvrez : http://localhost:5000
+3. Ouvrez : http://localhost:5000 (version complète) ou http://localhost:5000/simple (version simplifiée)
 
 ## Fonctionnalités
 
