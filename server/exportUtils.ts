@@ -44,18 +44,51 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   return excelBuffer;
 }
 
-export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string): Promise<Buffer> {
+export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any): Promise<Buffer> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   
   // Title
-  doc.setFontSize(16);
-  doc.text('Document Unique d\'Évaluation des Risques Professionnels', 20, 20);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Document Unique d\'Évaluation des Risques Professionnels (DUERP)', 20, 20);
   
   // Company info
   doc.setFontSize(12);
-  doc.text(`Entreprise: ${companyName || 'Non renseigné'}`, 20, 30);
-  doc.text(`Activité: ${companyActivity || 'Non renseigné'}`, 20, 38);
-  doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 20, 46);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Entreprise: ${companyName || 'Non renseigné'}`, 20, 35);
+  doc.text(`Activité: ${companyActivity || 'Non renseigné'}`, 20, 43);
+  
+  if (companyData) {
+    if (companyData.address) doc.text(`Adresse: ${companyData.address}`, 20, 51);
+    if (companyData.siret) doc.text(`SIRET: ${companyData.siret}`, 20, 59);
+    if (companyData.phone) doc.text(`Téléphone: ${companyData.phone}`, 160, 35);
+    if (companyData.email) doc.text(`Email: ${companyData.email}`, 160, 43);
+    if (companyData.employeeCount) doc.text(`Nombre d'employés: ${companyData.employeeCount}`, 160, 51);
+  }
+  
+  doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 20, 67);
+  doc.text(`Nombre total de risques identifiés: ${risks.length}`, 160, 67);
+  
+  // Summary section
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Répartition des risques par niveau:', 20, 80);
+  
+  const riskCounts = risks.reduce((acc: any, risk: any) => {
+    acc[risk.finalRisk] = (acc[risk.finalRisk] || 0) + 1;
+    return acc;
+  }, {});
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  let yPos = 88;
+  Object.entries(riskCounts).forEach(([level, count]) => {
+    doc.text(`• ${level}: ${count} risque(s)`, 25, yPos);
+    yPos += 6;
+  });
+  
+  // Page break before table
+  doc.addPage();
   
   // Table headers
   const headers = [
@@ -81,7 +114,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   autoTable(doc, {
     head: [headers],
     body: tableData,
-    startY: 55,
+    startY: 20,
     styles: {
       fontSize: 8,
       cellPadding: 2,

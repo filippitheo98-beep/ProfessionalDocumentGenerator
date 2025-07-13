@@ -55,6 +55,8 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Added auto-save functionality throughout the workflow with manual save option
 - **2025-07-13**: Enhanced database schema to support additional company fields (phone, email, employeeCount)
 - **2025-07-13**: Fixed archive document viewing functionality to properly load and display archived documents
+- **2025-07-13**: Implemented comprehensive PDF export functionality with complete company information, risk statistics, and formatted risk tables
+- **2025-07-13**: Added PDF export button to risk generation step with enhanced report including company details, risk distribution summary, and professional formatting
 
 ## System Architecture
 

@@ -385,10 +385,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Temporarily disabled PDF export
-  // app.post('/api/export/pdf', async (req, res) => {
-  //   res.status(503).json({ message: 'PDF export temporarily disabled' });
-  // });
+  // Export to PDF endpoint
+  app.post('/api/export/pdf', async (req, res) => {
+    try {
+      const { risks, companyName, companyActivity } = req.body;
+      
+      if (!risks || !Array.isArray(risks)) {
+        return res.status(400).json({ message: 'Risks data is required' });
+      }
+
+      const pdfBuffer = await generatePDFFile(risks, companyName, companyActivity, req.body.companyData);
+      const fileName = `DUERP_${companyName || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(pdfBuffer);
+      
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      res.status(500).json({ message: 'Failed to export to PDF' });
+    }
+  });
 
   // Documents API (non-archived)
   app.get('/api/documents', async (req, res) => {

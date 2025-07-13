@@ -299,6 +299,48 @@ export default function NewDuerpGenerator() {
     }
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          risks: finalRisks,
+          companyName: company?.name || 'Entreprise',
+          companyActivity: company?.activity || '',
+          companyData: {
+            address: company?.address,
+            siret: company?.siret,
+            phone: company?.phone,
+            email: company?.email,
+            employeeCount: company?.employeeCount,
+          },
+        }),
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DUERP_${company?.name || 'Export'}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export réussi",
+          description: "Le rapport PDF complet a été téléchargé",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter le fichier PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   const isLoading = isLoadingDocument || isLoadingCompany;
 
   return (
@@ -354,6 +396,7 @@ export default function NewDuerpGenerator() {
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
                 onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
                 isGenerating={isGeneratingRisks}
                 onSave={handleSaveProgress}
               />
