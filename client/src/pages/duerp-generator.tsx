@@ -731,7 +731,11 @@ export default function DuerpGenerator() {
         </Tabs>
 
         {/* Risk Table */}
-        {finalRisks.length > 0 && (
+        {(() => {
+          console.log("Rendering risk table - finalRisks.length:", finalRisks.length);
+          console.log("finalRisks:", finalRisks);
+          return finalRisks.length > 0;
+        })() && (
           <div className="mt-8 animate-fade-in">
             <Card>
               <CardHeader>
