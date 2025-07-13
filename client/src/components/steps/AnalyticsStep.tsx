@@ -19,7 +19,8 @@ import {
   AlertTriangle, 
   Shield,
   Target,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import type { Risk } from '@shared/schema';
 
