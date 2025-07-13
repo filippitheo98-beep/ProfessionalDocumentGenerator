@@ -97,6 +97,20 @@ export default function DuerpGenerator() {
     enabled: !!documentId,
   });
 
+  // Load company data when we have a document with companyId
+  const { data: companyData, isLoading: isLoadingCompany } = useQuery({
+    queryKey: ['/api/companies', existingDocument?.companyId],
+    queryFn: async () => {
+      console.log("Fetching company with ID:", existingDocument?.companyId);
+      const response = await apiRequest(`/api/companies/${existingDocument.companyId}`, {
+        method: 'GET',
+      });
+      console.log("Company API response:", response);
+      return response;
+    },
+    enabled: !!existingDocument?.companyId,
+  });
+
   // Create company mutation
   const createCompanyMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -424,11 +438,6 @@ export default function DuerpGenerator() {
       setIsEditing(!!editDocumentId);
       setEditingDocumentId(existingDocument.id);
       
-      // Load company data if available
-      if (existingDocument.company) {
-        setCompany(existingDocument.company);
-      }
-      
       console.log("Loaded data:", {
         locations: existingDocument.locations,
         workStations: existingDocument.workStations,
@@ -438,7 +447,15 @@ export default function DuerpGenerator() {
     }
   }, [existingDocument, isLoadingDocument, editDocumentId]);
 
-  if (isLoading || isLoadingDocument) {
+  // Effect to load company data when available
+  useEffect(() => {
+    if (companyData && !isLoadingCompany) {
+      console.log("Loading company data:", companyData);
+      setCompany(companyData);
+    }
+  }, [companyData, isLoadingCompany]);
+
+  if (isLoading || isLoadingDocument || isLoadingCompany) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -731,11 +748,7 @@ export default function DuerpGenerator() {
         </Tabs>
 
         {/* Risk Table */}
-        {(() => {
-          console.log("Rendering risk table - finalRisks.length:", finalRisks.length);
-          console.log("finalRisks:", finalRisks);
-          return finalRisks.length > 0;
-        })() && (
+        {finalRisks.length > 0 && (
           <div className="mt-8 animate-fade-in">
             <Card>
               <CardHeader>
