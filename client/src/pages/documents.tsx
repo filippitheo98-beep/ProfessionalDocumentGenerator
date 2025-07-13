@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Document {
   id: number;
+  title: string;
   companyName: string;
   createdAt: string;
   updatedAt: string;
@@ -47,7 +48,6 @@ export default function Documents() {
   const { data: documents, isLoading } = useQuery({
     queryKey: ['/api/documents'],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user,
   });
 
   const archiveMutation = useMutation({
@@ -199,8 +199,9 @@ export default function Documents() {
                     <div className="flex-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Building className="h-5 w-5" />
-                        {doc.companyName}
+                        {doc.title}
                       </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">{doc.companyName}</p>
                       <Badge className={`mt-2 ${getStatusColor(doc.status)}`}>
                         {getStatusLabel(doc.status)}
                       </Badge>
