@@ -22,8 +22,7 @@ interface RiskGenerationStepProps {
   companyActivity: string;
   onGenerateRisks: () => void;
   onRegenerateRisks: () => void;
-  onExportExcel: () => void;
-  onExportPDF: () => void;
+
   isGenerating: boolean;
   onSave: () => void;
 }
@@ -35,8 +34,6 @@ export default function RiskGenerationStep({
   companyActivity,
   onGenerateRisks,
   onRegenerateRisks,
-  onExportExcel,
-  onExportPDF,
   isGenerating,
   onSave
 }: RiskGenerationStepProps) {
@@ -163,25 +160,14 @@ export default function RiskGenerationStep({
             )}
             
             {hasRisks && (
-              <>
-                <Button 
-                  onClick={onExportExcel}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Exporter Excel
-                </Button>
-                
-                <Button 
-                  onClick={onExportPDF}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  Exporter PDF
-                </Button>
-              </>
+              <Button 
+                onClick={onSave}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Sauvegarder les données
+              </Button>
             )}
           </div>
 

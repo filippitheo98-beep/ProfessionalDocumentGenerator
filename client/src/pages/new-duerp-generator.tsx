@@ -398,8 +398,7 @@ export default function NewDuerpGenerator() {
                 companyActivity={company?.activity || ''}
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
-                onExportExcel={handleExportExcel}
-                onExportPDF={handleExportPDF}
+
                 isGenerating={isGeneratingRisks}
                 onSave={handleSaveProgress}
               />
@@ -410,6 +409,10 @@ export default function NewDuerpGenerator() {
                 risks={finalRisks}
                 companyName={company?.name || 'Entreprise'}
                 onSave={handleSaveProgress}
+                onGeneratePDF={handleExportPDF}
+                locations={locations}
+                workStations={workStations}
+                preventionMeasures={preventionMeasures}
               />
             )}
           </>
