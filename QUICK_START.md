@@ -25,7 +25,7 @@ chmod +x scripts/install.sh && ./scripts/install.sh
 
 ```env
 # Base de données (choisir une option)
-DATABASE_URL=postgresql://user:password@localhost:5432/duerp_db
+DATABASE_URL=postgresql://user:password@localhost:5000/duerp_db
 
 # Clé OpenAI (optionnel)
 OPENAI_API_KEY=sk-votre-cle-ici
@@ -45,7 +45,7 @@ start.bat
 
 ## Accès à l'application
 
-Une fois démarré, ouvrez : **http://localhost:5000**
+Une fois démarré, ouvrez : **http://localhost:3000**
 
 ## Solutions rapides pour la base de données
 
@@ -64,7 +64,7 @@ docker-compose up -d db
 ```bash
 # Installez PostgreSQL puis :
 createdb duerp_db
-# Utilisez : postgresql://username:password@localhost:5432/duerp_db
+# Utilisez : postgresql://username:password@localhost:5000/duerp_db
 ```
 
 ## Dépannage Express

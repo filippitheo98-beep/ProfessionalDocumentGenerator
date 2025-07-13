@@ -43,13 +43,13 @@ Le fichier `.env` est créé automatiquement. Éditez-le selon vos besoins :
 
 ```env
 # Base de données (obligatoire)
-DATABASE_URL=postgresql://user:password@localhost:5432/duerp_db
+DATABASE_URL=postgresql://user:password@localhost:5000/duerp_db
 
 # IA (optionnel)
 OPENAI_API_KEY=sk-votre-cle-ici
 
 # Port (optionnel)
-PORT=5000
+PORT=3000
 ```
 
 ## Solutions Base de Données
@@ -73,7 +73,7 @@ createdb duerp_db
 
 ## Utilisation
 
-L'application s'ouvre automatiquement à : **http://localhost:5000**
+L'application s'ouvre automatiquement à : **http://localhost:3000**
 
 ### Workflow Simple
 1. **Informations entreprise** : Nom, secteur, employés

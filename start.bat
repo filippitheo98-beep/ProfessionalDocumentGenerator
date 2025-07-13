@@ -59,7 +59,7 @@ if %errorlevel% neq 0 (
     echo Verifiez votre DATABASE_URL dans le fichier .env
     echo.
     echo Exemple DATABASE_URL:
-    echo postgresql://user:password@localhost:5432/duerp_db
+    echo postgresql://user:password@localhost:5000/duerp_db
     echo.
     pause
     exit /b 1
@@ -74,7 +74,7 @@ echo ================================================
 echo    APPLICATION DEMARREE !
 echo ================================================
 echo.
-echo Ouvrez votre navigateur et allez a: http://localhost:5000
+echo Ouvrez votre navigateur et allez a: http://localhost:3000
 echo.
 echo Pour arreter l'application, appuyez sur Ctrl+C
 echo.
