@@ -16,7 +16,7 @@ import {
   type Comment
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, lt, asc } from "drizzle-orm";
+import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
 import OpenAI from 'openai';
 
@@ -58,6 +58,9 @@ export interface IStorage {
   getDocumentsNeedingNotification(): Promise<DuerpDocument[]>;
   markRevisionNotified(documentId: number): Promise<void>;
   updateRevisionDate(documentId: number): Promise<DuerpDocument>;
+  
+  // Utility operations
+  generateUniqueDocumentTitle(baseTitle: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -119,6 +122,22 @@ export class DatabaseStorage implements IStorage {
     finalRisks: Risk[];
     preventionMeasures: PreventionMeasure[];
   }): Promise<DuerpDocument> {
+    // Vérifier si un document avec le même titre existe déjà
+    const existingDocument = await db
+      .select()
+      .from(duerpDocuments)
+      .where(
+        and(
+          eq(duerpDocuments.title, data.title),
+          ne(duerpDocuments.status, 'archived')
+        )
+      )
+      .limit(1);
+
+    if (existingDocument.length > 0) {
+      throw new Error(`Un document avec le titre "${data.title}" existe déjà. Veuillez choisir un autre nom.`);
+    }
+
     const [document] = await db
       .insert(duerpDocuments)
       .values({
@@ -404,6 +423,32 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       throw new Error(`DUERP document with id ${documentId} not found`);
     }
     return document;
+  }
+
+  // Utility operations
+  async generateUniqueDocumentTitle(baseTitle: string): Promise<string> {
+    let counter = 1;
+    let uniqueTitle = baseTitle;
+
+    while (true) {
+      const existingDocument = await db
+        .select()
+        .from(duerpDocuments)
+        .where(
+          and(
+            eq(duerpDocuments.title, uniqueTitle),
+            ne(duerpDocuments.status, 'archived')
+          )
+        )
+        .limit(1);
+
+      if (existingDocument.length === 0) {
+        return uniqueTitle;
+      }
+
+      counter++;
+      uniqueTitle = `${baseTitle} (${counter})`;
+    }
   }
 
   private getRiskDatabase() {

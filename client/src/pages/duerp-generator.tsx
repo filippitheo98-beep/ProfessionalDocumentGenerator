@@ -33,6 +33,7 @@ import { SmartSuggestions } from '@/components/SmartSuggestions';
 import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
 import { PhotoAnalysis } from '@/components/PhotoAnalysis';
 import { VersionHistory } from '@/components/VersionHistory';
+import { DocumentTitleInput } from '@/components/DocumentTitleInput';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -79,6 +80,7 @@ export default function DuerpGenerator() {
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
   const [duerpTitle, setDuerpTitle] = useState("");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [isTitleValid, setIsTitleValid] = useState(false);
   const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<number | null>(null);
@@ -338,9 +340,16 @@ export default function DuerpGenerator() {
       loadSavedDocuments();
     },
     onError: (error) => {
+      let errorMessage = "Une erreur s'est produite lors de la sauvegarde du document.";
+      
+      // Vérifier si c'est une erreur d'unicité du nom
+      if (error.message.includes("existe déjà")) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erreur de sauvegarde",
-        description: "Une erreur s'est produite lors de la sauvegarde du document.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -776,15 +785,13 @@ export default function DuerpGenerator() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="title">Titre du document</Label>
-              <Input
-                id="title"
-                placeholder="Ex: DUERP Mars 2024"
-                value={duerpTitle}
-                onChange={(e) => setDuerpTitle(e.target.value)}
-              />
-            </div>
+            <DocumentTitleInput
+              value={duerpTitle}
+              onChange={setDuerpTitle}
+              onValidation={setIsTitleValid}
+              companyName={company?.name}
+              placeholder="Ex: DUERP Mars 2024"
+            />
           </div>
           <DialogFooter>
             <Button
@@ -795,11 +802,11 @@ export default function DuerpGenerator() {
             </Button>
             <Button
               onClick={() => {
-                if (duerpTitle.trim()) {
+                if (duerpTitle.trim() && isTitleValid) {
                   saveDuerpMutation.mutate(duerpTitle.trim());
                 }
               }}
-              disabled={!duerpTitle.trim() || saveDuerpMutation.isPending}
+              disabled={!duerpTitle.trim() || !isTitleValid || saveDuerpMutation.isPending}
             >
               {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder'}
             </Button>

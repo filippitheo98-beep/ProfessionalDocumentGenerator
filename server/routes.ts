@@ -202,6 +202,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(document);
     } catch (error) {
       console.error('Error saving DUERP document:', error);
+      
+      // Vérifier si c'est une erreur d'unicité du nom
+      if (error.message.includes("existe déjà")) {
+        return res.status(409).json({ message: error.message });
+      }
+      
       res.status(500).json({ message: 'Failed to save document' });
     }
   });
@@ -413,6 +419,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       res.status(500).json({ message: 'Failed to export to PDF' });
+    }
+  });
+
+  // Generate unique document title
+  app.post('/api/duerp/generate-title', async (req, res) => {
+    try {
+      const { baseTitle } = req.body;
+      
+      if (!baseTitle) {
+        return res.status(400).json({ message: 'Base title is required' });
+      }
+
+      const uniqueTitle = await storage.generateUniqueDocumentTitle(baseTitle);
+      res.json({ title: uniqueTitle });
+    } catch (error) {
+      console.error('Error generating unique title:', error);
+      res.status(500).json({ message: 'Failed to generate unique title' });
     }
   });
 
