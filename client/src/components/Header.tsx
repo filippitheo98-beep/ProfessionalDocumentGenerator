@@ -1,4 +1,4 @@
-import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield } from 'lucide-react';
+import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import {
@@ -56,6 +56,15 @@ export function Header() {
             >
               <FileText className="h-4 w-4 mr-2" />
               Documents
+            </Button>
+            <Button
+              variant={location === '/archives' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/archives')}
+              className="transition-all"
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Archives
             </Button>
             <Button
               variant={location === '/collaborators' ? 'default' : 'ghost'}

@@ -43,6 +43,8 @@ export const duerpDocuments = pgTable("duerp_documents", {
   approvedBy: integer("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   nextReviewDate: timestamp("next_review_date"),
+  isArchived: boolean("is_archived").default(false),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

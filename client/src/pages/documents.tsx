@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Card, 
   CardContent, 
@@ -18,12 +18,14 @@ import {
   Download,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Archive
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { Header } from '@/components/Header';
-import { getQueryFn } from '@/lib/queryClient';
+import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface Document {
   id: number;
@@ -39,11 +41,35 @@ export default function Documents() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'draft'>('all');
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['/api/documents'],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      await apiRequest(`/api/duerp-documents/${documentId}/archive`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      toast({
+        title: "Document archivé",
+        description: "Le document a été archivé avec succès",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'archiver le document",
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredDocuments = documents?.filter((doc: Document) => {
@@ -210,6 +236,14 @@ export default function Documents() {
                     </Button>
                     <Button variant="outline" size="sm">
                       <Download className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => archiveMutation.mutate(doc.id)}
+                      disabled={archiveMutation.isPending}
+                    >
+                      <Archive className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>

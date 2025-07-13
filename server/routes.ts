@@ -6,7 +6,7 @@ import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, compan
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
 import { db } from "./db";
-import { eq, desc, count, lt } from "drizzle-orm";
+import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -259,6 +259,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive document
+  app.post('/api/duerp-documents/:id/archive', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [archivedDocument] = await db
+        .update(duerpDocuments)
+        .set({
+          status: 'archived',
+          updatedAt: new Date()
+        })
+        .where(eq(duerpDocuments.id, id))
+        .returning();
+      
+      if (!archivedDocument) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      res.json(archivedDocument);
+    } catch (error) {
+      console.error('Error archiving DUERP document:', error);
+      res.status(500).json({ message: 'Failed to archive document' });
+    }
+  });
+
+  // Unarchive document
+  app.post('/api/duerp-documents/:id/unarchive', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [unarchivedDocument] = await db
+        .update(duerpDocuments)
+        .set({
+          status: 'active',
+          updatedAt: new Date()
+        })
+        .where(eq(duerpDocuments.id, id))
+        .returning();
+      
+      if (!unarchivedDocument) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      res.json(unarchivedDocument);
+    } catch (error) {
+      console.error('Error unarchiving document:', error);
+      res.status(500).json({ message: 'Failed to unarchive document' });
+    }
+  });
+
+  // Get archived documents
+  app.get('/api/archived-documents', async (req, res) => {
+    try {
+      const documents = await db
+        .select({
+          id: duerpDocuments.id,
+          title: duerpDocuments.title,
+          companyName: companies.name,
+          createdAt: duerpDocuments.createdAt,
+          archivedAt: duerpDocuments.updatedAt,
+          status: duerpDocuments.status,
+          riskCount: sql<number>`(
+            CASE 
+              WHEN ${duerpDocuments.finalRisks} IS NULL OR ${duerpDocuments.finalRisks} = '[]' THEN 0
+              ELSE json_array_length(${duerpDocuments.finalRisks})
+            END
+          )`.as('riskCount')
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .where(eq(duerpDocuments.status, 'archived'))
+        .orderBy(desc(duerpDocuments.updatedAt));
+      
+      res.json(documents);
+    } catch (error) {
+      console.error('Error fetching archived documents:', error);
+      res.status(500).json({ message: 'Failed to fetch archived documents' });
+    }
+  });
+
+  // Delete document permanently
+  app.delete('/api/duerp-documents/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [deletedDocument] = await db
+        .delete(duerpDocuments)
+        .where(eq(duerpDocuments.id, id))
+        .returning();
+      
+      if (!deletedDocument) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      res.status(500).json({ message: 'Failed to delete document' });
+    }
+  });
+
+
+
   // Export to Excel endpoint
   app.post('/api/export/excel', async (req, res) => {
     try {
@@ -286,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   res.status(503).json({ message: 'PDF export temporarily disabled' });
   // });
 
-  // Documents API
+  // Documents API (non-archived)
   app.get('/api/documents', async (req, res) => {
     try {
       const documents = await db
@@ -302,6 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(duerpDocuments)
         .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .where(ne(duerpDocuments.status, 'archived'))
         .orderBy(desc(duerpDocuments.updatedAt));
       
       const formattedDocuments = documents.map(doc => ({
