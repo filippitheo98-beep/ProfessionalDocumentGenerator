@@ -53,8 +53,8 @@ export default function DuerpGenerator() {
   
   // Get document ID from URL query
   const urlParams = new URLSearchParams(window.location.search);
-  const editDocumentId = urlParams.get('edit');
-  const viewDocumentId = urlParams.get('view');
+  const editDocumentId = urlParams.get('edit') || urlParams.get('editDocumentId');
+  const viewDocumentId = urlParams.get('view') || urlParams.get('viewDocumentId');
   const documentId = editDocumentId || viewDocumentId;
   const isViewMode = !!viewDocumentId;
   
