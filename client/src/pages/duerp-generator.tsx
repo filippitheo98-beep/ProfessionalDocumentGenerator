@@ -58,6 +58,8 @@ export default function DuerpGenerator() {
   const documentId = editDocumentId || viewDocumentId;
   const isViewMode = !!viewDocumentId;
   
+  console.log("URL params:", { location, editDocumentId, viewDocumentId, documentId, isViewMode });
+  
   // State
   const [company, setCompany] = useState<Company | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -77,9 +79,11 @@ export default function DuerpGenerator() {
   const { data: existingDocument, isLoading: isLoadingDocument } = useQuery({
     queryKey: ['/api/duerp/document', documentId],
     queryFn: async () => {
+      console.log("Fetching document with ID:", documentId);
       const response = await apiRequest(`/api/duerp/document/${documentId}`, {
         method: 'GET',
       });
+      console.log("API response:", response);
       return response;
     },
     enabled: !!documentId,
