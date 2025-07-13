@@ -16,7 +16,7 @@ import {
   type Comment
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, lt, asc } from "drizzle-orm";
 import crypto from 'crypto';
 import OpenAI from 'openai';
 
@@ -52,6 +52,12 @@ export interface IStorage {
   // Comment operations
   getCommentsByDuerp(duerpId: number): Promise<Comment[]>;
   createComment(comment: Omit<Comment, 'id' | 'createdAt'>): Promise<Comment>;
+  
+  // Revision tracking operations
+  getDocumentsNeedingRevision(): Promise<DuerpDocument[]>;
+  getDocumentsNeedingNotification(): Promise<DuerpDocument[]>;
+  markRevisionNotified(documentId: number): Promise<void>;
+  updateRevisionDate(documentId: number): Promise<DuerpDocument>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -125,6 +131,8 @@ export class DatabaseStorage implements IStorage {
         preventionMeasures: data.preventionMeasures,
         status: "draft",
         nextReviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+        lastRevisionDate: new Date(),
+        revisionNotified: false,
         updatedAt: new Date()
       })
       .returning();
@@ -333,6 +341,69 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       .values(comment)
       .returning();
     return newComment;
+  }
+
+  // Revision tracking operations
+  async getDocumentsNeedingRevision(): Promise<DuerpDocument[]> {
+    const now = new Date();
+    const documents = await db
+      .select()
+      .from(duerpDocuments)
+      .where(
+        and(
+          eq(duerpDocuments.status, 'approved'),
+          lt(duerpDocuments.nextReviewDate, now)
+        )
+      )
+      .orderBy(asc(duerpDocuments.nextReviewDate));
+    return documents;
+  }
+
+  async getDocumentsNeedingNotification(): Promise<DuerpDocument[]> {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    const documents = await db
+      .select()
+      .from(duerpDocuments)
+      .where(
+        and(
+          eq(duerpDocuments.status, 'approved'),
+          eq(duerpDocuments.revisionNotified, false),
+          lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow)
+        )
+      )
+      .orderBy(asc(duerpDocuments.nextReviewDate));
+    return documents;
+  }
+
+  async markRevisionNotified(documentId: number): Promise<void> {
+    await db
+      .update(duerpDocuments)
+      .set({ revisionNotified: true })
+      .where(eq(duerpDocuments.id, documentId));
+  }
+
+  async updateRevisionDate(documentId: number): Promise<DuerpDocument> {
+    const now = new Date();
+    const nextReviewDate = new Date(now);
+    nextReviewDate.setFullYear(nextReviewDate.getFullYear() + 1);
+    
+    const [document] = await db
+      .update(duerpDocuments)
+      .set({
+        lastRevisionDate: now,
+        nextReviewDate: nextReviewDate,
+        revisionNotified: false,
+        updatedAt: now
+      })
+      .where(eq(duerpDocuments.id, documentId))
+      .returning();
+    
+    if (!document) {
+      throw new Error(`DUERP document with id ${documentId} not found`);
+    }
+    return document;
   }
 
   private getRiskDatabase() {

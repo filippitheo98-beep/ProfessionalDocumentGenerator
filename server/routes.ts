@@ -416,6 +416,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Revision tracking routes
+  app.get("/api/revisions/needed", async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsNeedingRevision();
+      res.json(documents);
+    } catch (error) {
+      console.error('Error fetching documents needing revision:', error);
+      res.status(500).json({ error: "Failed to fetch documents needing revision" });
+    }
+  });
+
+  app.get("/api/revisions/notifications", async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsNeedingNotification();
+      res.json(documents);
+    } catch (error) {
+      console.error('Error fetching documents needing notification:', error);
+      res.status(500).json({ error: "Failed to fetch documents needing notification" });
+    }
+  });
+
+  app.post("/api/revisions/:id/notify", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      await storage.markRevisionNotified(documentId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking revision as notified:', error);
+      res.status(500).json({ error: "Failed to mark revision as notified" });
+    }
+  });
+
+  app.post("/api/revisions/:id/update", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await storage.updateRevisionDate(documentId);
+      res.json(document);
+    } catch (error) {
+      console.error('Error updating revision date:', error);
+      res.status(500).json({ error: "Failed to update revision date" });
+    }
+  });
+
   // Documents API (non-archived)
   app.get('/api/documents', async (req, res) => {
     try {
