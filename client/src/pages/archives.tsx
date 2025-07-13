@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { 
   Card, 
   CardContent, 
@@ -37,6 +38,11 @@ export default function Archives() {
   const [searchTerm, setSearchTerm] = useState('');
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleViewDocument = (documentId: number) => {
+    setLocation(`/duerp-generator?viewDocumentId=${documentId}`);
+  };
 
   const { data: archivedDocuments, isLoading } = useQuery({
     queryKey: ['/api/archived-documents'],
@@ -180,7 +186,12 @@ export default function Archives() {
                   </div>
                   
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => handleViewDocument(doc.id)}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       Voir
                     </Button>
