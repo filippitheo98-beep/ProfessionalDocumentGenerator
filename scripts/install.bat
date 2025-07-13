@@ -1,36 +1,79 @@
 @echo off
-echo 🚀 Installation du Générateur DUERP...
+title Installation Générateur DUERP
+echo.
+echo ================================================
+echo    INSTALLATION GENERATEUR DUERP
+echo ================================================
+echo.
 
 REM Vérifier Node.js
+echo [1/4] Verification de Node.js...
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Node.js n'est pas installé. Veuillez l'installer depuis https://nodejs.org/
+    echo.
+    echo ERREUR: Node.js n'est pas installe ou pas dans le PATH
+    echo.
+    echo Veuillez installer Node.js depuis: https://nodejs.org/
+    echo Choisissez la version LTS (Long Term Support)
+    echo.
+    echo Apres installation, redemarrez cette fenetre.
+    echo.
     pause
     exit /b 1
 )
 
-echo ✅ Node.js détecté
+echo OK - Node.js detecte:
 node --version
+echo.
 
 REM Installer les dépendances
-echo 📦 Installation des dépendances...
+echo [2/4] Installation des dependances...
 npm install
+if %errorlevel% neq 0 (
+    echo.
+    echo ERREUR: Echec de l'installation des dependances
+    echo Verifiez votre connexion internet et reessayez
+    echo.
+    pause
+    exit /b 1
+)
+echo OK - Dependances installees
+echo.
 
 REM Vérifier si .env existe
+echo [3/4] Configuration de l'environnement...
 if not exist ".env" (
-    echo ⚠️  Fichier .env manquant. Copie du fichier exemple...
-    copy .env.example .env
-    echo 🔧 Veuillez éditer le fichier .env avec vos paramètres de base de données
+    if exist ".env.example" (
+        copy .env.example .env >nul
+        echo OK - Fichier .env cree depuis .env.example
+    ) else (
+        echo # Configuration Generateur DUERP > .env
+        echo DATABASE_URL=postgresql://user:password@localhost:5432/duerp_db >> .env
+        echo OPENAI_API_KEY=sk-votre-cle-ici >> .env
+        echo PORT=5000 >> .env
+        echo OK - Fichier .env cree avec configuration par defaut
+    )
+    echo.
+    echo IMPORTANT: Vous devez configurer votre base de donnees dans le fichier .env
+    echo Le fichier .env a ete ouvert pour modification...
+    notepad .env
+) else (
+    echo OK - Fichier .env existe deja
 )
+echo.
 
+echo [4/4] Finalisation...
 echo.
-echo 🎉 Installation terminée !
+echo ================================================
+echo    INSTALLATION TERMINEE AVEC SUCCES !
+echo ================================================
 echo.
-echo Prochaines étapes :
-echo 1. Configurez votre base de données dans le fichier .env
-echo 2. Ajoutez votre clé API OpenAI dans .env (optionnel)
-echo 3. Lancez 'npm run db:push' pour initialiser la base de données
-echo 4. Lancez 'npm run dev' pour démarrer l'application
+echo Prochaines etapes:
+echo 1. Configurez votre DATABASE_URL dans le fichier .env
+echo 2. Ajoutez votre OPENAI_API_KEY si vous voulez l'analyse IA
+echo 3. Double-cliquez sur start.bat pour lancer l'application
 echo.
-echo L'application sera accessible à l'adresse : http://localhost:5000
-pause
+echo L'application sera accessible a: http://localhost:5000
+echo.
+echo Appuyez sur une touche pour fermer cette fenetre...
+pause >nul
