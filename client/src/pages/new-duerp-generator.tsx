@@ -315,6 +315,9 @@ export default function NewDuerpGenerator() {
             email: company?.email,
             employeeCount: company?.employeeCount,
           },
+          locations: locations,
+          workStations: workStations,
+          preventionMeasures: preventionMeasures,
         }),
       });
       

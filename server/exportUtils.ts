@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export async function generateExcelFile(risks: any[], companyName: string): Promise<Buffer> {
@@ -44,7 +44,7 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   return excelBuffer;
 }
 
-export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any): Promise<Buffer> {
+export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[]): Promise<Buffer> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   
   // Title
@@ -87,8 +87,90 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     yPos += 6;
   });
   
-  // Page break before table
+  // Page break before locations section
   doc.addPage();
+  
+  // Locations section
+  if (locations && locations.length > 0) {
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Lieux de travail', 20, 30);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    let yPos = 40;
+    
+    locations.forEach((location: any, index: number) => {
+      doc.text(`${index + 1}. ${location.name}`, 25, yPos);
+      yPos += 8;
+      
+      if (location.preventionMeasures && location.preventionMeasures.length > 0) {
+        doc.text('Mesures de prévention:', 30, yPos);
+        yPos += 6;
+        location.preventionMeasures.forEach((measure: any) => {
+          doc.text(`• ${measure.description}`, 35, yPos);
+          yPos += 6;
+        });
+      }
+      yPos += 4;
+    });
+  }
+  
+  // Work stations section
+  if (workStations && workStations.length > 0) {
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Postes de travail', 20, yPos + 10);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    yPos += 25;
+    
+    workStations.forEach((workStation: any, index: number) => {
+      doc.text(`${index + 1}. ${workStation.name}`, 25, yPos);
+      yPos += 8;
+      
+      if (workStation.description) {
+        doc.text(`Description: ${workStation.description}`, 30, yPos);
+        yPos += 6;
+      }
+      
+      if (workStation.preventionMeasures && workStation.preventionMeasures.length > 0) {
+        doc.text('Mesures de prévention:', 30, yPos);
+        yPos += 6;
+        workStation.preventionMeasures.forEach((measure: any) => {
+          doc.text(`• ${measure.description}`, 35, yPos);
+          yPos += 6;
+        });
+      }
+      yPos += 4;
+    });
+  }
+  
+  // Prevention measures section
+  if (preventionMeasures && preventionMeasures.length > 0) {
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mesures de prévention générales', 20, 30);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    yPos = 40;
+    
+    preventionMeasures.forEach((measure: any, index: number) => {
+      doc.text(`${index + 1}. ${measure.description}`, 25, yPos);
+      yPos += 8;
+    });
+  }
+  
+  // Page break before risks table
+  doc.addPage();
+  
+  // Risks table header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Tableau des risques professionnels', 20, 30);
   
   // Table headers
   const headers = [
@@ -114,7 +196,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   autoTable(doc, {
     head: [headers],
     body: tableData,
-    startY: 20,
+    startY: 40,
     styles: {
       fontSize: 8,
       cellPadding: 2,

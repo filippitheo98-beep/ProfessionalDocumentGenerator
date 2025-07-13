@@ -388,13 +388,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export to PDF endpoint
   app.post('/api/export/pdf', async (req, res) => {
     try {
-      const { risks, companyName, companyActivity } = req.body;
+      const { risks, companyName, companyActivity, companyData, locations, workStations, preventionMeasures } = req.body;
       
       if (!risks || !Array.isArray(risks)) {
         return res.status(400).json({ message: 'Risks data is required' });
       }
 
-      const pdfBuffer = await generatePDFFile(risks, companyName, companyActivity, req.body.companyData);
+      const pdfBuffer = await generatePDFFile(
+        risks, 
+        companyName, 
+        companyActivity, 
+        companyData,
+        locations || [],
+        workStations || [],
+        preventionMeasures || []
+      );
       const fileName = `DUERP_${companyName || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
       
       res.setHeader('Content-Type', 'application/pdf');
