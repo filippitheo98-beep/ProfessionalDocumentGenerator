@@ -67,6 +67,11 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Integrated 30-day advance notifications for 1-year revision cycles
 - **2025-07-13**: Added dedicated Revisions page with legal compliance information
 - **2025-07-13**: Updated header navigation with revision notifications display
+- **2025-07-13**: Enhanced document name uniqueness validation system with real-time checking
+- **2025-07-13**: Added DocumentTitleInput component with automatic unique title generation
+- **2025-07-13**: Implemented comprehensive deployment package with installation scripts
+- **2025-07-13**: Created Docker support and automated setup scripts for local installation
+- **2025-07-13**: Added detailed README and installation guides for standalone deployment
 
 ## System Architecture
 
@@ -91,6 +96,12 @@ Preferred communication style: Simple, everyday language.
 - **Monorepo Structure**: Shared types and schemas between client/server
 - **Hot Reloading**: Vite dev server integration with Express
 - **Type Safety**: Full TypeScript coverage across all layers
+
+### Deployment Architecture
+- **Local Installation**: Complete package with automated setup scripts
+- **Docker Support**: Full containerization with docker-compose
+- **Cloud Ready**: Compatible with Neon, Supabase, and other cloud databases
+- **Cross-platform**: Installation scripts for Windows, Mac, and Linux
 
 ## Key Components
 
