@@ -48,7 +48,8 @@ DATABASE_URL=postgresql://user:password@localhost:5000/duerp_db
 # IA (optionnel)
 OPENAI_API_KEY=sk-votre-cle-ici
 
-# Port (optionnel)
+# Port (optionnel, par défaut 5000)
+# Utilisez 3000 pour éviter les conflits avec PostgreSQL local sur port 5000
 PORT=3000
 ```
 
@@ -73,7 +74,7 @@ createdb duerp_db
 
 ## Utilisation
 
-L'application s'ouvre automatiquement à : **http://localhost:3000**
+L'application s'ouvre automatiquement à : **http://localhost:3000** (ou port configuré dans .env)
 
 ### Workflow Simple
 1. **Informations entreprise** : Nom, secteur, employés
