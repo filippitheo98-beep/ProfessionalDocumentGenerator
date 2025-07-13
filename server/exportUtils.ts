@@ -139,15 +139,17 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   // Page break before locations section
   doc.addPage();
   
+  let yPos = 30;
+  
   // Locations section
   if (locations && locations.length > 0) {
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Lieux de travail', 20, 30);
+    doc.text('Lieux de travail', 20, yPos);
     
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    let yPos = 40;
+    yPos += 15;
     
     locations.forEach((location: any, index: number) => {
       doc.text(`${index + 1}. ${location.name}`, 25, yPos);
@@ -240,40 +242,40 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     risk.measures
   ]);
   
-  // Generate table with better formatting
+  // Generate table with better formatting - portrait orientation
   autoTable(doc, {
     head: [headers],
     body: tableData,
     startY: 40,
     styles: {
-      fontSize: 7,
-      cellPadding: 2,
+      fontSize: 6,
+      cellPadding: 1.5,
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
     },
     headStyles: {
       fillColor: [41, 128, 185],
       textColor: 255,
-      fontSize: 8,
+      fontSize: 7,
       fontStyle: 'bold',
       halign: 'center'
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },  // N°
-      1: { cellWidth: 25, fontSize: 6 },       // Source
-      2: { cellWidth: 20, fontSize: 6 },       // Type risque
-      3: { cellWidth: 40, fontSize: 6 },       // Danger
-      4: { cellWidth: 15, halign: 'center' },  // Gravité
-      5: { cellWidth: 15, halign: 'center' },  // Fréquence
-      6: { cellWidth: 15, halign: 'center' },  // Maîtrise
-      7: { cellWidth: 20, halign: 'center' },  // Risque final
-      8: { cellWidth: 30, fontSize: 6 }        // Mesures prévention
+      0: { cellWidth: 8, halign: 'center' },   // N°
+      1: { cellWidth: 20, fontSize: 5 },       // Source
+      2: { cellWidth: 18, fontSize: 5 },       // Type risque
+      3: { cellWidth: 35, fontSize: 5 },       // Danger
+      4: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Gravité
+      5: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Fréquence
+      6: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Maîtrise
+      7: { cellWidth: 15, halign: 'center', fontSize: 5 },  // Risque final
+      8: { cellWidth: 58, fontSize: 5 }        // Mesures prévention
     },
     alternateRowStyles: {
       fillColor: [248, 249, 250]
     },
     theme: 'grid',
-    margin: { top: 20, left: 10, right: 10 }
+    margin: { top: 20, left: 5, right: 5 }
   });
   
   // Ajouter la numérotation des pages
