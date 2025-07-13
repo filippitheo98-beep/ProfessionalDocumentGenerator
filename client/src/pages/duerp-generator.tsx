@@ -52,13 +52,21 @@ export default function DuerpGenerator() {
   const [location] = useLocation();
   
   // Get document ID from URL query
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const urlParams = new URLSearchParams(window.location.search);
   const editDocumentId = urlParams.get('edit');
   const viewDocumentId = urlParams.get('view');
   const documentId = editDocumentId || viewDocumentId;
   const isViewMode = !!viewDocumentId;
   
-  console.log("URL params:", { location, editDocumentId, viewDocumentId, documentId, isViewMode });
+  console.log("URL params:", { 
+    location, 
+    windowLocation: window.location.href,
+    search: window.location.search,
+    editDocumentId, 
+    viewDocumentId, 
+    documentId, 
+    isViewMode 
+  });
   
   // State
   const [company, setCompany] = useState<Company | null>(null);
