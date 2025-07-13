@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import DuerpGenerator from "@/pages/duerp-generator";
+import NewDuerpGenerator from "@/pages/new-duerp-generator";
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
 import Documents from "@/pages/documents";
@@ -36,6 +37,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/duerp-generator" component={DuerpGenerator} />
+          <Route path="/new-duerp-generator" component={NewDuerpGenerator} />
           <Route path="/documents" component={Documents} />
           <Route path="/archives" component={Archives} />
           <Route path="/collaborators" component={Collaborators} />

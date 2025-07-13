@@ -46,6 +46,15 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Added view mode for documents with read-only interface and proper data loading
 - **2025-07-13**: Enhanced document editing mode to load existing document data correctly
 - **2025-07-13**: Created seamless document viewing and editing workflow with proper UI adaptations
+- **2025-07-13**: Major restructure: Created new step-by-step DUERP generator with 4 distinct phases
+- **2025-07-13**: Added comprehensive company information form with all required fields (name, address, sector, employees, phone, email)
+- **2025-07-13**: Implemented locations and workstations management with photo upload and analysis capability
+- **2025-07-13**: Created advanced risk generation step with progress tracking and export functionality
+- **2025-07-13**: Added analytics dashboard with charts and visual risk analysis
+- **2025-07-13**: Implemented stepper component for navigation between phases with completion tracking
+- **2025-07-13**: Added auto-save functionality throughout the workflow with manual save option
+- **2025-07-13**: Enhanced database schema to support additional company fields (phone, email, employeeCount)
+- **2025-07-13**: Fixed archive document viewing functionality to properly load and display archived documents
 
 ## System Architecture
 
