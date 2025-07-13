@@ -50,7 +50,7 @@ if not exist ".env" (
         echo # Configuration Generateur DUERP > .env
         echo DATABASE_URL=postgresql://user:password@localhost:5000/duerp_db >> .env
         echo OPENAI_API_KEY=sk-votre-cle-ici >> .env
-        echo PORT=3001 >> .env
+        echo # PORT=5000 >> .env
         echo OK - Fichier .env cree avec configuration par defaut
     )
     echo.
@@ -73,7 +73,7 @@ echo 1. Configurez votre DATABASE_URL dans le fichier .env
 echo 2. Ajoutez votre OPENAI_API_KEY si vous voulez l'analyse IA
 echo 3. Double-cliquez sur start.bat pour lancer l'application
 echo.
-echo L'application sera accessible a: http://localhost:3001
+echo L'application sera accessible a: http://localhost:5000
 echo.
 echo Appuyez sur une touche pour fermer cette fenetre...
 pause >nul

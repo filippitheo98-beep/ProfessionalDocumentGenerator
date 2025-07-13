@@ -45,7 +45,7 @@ start.bat
 
 ## Accès à l'application
 
-Une fois démarré, ouvrez : **http://localhost:3000**
+Une fois démarré, ouvrez : **http://localhost:5000**
 
 ## Solutions rapides pour la base de données
 

@@ -51,32 +51,13 @@ echo OK - Dependances installees
 echo.
 
 REM Initialiser la base de données
-echo [4/5] Initialisation de la base de donnees...
-echo.
-echo Confirmation automatique de la mise a jour de la base de donnees...
-echo y | npm run db:push
-if %errorlevel% neq 0 (
-    echo.
-    echo ERREUR: Echec de l'initialisation de la base de donnees
-    echo Verifiez votre DATABASE_URL dans le fichier .env
-    echo.
-    echo Exemple DATABASE_URL:
-    echo postgresql://user:password@localhost:5000/duerp_db
-    echo.
-    pause
-    exit /b 1
-)
-echo OK - Base de donnees initialisee
-echo.
-
-REM Démarrer l'application
-echo [5/5] Demarrage de l'application...
+echo [4/4] Demarrage de l'application...
 echo.
 echo ================================================
 echo    APPLICATION DEMARREE !
 echo ================================================
 echo.
-echo Ouvrez votre navigateur et allez a: http://localhost:3001
+echo Ouvrez votre navigateur et allez a: http://localhost:5000
 echo.
 echo Pour arreter l'application, appuyez sur Ctrl+C
 echo.
