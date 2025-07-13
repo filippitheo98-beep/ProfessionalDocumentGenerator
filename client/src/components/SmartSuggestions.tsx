@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Lightbulb, Plus, CheckCircle, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Risk, PreventionMeasure } from '@shared/schema';
+import { Risk, PreventionMeasure } from '@shared/simpleSchema';
 
 interface SmartSuggestionsProps {
   risks: Risk[];

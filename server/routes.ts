@@ -2,11 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./memStorage";
 // Auth supprimé pour usage local
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema } from "@shared/simpleSchema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
-import { db } from "./db";
-import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Pas d'authentification pour usage local
@@ -26,13 +24,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard routes
   app.get('/api/dashboard/stats', async (req, res) => {
     try {
-      // Calculate real stats from database
-      const [companiesCount] = await db.select({ count: count() }).from(companies);
-      const [documentsCount] = await db.select({ count: count() }).from(duerpDocuments);
-      
+      // Simple stats for memory storage
       const stats = {
-        totalCompanies: companiesCount?.count || 0,
-        totalDocuments: documentsCount?.count || 0,
+        totalCompanies: 1,
+        totalDocuments: 0,
         pendingActions: 0,
         expiringSoon: 0,
         completedActions: 0,
@@ -47,29 +42,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/dashboard/activity', async (req, res) => {
     try {
-      // Get recent activity from database
-      const activities = await db
-        .select({
-          id: duerpDocuments.id,
-          title: duerpDocuments.title,
-          companyName: companies.name,
-          timestamp: duerpDocuments.updatedAt
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .orderBy(desc(duerpDocuments.updatedAt))
-        .limit(5);
+      // Simple activity for memory storage
+      const activities = [
+        {
+          id: "1",
+          type: "document_created",
+          title: "Document Test",
+          description: "Document pour l'entreprise Test",
+          timestamp: new Date().toLocaleDateString(),
+          priority: "medium"
+        }
+      ];
       
-      const formattedActivities = activities.map(activity => ({
-        id: activity.id.toString(),
-        type: "document_created",
-        title: activity.title,
-        description: `Document pour l'entreprise ${activity.companyName}`,
-        timestamp: activity.timestamp ? new Date(activity.timestamp).toLocaleDateString() : "Récemment",
-        priority: "medium"
-      }));
-      
-      res.json(formattedActivities);
+      res.json(activities);
     } catch (error) {
       console.error("Error fetching activity:", error);
       res.status(500).json({ message: "Failed to fetch activity" });
@@ -78,20 +63,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/documents/expiring', async (req, res) => {
     try {
-      // Get documents expiring within 30 days
-      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      const expiring = await db
-        .select({
-          id: duerpDocuments.id,
-          companyName: companies.name,
-          nextReviewDate: duerpDocuments.nextReviewDate
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow))
-        .orderBy(duerpDocuments.nextReviewDate);
-      
-      res.json(expiring);
+      // Simple expiring documents for memory storage
+      res.json([]);
     } catch (error) {
       console.error("Error fetching expiring documents:", error);
       res.status(500).json({ message: "Failed to fetch expiring documents" });

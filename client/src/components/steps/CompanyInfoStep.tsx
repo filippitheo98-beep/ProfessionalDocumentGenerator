@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building, Phone, Mail, Users, MapPin, Briefcase } from "lucide-react";
-import type { Company } from "@shared/schema";
+import type { Company } from "@shared/simpleSchema";
 
 const companyInfoSchema = z.object({
   name: z.string().min(1, "Le nom de la société est requis"),

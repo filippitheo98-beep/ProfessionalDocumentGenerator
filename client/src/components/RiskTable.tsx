@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import type { Risk } from "@shared/schema";
+import type { Risk } from "@shared/simpleSchema";
 
 interface RiskTableProps {
   risks: Risk[];

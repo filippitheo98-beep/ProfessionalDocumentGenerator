@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Shield, X, MapPin, Settings } from "lucide-react";
-import type { Company, PreventionMeasure, Location, WorkStation } from "@shared/schema";
+import type { Company, PreventionMeasure, Location, WorkStation } from "@shared/simpleSchema";
 
 const companyFormSchema = z.object({
   name: z.string().min(1, "Le nom de la société est requis"),

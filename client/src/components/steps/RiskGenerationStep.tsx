@@ -13,7 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import RiskTable from '@/components/RiskTable';
-import type { Location, WorkStation, Risk } from '@shared/schema';
+import type { Location, WorkStation, Risk } from '@shared/simpleSchema';
 
 interface RiskGenerationStepProps {
   locations: Location[];

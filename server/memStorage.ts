@@ -9,7 +9,7 @@ import {
   type RiskTemplate,
   type Action,
   type Comment
-} from "@shared/schema";
+} from "@shared/simpleSchema";
 import crypto from 'crypto';
 import OpenAI from 'openai';
 

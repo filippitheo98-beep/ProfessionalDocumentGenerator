@@ -44,7 +44,7 @@ import type {
   WorkStation, 
   Risk,
   PreventionMeasure
-} from '@shared/schema';
+} from '@shared/simpleSchema';
 
 export default function DuerpGenerator() {
   const { toast } = useToast();

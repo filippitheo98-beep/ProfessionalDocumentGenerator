@@ -24,7 +24,7 @@ import {
   Activity,
   FileText
 } from 'lucide-react';
-import type { Risk } from '@shared/schema';
+import type { Risk } from '@shared/simpleSchema';
 
 interface AnalyticsStepProps {
   risks: Risk[];
