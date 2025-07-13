@@ -52,7 +52,9 @@ echo.
 
 REM Initialiser la base de données
 echo [4/5] Initialisation de la base de donnees...
-npm run db:push
+echo.
+echo Confirmation automatique de la mise a jour de la base de donnees...
+echo y | npm run db:push
 if %errorlevel% neq 0 (
     echo.
     echo ERREUR: Echec de l'initialisation de la base de donnees
