@@ -39,6 +39,13 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-12**: Enhanced PhotoAnalysis component to support multiple photo uploads with captions and location descriptions
 - **2025-07-12**: Added complete navigation system with Documents, Collaborators, and Reports pages
 - **2025-07-12**: Implemented mock APIs for all new pages to ensure full functionality
+- **2025-07-13**: Fixed database schema issues preventing archive functionality from working properly
+- **2025-07-13**: Removed obsolete columns (is_archived, archived_at) from database schema
+- **2025-07-13**: Implemented functional archive/unarchive system with proper document lifecycle management
+- **2025-07-13**: Fixed "View" and "Edit" buttons in Documents page to function correctly
+- **2025-07-13**: Added view mode for documents with read-only interface and proper data loading
+- **2025-07-13**: Enhanced document editing mode to load existing document data correctly
+- **2025-07-13**: Created seamless document viewing and editing workflow with proper UI adaptations
 
 ## System Architecture
 
