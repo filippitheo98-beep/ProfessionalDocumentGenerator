@@ -388,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export to PDF endpoint
   app.post('/api/export/pdf', async (req, res) => {
     try {
-      const { risks, companyName, companyActivity, companyData, locations, workStations, preventionMeasures } = req.body;
+      const { risks, companyName, companyActivity, companyData, locations, workStations, preventionMeasures, chartImages } = req.body;
       
       if (!risks || !Array.isArray(risks)) {
         return res.status(400).json({ message: 'Risks data is required' });
@@ -401,7 +401,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         companyData,
         locations || [],
         workStations || [],
-        preventionMeasures || []
+        preventionMeasures || [],
+        chartImages || {}
       );
       const fileName = `DUERP_${companyName || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
       

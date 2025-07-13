@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import html2canvas from 'html2canvas';
 import { 
   BarChart, 
   Bar, 
@@ -186,18 +187,20 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGeneratePD
           <CardTitle>Répartition des risques par niveau</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={riskLevelData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value) => [`${value} risques`, 'Nombre']}
-                labelFormatter={(label) => `Niveau : ${label}`}
-              />
-              <Bar dataKey="count" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div data-chart="bar">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={riskLevelData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value) => [`${value} risques`, 'Nombre']}
+                  labelFormatter={(label) => `Niveau : ${label}`}
+                />
+                <Bar dataKey="count" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
 
@@ -208,25 +211,27 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGeneratePD
             <CardTitle>Types de risques</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={riskTypeData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {riskTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={RISK_TYPE_COLORS[index % RISK_TYPE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value} risques`, 'Nombre']} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div data-chart="pie">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={riskTypeData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {riskTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={RISK_TYPE_COLORS[index % RISK_TYPE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value} risques`, 'Nombre']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 

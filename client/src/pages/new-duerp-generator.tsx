@@ -301,6 +301,36 @@ export default function NewDuerpGenerator() {
 
   const handleExportPDF = async () => {
     try {
+      // Capturer les graphiques
+      const chartImages: { [key: string]: string } = {};
+      
+      // Importer html2canvas dynamiquement
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Capturer le graphique en barres
+      const barChartElement = document.querySelector('[data-chart="bar"]');
+      if (barChartElement) {
+        const canvas = await html2canvas(barChartElement as HTMLElement, {
+          backgroundColor: 'white',
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+        chartImages.barChart = canvas.toDataURL('image/png');
+      }
+      
+      // Capturer le graphique en secteurs
+      const pieChartElement = document.querySelector('[data-chart="pie"]');
+      if (pieChartElement) {
+        const canvas = await html2canvas(pieChartElement as HTMLElement, {
+          backgroundColor: 'white',
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+        chartImages.pieChart = canvas.toDataURL('image/png');
+      }
+
       const response = await fetch('/api/export/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,6 +348,7 @@ export default function NewDuerpGenerator() {
           locations: locations,
           workStations: workStations,
           preventionMeasures: preventionMeasures,
+          chartImages: chartImages
         }),
       });
       
@@ -332,7 +363,7 @@ export default function NewDuerpGenerator() {
         
         toast({
           title: "Export réussi",
-          description: "Le rapport PDF complet a été téléchargé",
+          description: "Le rapport PDF complet avec graphiques a été téléchargé",
         });
       }
     } catch (error) {

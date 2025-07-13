@@ -44,7 +44,7 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   return excelBuffer;
 }
 
-export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[]): Promise<Buffer> {
+export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   
   // PAGE DE COUVERTURE
@@ -135,6 +135,56 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     },
     theme: 'grid'
   });
+  
+  // Page break before charts section
+  doc.addPage();
+  
+  // Section graphiques
+  if (chartImages && (chartImages.barChart || chartImages.pieChart)) {
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Analyse graphique des risques', 20, 30);
+    
+    let yPos = 50;
+    
+    // Graphique en barres
+    if (chartImages.barChart) {
+      try {
+        const barChart = chartImages.barChart.replace(/^data:image\/[a-z]+;base64,/, '');
+        doc.addImage(barChart, 'PNG', 20, yPos, 170, 80);
+        yPos += 90;
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Graphique 1 : Répartition des risques par niveau', 20, yPos);
+        yPos += 10;
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout du graphique en barres:', error);
+      }
+    }
+    
+    // Graphique en secteurs
+    if (chartImages.pieChart) {
+      try {
+        // Vérifier si on a assez de place, sinon nouvelle page
+        if (yPos > 150) {
+          doc.addPage();
+          yPos = 30;
+        }
+        
+        const pieChart = chartImages.pieChart.replace(/^data:image\/[a-z]+;base64,/, '');
+        doc.addImage(pieChart, 'PNG', 20, yPos, 170, 80);
+        yPos += 90;
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Graphique 2 : Types de risques', 20, yPos);
+        yPos += 10;
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout du graphique en secteurs:', error);
+      }
+    }
+  }
   
   // Page break before locations section
   doc.addPage();
