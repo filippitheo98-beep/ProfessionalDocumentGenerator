@@ -403,6 +403,7 @@ export default function DuerpGenerator() {
   // Effect to load existing document for editing/viewing
   useEffect(() => {
     if (existingDocument && !isLoadingDocument) {
+      console.log("Loading document:", existingDocument);
       setLocations(existingDocument.locations || []);
       setWorkStations(existingDocument.workStations || []);
       setFinalRisks(existingDocument.finalRisks || []);
@@ -415,6 +416,13 @@ export default function DuerpGenerator() {
       if (existingDocument.company) {
         setCompany(existingDocument.company);
       }
+      
+      console.log("Loaded data:", {
+        locations: existingDocument.locations,
+        workStations: existingDocument.workStations,
+        finalRisks: existingDocument.finalRisks,
+        company: existingDocument.company
+      });
     }
   }, [existingDocument, isLoadingDocument, editDocumentId]);
 
