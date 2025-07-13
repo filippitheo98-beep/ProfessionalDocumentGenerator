@@ -102,10 +102,6 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Entrez le nom de la société"
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -124,10 +120,6 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="123 456 789 00012"
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -149,10 +141,6 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Ex: Commerce de détail, Services informatiques, BTP..."
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -171,10 +159,6 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Ex: Industrie, Services, Agriculture..."
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -196,10 +180,6 @@ export default function CompanyInfoStep({
                         <Textarea 
                           placeholder="123 Rue de la Paix, 75001 Paris"
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -221,10 +201,6 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="01 23 45 67 89"
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -247,10 +223,6 @@ export default function CompanyInfoStep({
                           placeholder="contact@entreprise.com"
                           type="email"
                           {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            handleSave();
-                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -276,7 +248,6 @@ export default function CompanyInfoStep({
                           {...field}
                           onChange={(e) => {
                             field.onChange(e.target.value ? parseInt(e.target.value) : undefined);
-                            handleSave();
                           }}
                         />
                       </FormControl>
