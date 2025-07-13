@@ -57,6 +57,10 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Fixed archive document viewing functionality to properly load and display archived documents
 - **2025-07-13**: Implemented comprehensive PDF export functionality with complete company information, risk statistics, and formatted risk tables
 - **2025-07-13**: Added PDF export button to risk generation step with enhanced report including company details, risk distribution summary, and professional formatting
+- **2025-07-13**: Integrated charts capture and inclusion in PDF reports using html2canvas
+- **2025-07-13**: Fixed PDF table formatting issues with optimized column widths and improved text wrapping
+- **2025-07-13**: Resolved request size limit issues for chart image transmission (increased to 50MB limit)
+- **2025-07-13**: Enhanced PDF export with progress indicators and better error handling
 
 ## System Architecture
 

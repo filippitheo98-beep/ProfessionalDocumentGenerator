@@ -298,34 +298,37 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     body: tableData,
     startY: 40,
     styles: {
-      fontSize: 6,
-      cellPadding: 1.5,
+      fontSize: 5,
+      cellPadding: 1,
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
+      overflow: 'linebreak',
+      halign: 'left'
     },
     headStyles: {
       fillColor: [41, 128, 185],
       textColor: 255,
-      fontSize: 7,
+      fontSize: 6,
       fontStyle: 'bold',
       halign: 'center'
     },
     columnStyles: {
       0: { cellWidth: 8, halign: 'center' },   // N°
-      1: { cellWidth: 20, fontSize: 5 },       // Source
-      2: { cellWidth: 18, fontSize: 5 },       // Type risque
-      3: { cellWidth: 35, fontSize: 5 },       // Danger
-      4: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Gravité
-      5: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Fréquence
-      6: { cellWidth: 12, halign: 'center', fontSize: 5 },  // Maîtrise
-      7: { cellWidth: 15, halign: 'center', fontSize: 5 },  // Risque final
-      8: { cellWidth: 58, fontSize: 5 }        // Mesures prévention
+      1: { cellWidth: 22, fontSize: 4 },       // Source
+      2: { cellWidth: 22, fontSize: 4 },       // Type risque
+      3: { cellWidth: 40, fontSize: 4 },       // Danger
+      4: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Gravité
+      5: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Fréquence
+      6: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Maîtrise
+      7: { cellWidth: 15, halign: 'center', fontSize: 4 },  // Risque final
+      8: { cellWidth: 47, fontSize: 4 }        // Mesures prévention
     },
     alternateRowStyles: {
       fillColor: [248, 249, 250]
     },
     theme: 'grid',
-    margin: { top: 20, left: 5, right: 5 }
+    margin: { top: 20, left: 5, right: 5 },
+    tableWidth: 'auto'
   });
   
   // Ajouter la numérotation des pages
