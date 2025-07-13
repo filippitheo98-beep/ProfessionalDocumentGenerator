@@ -39,28 +39,30 @@ export default function CompanyInfoStep({
   const form = useForm<CompanyInfoData>({
     resolver: zodResolver(companyInfoSchema),
     defaultValues: {
-      name: initialData?.name || "",
-      activity: initialData?.activity || "",
-      sector: initialData?.sector || "",
-      address: initialData?.address || "",
-      siret: initialData?.siret || "",
-      phone: initialData?.phone || "",
-      email: initialData?.email || "",
-      employeeCount: initialData?.employeeCount || undefined,
+      name: "",
+      activity: "",
+      sector: "",
+      address: "",
+      siret: "",
+      phone: "",
+      email: "",
+      employeeCount: undefined,
     },
   });
 
   // Update form when initialData changes
   useEffect(() => {
     if (initialData) {
-      form.setValue("name", initialData.name || "");
-      form.setValue("activity", initialData.activity || "");
-      form.setValue("sector", initialData.sector || "");
-      form.setValue("address", initialData.address || "");
-      form.setValue("siret", initialData.siret || "");
-      form.setValue("phone", initialData.phone || "");
-      form.setValue("email", initialData.email || "");
-      form.setValue("employeeCount", initialData.employeeCount || undefined);
+      form.reset({
+        name: initialData.name || "",
+        activity: initialData.activity || "",
+        sector: initialData.sector || "",
+        address: initialData.address || "",
+        siret: initialData.siret || "",
+        phone: initialData.phone || "",
+        email: initialData.email || "",
+        employeeCount: initialData.employeeCount || undefined,
+      });
     }
   }, [initialData, form]);
 

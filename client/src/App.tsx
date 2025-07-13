@@ -36,8 +36,8 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/duerp-generator" component={DuerpGenerator} />
-          <Route path="/new-duerp-generator" component={NewDuerpGenerator} />
+          <Route path="/duerp-generator" component={NewDuerpGenerator} />
+          <Route path="/old-duerp-generator" component={DuerpGenerator} />
           <Route path="/documents" component={Documents} />
           <Route path="/archives" component={Archives} />
           <Route path="/collaborators" component={Collaborators} />
