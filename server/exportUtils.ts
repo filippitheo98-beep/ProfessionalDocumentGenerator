@@ -146,8 +146,8 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     body: tableData,
     startY: 50,
     styles: { 
-      fontSize: 6,
-      cellPadding: 1.5,
+      fontSize: 5,
+      cellPadding: 1,
       textColor: [52, 73, 94],
       lineColor: [200, 200, 200],
       lineWidth: 0.3,
@@ -157,19 +157,19 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fillColor: [41, 128, 185],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 6
+      fontSize: 5
     },
     alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
-      0: { cellWidth: 16, halign: 'left' },     // Source
-      1: { cellWidth: 18, halign: 'left' },     // Type de risque
-      2: { cellWidth: 28, halign: 'left' },     // Danger
-      3: { cellWidth: 14, halign: 'center' },   // Gravité
-      4: { cellWidth: 16, halign: 'center' },   // Fréquence
-      5: { cellWidth: 14, halign: 'center' },   // Maîtrise
-      6: { cellWidth: 8, halign: 'center' },    // Score
-      7: { cellWidth: 14, halign: 'center' },   // Priorité
-      8: { cellWidth: 35, halign: 'left' }      // Mesures
+      0: { cellWidth: 'auto', halign: 'left' },     // Source
+      1: { cellWidth: 'auto', halign: 'left' },     // Type de risque
+      2: { cellWidth: 'auto', halign: 'left' },     // Danger
+      3: { cellWidth: 'auto', halign: 'center' },   // Gravité
+      4: { cellWidth: 'auto', halign: 'center' },   // Fréquence
+      5: { cellWidth: 'auto', halign: 'center' },   // Maîtrise
+      6: { cellWidth: 'auto', halign: 'center' },   // Score
+      7: { cellWidth: 'auto', halign: 'center' },   // Priorité
+      8: { cellWidth: 'auto', halign: 'left' }      // Mesures
     },
     margin: { top: 30, left: 8, right: 8, bottom: 30 },
     pageBreak: 'auto',
@@ -184,22 +184,22 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     doc.text('GRAPHIQUES D\'ANALYSE', pageWidth / 2, 30, { align: 'center' });
     
     let yPosition = 50;
-    const chartWidth = 120;  // Largeur optimisée pour le format paysage
-    const chartHeight = 80;  // Hauteur proportionnelle
+    const chartWidth = 150;  // Largeur plus grande pour format paysage
+    const chartHeight = 100;  // Hauteur proportionnelle
     const xPosition = (pageWidth - chartWidth) / 2;  // Centré horizontalement
     
     Object.entries(chartImages).forEach(([chartName, imageData]: [string, any]) => {
       if (imageData && typeof imageData === 'string') {
         try {
           // Vérifier s'il y a assez d'espace sur la page actuelle
-          if (yPosition + chartHeight > 180) {
+          if (yPosition + chartHeight > 160) {
             doc.addPage();
-            yPosition = 50;
+            yPosition = 40;
           }
           
           // Ajouter le graphique centré
           doc.addImage(imageData, 'PNG', xPosition, yPosition, chartWidth, chartHeight);
-          yPosition += chartHeight + 20;  // Espacement entre les graphiques
+          yPosition += chartHeight + 15;  // Espacement entre les graphiques
           
         } catch (error) {
           console.error('Error adding chart image:', error);
