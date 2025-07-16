@@ -128,7 +128,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   doc.setFont('helvetica', 'bold');
   doc.text('TABLEAU DES RISQUES IDENTIFIÉS', pageWidth / 2, 30, { align: 'center' });
   
-  // Tableau des risques - format simplifié avec 8 colonnes (ajout de la source)
+  // Tableau des risques - format complet avec toutes les colonnes nécessaires
   const tableData = risks.map(risk => [
     risk.type || 'Non spécifié',
     risk.danger || 'Non spécifié',
@@ -137,38 +137,43 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     risk.frequency || 'Non spécifié',
     risk.control || 'Non spécifié',
     risk.riskScore ? risk.riskScore.toFixed(2) : '0',
-    risk.priority || 'Non défini'
+    risk.priority || 'Non défini',
+    risk.measures || 'À définir'
   ]);
   
   autoTable(doc, {
-    head: [['Type de risque', 'Danger', 'Source', 'Gravité', 'Fréquence', 'Maîtrise', 'Score', 'Priorité']],
+    head: [['Type de risque', 'Danger', 'Source', 'Gravité', 'Fréquence', 'Maîtrise', 'Score', 'Priorité', 'Mesures']],
     body: tableData,
     startY: 50,
     styles: { 
-      fontSize: 9,
-      cellPadding: 3,
+      fontSize: 7,
+      cellPadding: 2,
       textColor: [52, 73, 94],
       lineColor: [200, 200, 200],
-      lineWidth: 0.3
+      lineWidth: 0.3,
+      overflow: 'linebreak'
     },
     headStyles: { 
       fillColor: [41, 128, 185],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 9
+      fontSize: 7
     },
     alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
-      0: { cellWidth: 30, halign: 'left' },
-      1: { cellWidth: 35, halign: 'left' },
-      2: { cellWidth: 25, halign: 'left' },
-      3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 25, halign: 'center' },
-      5: { cellWidth: 20, halign: 'center' },
-      6: { cellWidth: 15, halign: 'center' },
-      7: { cellWidth: 25, halign: 'center' }
+      0: { cellWidth: 25, halign: 'left' },     // Type de risque
+      1: { cellWidth: 35, halign: 'left' },     // Danger
+      2: { cellWidth: 20, halign: 'left' },     // Source
+      3: { cellWidth: 18, halign: 'center' },   // Gravité
+      4: { cellWidth: 20, halign: 'center' },   // Fréquence
+      5: { cellWidth: 18, halign: 'center' },   // Maîtrise
+      6: { cellWidth: 12, halign: 'center' },   // Score
+      7: { cellWidth: 20, halign: 'center' },   // Priorité
+      8: { cellWidth: 40, halign: 'left' }      // Mesures
     },
-    margin: { top: 30, left: 14, right: 14, bottom: 30 }
+    margin: { top: 30, left: 10, right: 10, bottom: 30 },
+    pageBreak: 'auto',
+    showHead: 'everyPage'
   });
   
   // ==== GRAPHIQUES ====
