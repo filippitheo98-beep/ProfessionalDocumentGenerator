@@ -506,6 +506,10 @@ export default function NewDuerpGenerator() {
                 onUpdateLocations={handleLocationsUpdate}
                 onUpdateWorkStations={handleWorkStationsUpdate}
                 onUpdatePreventionMeasures={handlePreventionMeasuresUpdate}
+                onAddPreventionMeasure={handleAddPreventionMeasure}
+                onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
+                onRemovePreventionMeasure={handleRemovePreventionMeasure}
+                onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
                 onAnalyzePhotos={handleAnalyzePhotos}
                 onSave={handleSaveProgress}
                 companyActivity={company?.activity || ''}
@@ -521,10 +525,6 @@ export default function NewDuerpGenerator() {
                 companyActivity={company?.activity || ''}
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
-                onAddPreventionMeasure={handleAddPreventionMeasure}
-                onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
-                onRemovePreventionMeasure={handleRemovePreventionMeasure}
-                onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
                 isGenerating={isGeneratingRisks}
                 onSave={handleSaveProgress}
               />

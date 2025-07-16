@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   MapPin, 
   Plus, 
@@ -14,10 +15,10 @@ import {
   Settings, 
   Shield,
   Upload,
-  Eye,
   Trash2
 } from 'lucide-react';
 import type { Location, WorkStation, PreventionMeasure } from '@shared/schema';
+import { PreventionMeasuresManager } from '@/components/PreventionMeasuresManager';
 
 interface LocationPhoto {
   id: string;
@@ -33,6 +34,10 @@ interface LocationsWorkstationsStepProps {
   onUpdateLocations: (locations: Location[]) => void;
   onUpdateWorkStations: (workStations: WorkStation[]) => void;
   onUpdatePreventionMeasures: (measures: PreventionMeasure[]) => void;
+  onAddPreventionMeasure: (measure: PreventionMeasure) => void;
+  onUpdatePreventionMeasure: (measureId: string, updates: Partial<PreventionMeasure>) => void;
+  onRemovePreventionMeasure: (measureId: string) => void;
+  onGeneratePreventionRecommendations: () => void;
   onAnalyzePhotos: (photos: LocationPhoto[], locationOrWorkstation: string) => void;
   onSave: () => void;
   companyActivity: string;
@@ -45,6 +50,10 @@ export default function LocationsWorkstationsStep({
   onUpdateLocations,
   onUpdateWorkStations,
   onUpdatePreventionMeasures,
+  onAddPreventionMeasure,
+  onUpdatePreventionMeasure,
+  onRemovePreventionMeasure,
+  onGeneratePreventionRecommendations,
   onAnalyzePhotos,
   onSave,
   companyActivity
@@ -52,7 +61,6 @@ export default function LocationsWorkstationsStep({
   const [newLocationName, setNewLocationName] = useState('');
   const [newWorkStationName, setNewWorkStationName] = useState('');
   const [newWorkStationDescription, setNewWorkStationDescription] = useState('');
-  const [newPreventionMeasure, setNewPreventionMeasure] = useState('');
   const [selectedLocationPhotos, setSelectedLocationPhotos] = useState<LocationPhoto[]>([]);
   const [selectedWorkstationPhotos, setSelectedWorkstationPhotos] = useState<LocationPhoto[]>([]);
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
@@ -74,7 +82,8 @@ export default function LocationsWorkstationsStep({
   };
 
   const removeLocation = (locationId: string) => {
-    onUpdateLocations(locations.filter(loc => loc.id !== locationId));
+    const updatedLocations = locations.filter(location => location.id !== locationId);
+    onUpdateLocations(updatedLocations);
     onSave();
   };
 
@@ -96,50 +105,9 @@ export default function LocationsWorkstationsStep({
   };
 
   const removeWorkStation = (workStationId: string) => {
-    onUpdateWorkStations(workStations.filter(ws => ws.id !== workStationId));
+    const updatedWorkStations = workStations.filter(ws => ws.id !== workStationId);
+    onUpdateWorkStations(updatedWorkStations);
     onSave();
-  };
-
-  const addPreventionMeasure = () => {
-    if (!newPreventionMeasure.trim()) return;
-    
-    const newMeasure: PreventionMeasure = {
-      id: Date.now().toString(),
-      description: newPreventionMeasure.trim(),
-    };
-    
-    onUpdatePreventionMeasures([...preventionMeasures, newMeasure]);
-    setNewPreventionMeasure('');
-    onSave();
-  };
-
-  const removePreventionMeasure = (measureId: string) => {
-    onUpdatePreventionMeasures(preventionMeasures.filter(measure => measure.id !== measureId));
-    onSave();
-  };
-
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const newPhoto: LocationPhoto = {
-          id: Date.now().toString() + Math.random(),
-          file,
-          dataUrl: e.target?.result as string,
-          caption: '',
-        };
-        
-        if (currentPhotoContext?.type === 'location') {
-          setSelectedLocationPhotos(prev => [...prev, newPhoto]);
-        } else {
-          setSelectedWorkstationPhotos(prev => [...prev, newPhoto]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
   };
 
   const openPhotoDialog = (type: 'location' | 'workstation', name: string) => {
@@ -147,12 +115,30 @@ export default function LocationsWorkstationsStep({
     setPhotoDialogOpen(true);
   };
 
-  const analyzePhotos = () => {
-    const photos = currentPhotoContext?.type === 'location' ? selectedLocationPhotos : selectedWorkstationPhotos;
-    if (photos.length > 0 && currentPhotoContext) {
-      onAnalyzePhotos(photos, currentPhotoContext.name);
-    }
-    setPhotoDialogOpen(false);
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const newPhoto: LocationPhoto = {
+            id: Date.now().toString() + Math.random(),
+            file,
+            dataUrl: e.target?.result as string,
+            caption: ''
+          };
+
+          if (currentPhotoContext?.type === 'location') {
+            setSelectedLocationPhotos(prev => [...prev, newPhoto]);
+          } else {
+            setSelectedWorkstationPhotos(prev => [...prev, newPhoto]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
   };
 
   const removePhoto = (photoId: string) => {
@@ -175,174 +161,169 @@ export default function LocationsWorkstationsStep({
     }
   };
 
+  const analyzePhotos = () => {
+    const photos = currentPhotoContext?.type === 'location' ? selectedLocationPhotos : selectedWorkstationPhotos;
+    if (photos.length > 0 && currentPhotoContext) {
+      onAnalyzePhotos(photos, currentPhotoContext.name);
+      setPhotoDialogOpen(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Lieux de travail */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Lieux de travail
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nom du lieu (ex: Bureau, Atelier, Entrepôt...)"
-              value={newLocationName}
-              onChange={(e) => setNewLocationName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addLocation()}
-              className="flex-1"
-            />
-            <Button onClick={addLocation} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {locations.map((location) => (
-              <div key={location.id} className="p-3 border rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{location.name}</span>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openPhotoDialog('location', location.name)}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeLocation(location.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {location.risks.length} risques
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Postes de travail */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Postes de travail
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="workstation-name">Nom du poste</Label>
-              <Input
-                id="workstation-name"
-                placeholder="ex: Secrétaire, Opérateur, Manutentionnaire..."
-                value={newWorkStationName}
-                onChange={(e) => setNewWorkStationName(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="workstation-description">Description</Label>
-              <Textarea
-                id="workstation-description"
-                placeholder="Décrivez les tâches et responsabilités..."
-                value={newWorkStationDescription}
-                onChange={(e) => setNewWorkStationDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <Button onClick={addWorkStation} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter le poste
-          </Button>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {workStations.map((workStation) => (
-              <div key={workStation.id} className="p-3 border rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">{workStation.name}</span>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openPhotoDialog('workstation', workStation.name)}
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeWorkStation(workStation.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {workStation.description && (
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {workStation.description}
-                  </p>
-                )}
-                <Badge variant="secondary" className="text-xs">
-                  {workStation.risks.length} risques
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Moyens de prévention existants */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Moyens de prévention existants
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Décrivez un moyen de prévention (ex: EPI, formation, procédure...)"
-              value={newPreventionMeasure}
-              onChange={(e) => setNewPreventionMeasure(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addPreventionMeasure()}
-              className="flex-1"
-            />
-            <Button onClick={addPreventionMeasure} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter
-            </Button>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {preventionMeasures.map((measure) => (
-              <Badge key={measure.id} variant="outline" className="flex items-center gap-1">
-                {measure.description}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removePreventionMeasure(measure.id)}
-                  className="h-4 w-4 p-0 ml-1"
-                >
-                  <X className="h-3 w-3" />
+      <Tabs defaultValue="locations" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="locations">Lieux de travail</TabsTrigger>
+          <TabsTrigger value="workstations">Postes de travail</TabsTrigger>
+          <TabsTrigger value="prevention">Mesures de prévention</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="locations" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Lieux de travail
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nom du lieu (ex: Bureau, Atelier, Entrepôt...)"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addLocation()}
+                  className="flex-1"
+                />
+                <Button onClick={addLocation} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter
                 </Button>
-              </Badge>
-            ))}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {locations.map((location) => (
+                  <div key={location.id} className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{location.name}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPhotoDialog('location', location.name)}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeLocation(location.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {location.risks.length} risques
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="workstations" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Postes de travail
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="workstation-name">Nom du poste</Label>
+                  <Input
+                    id="workstation-name"
+                    placeholder="ex: Secrétaire, Opérateur, Manutentionnaire..."
+                    value={newWorkStationName}
+                    onChange={(e) => setNewWorkStationName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="workstation-description">Description</Label>
+                  <Textarea
+                    id="workstation-description"
+                    placeholder="Décrivez les tâches et responsabilités..."
+                    value={newWorkStationDescription}
+                    onChange={(e) => setNewWorkStationDescription(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              
+              <Button onClick={addWorkStation} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter le poste
+              </Button>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {workStations.map((workStation) => (
+                  <div key={workStation.id} className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{workStation.name}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPhotoDialog('workstation', workStation.name)}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeWorkStation(workStation.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {workStation.description && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {workStation.description}
+                      </p>
+                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      {workStation.risks.length} risques
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="prevention" className="mt-6">
+          <PreventionMeasuresManager
+            measures={preventionMeasures}
+            risks={[]}
+            locations={locations}
+            workStations={workStations}
+            onAddMeasure={onAddPreventionMeasure}
+            onUpdateMeasure={onUpdatePreventionMeasure}
+            onRemoveMeasure={onRemovePreventionMeasure}
+          />
+          <div className="mt-4 flex justify-center">
+            <Button onClick={onGeneratePreventionRecommendations} variant="outline">
+              <Shield className="h-4 w-4 mr-2" />
+              Générer des recommandations
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog pour les photos */}
       <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
