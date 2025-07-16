@@ -70,105 +70,114 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   const redColor = [231, 76, 60]; // Rouge
   const orangeColor = [243, 156, 18]; // Orange
   
-  // ==== PAGE DE GARDE AMÉLIORÉE ====
+  // ==== PAGE DE GARDE SIMPLE ET PROFESSIONNELLE ====
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   
-  // Bandeau supérieur coloré
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(0, 0, pageWidth, 25, 'F');
+  // Ligne décorative supérieure
+  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setLineWidth(3);
+  doc.line(20, 30, pageWidth - 20, 30);
   
-  // Titre principal en blanc sur fond bleu
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
+  // Titre principal
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('DOCUMENT UNIQUE', pageWidth / 2, 17, { align: 'center' });
+  doc.text('DOCUMENT UNIQUE', pageWidth / 2, 50, { align: 'center' });
   
   // Sous-titre
-  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
   doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('D\'ÉVALUATION DES RISQUES PROFESSIONNELS', pageWidth / 2, 45, { align: 'center' });
+  doc.text('D\'ÉVALUATION DES RISQUES PROFESSIONNELS', pageWidth / 2, 70, { align: 'center' });
   
-  // Références légales avec fond coloré
-  doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.rect(20, 65, pageWidth - 40, 30, 'F');
-  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  // Ligne décorative sous le titre
   doc.setLineWidth(1);
-  doc.rect(20, 65, pageWidth - 40, 30);
+  doc.line(40, 80, pageWidth - 40, 80);
+  
+  // Références légales dans un cadre simple
+  doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
+  doc.setLineWidth(1);
+  doc.rect(30, 95, pageWidth - 60, 25);
   
   doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('(En application du décret n° 2001-1016 du 5 novembre 2001)', pageWidth / 2, 78, { align: 'center' });
-  doc.text('(Articles R4121-1 à R4121-4 et L4121-3 et L4121-3-1 du Code du Travail)', pageWidth / 2, 88, { align: 'center' });
+  doc.text('(En application du décret n° 2001-1016 du 5 novembre 2001)', pageWidth / 2, 105, { align: 'center' });
+  doc.text('(Articles R4121-1 à R4121-4 et L4121-3 et L4121-3-1 du Code du Travail)', pageWidth / 2, 115, { align: 'center' });
   
-  // Cadre pour les informations de l'entreprise
-  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.rect(20, 110, pageWidth - 40, 80, 'F');
+  // Informations de l'entreprise dans un cadre élégant
   doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setLineWidth(2);
-  doc.rect(20, 110, pageWidth - 40, 80);
+  doc.rect(30, 140, pageWidth - 60, 70);
   
   // Titre de la section entreprise
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('INFORMATIONS ENTREPRISE', pageWidth / 2, 130, { align: 'center' });
+  doc.text('INFORMATIONS ENTREPRISE', pageWidth / 2, 155, { align: 'center' });
+  
+  // Ligne sous le titre
+  doc.setLineWidth(1);
+  doc.line(40, 160, pageWidth - 40, 160);
   
   // Informations de l'entreprise
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  let yPos = 150;
-  doc.text(`Entreprise : ${companyName}`, 30, yPos);
+  let yPos = 175;
+  doc.text(`Entreprise : ${companyName}`, 40, yPos);
   yPos += 12;
-  doc.text(`Secteur : ${companyActivity}`, 30, yPos);
+  doc.text(`Secteur : ${companyActivity}`, 40, yPos);
   
   if (companyData) {
     if (companyData.address) {
       yPos += 12;
-      doc.text(`Adresse : ${companyData.address}`, 30, yPos);
+      doc.text(`Adresse : ${companyData.address}`, 40, yPos);
     }
-    if (companyData.phone) {
+    if (companyData.phone && companyData.email) {
       yPos += 12;
-      doc.text(`Téléphone : ${companyData.phone}`, 30, yPos);
-    }
-    if (companyData.email) {
+      doc.text(`Contact : ${companyData.phone} - ${companyData.email}`, 40, yPos);
+    } else if (companyData.phone) {
       yPos += 12;
-      doc.text(`Courriel : ${companyData.email}`, 30, yPos);
+      doc.text(`Téléphone : ${companyData.phone}`, 40, yPos);
+    } else if (companyData.email) {
+      yPos += 12;
+      doc.text(`Courriel : ${companyData.email}`, 40, yPos);
     }
   }
   
-  // Cadre pour la date avec style
-  doc.setFillColor(darkGray[0], darkGray[1], darkGray[2]);
-  doc.rect(20, 210, pageWidth - 40, 20, 'F');
-  doc.setTextColor(255, 255, 255);
+  // Date avec style simple
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'normal');
   const today = new Date().toLocaleDateString('fr-FR');
-  doc.text(`Réalisé le : ${today}`, pageWidth / 2, 223, { align: 'center' });
+  doc.text(`Réalisé le : ${today}`, pageWidth / 2, 240, { align: 'center' });
   
-  // Pied de page décoratif
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+  // Ligne décorative en bas
+  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setLineWidth(3);
+  doc.line(20, pageHeight - 30, pageWidth - 20, pageHeight - 30);
   
   // ==== TABLE DES MATIÈRES ====
   doc.addPage();
   
-  // Bandeau de titre pour la table des matières
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(0, 0, pageWidth, 25, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TABLE DES MATIÈRES', pageWidth / 2, 17, { align: 'center' });
+  // Titre simple avec ligne décorative
+  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setLineWidth(2);
+  doc.line(20, 30, pageWidth - 20, 30);
   
-  // Contenu de la table des matières avec style
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TABLE DES MATIÈRES', pageWidth / 2, 45, { align: 'center' });
+  
+  doc.setLineWidth(1);
+  doc.line(40, 55, pageWidth - 40, 55);
+  
+  // Contenu de la table des matières propre
   doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  yPos = 60;
+  yPos = 80;
   
   const tableOfContents = [
     'A. Tableau de mise à jour',
@@ -181,56 +190,49 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   ];
   
   tableOfContents.forEach((item, index) => {
-    // Alternance de couleur de fond pour chaque ligne
-    if (index % 2 === 0) {
-      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(20, yPos - 8, pageWidth - 40, 15, 'F');
-    }
-    
     doc.setFont('helvetica', 'bold');
     doc.text(item, 30, yPos);
+    
+    // Ligne de points simple
     doc.setFont('helvetica', 'normal');
+    const dots = '................................................................';
+    doc.text(dots, 100, yPos);
     
-    // Ligne de points
-    const dots = '...................................................';
-    doc.text(dots, 120, yPos);
-    
-    // Numéro de page (simulé)
+    // Numéro de page
     doc.text(`${index + 3}`, pageWidth - 40, yPos);
     
-    yPos += 18;
+    yPos += 20;
   });
   
   // ==== PRÉSENTATION DE LA SOCIÉTÉ ====
   doc.addPage();
   
-  // En-tête de section avec style
-  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.rect(0, 0, pageWidth, 25, 'F');
-  doc.setTextColor(255, 255, 255);
+  // En-tête de section simple
+  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setLineWidth(2);
+  doc.line(20, 30, pageWidth - 20, 30);
+  
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('B. PRÉSENTATION DE LA SOCIÉTÉ', pageWidth / 2, 17, { align: 'center' });
+  doc.text('B. PRÉSENTATION DE LA SOCIÉTÉ', pageWidth / 2, 45, { align: 'center' });
+  
+  doc.setLineWidth(1);
+  doc.line(40, 55, pageWidth - 40, 55);
   
   doc.setTextColor(darkGray[0], darkGray[1], darkGray[2]);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  yPos = 50;
+  yPos = 75;
   
-  // Cadre pour la présentation
-  doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.rect(20, yPos - 5, pageWidth - 40, 40, 'F');
-  doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.setLineWidth(1);
-  doc.rect(20, yPos - 5, pageWidth - 40, 40);
-  
+  // Présentation simple
   doc.setFont('helvetica', 'bold');
-  doc.text('Présentation de la société :', 30, yPos + 8);
+  doc.text('Présentation de la société :', 30, yPos);
   doc.setFont('helvetica', 'normal');
-  yPos += 20;
-  doc.text(`${companyName} est une entreprise spécialisée dans ${companyActivity}.`, 30, yPos + 8);
+  yPos += 15;
+  doc.text(`${companyName} est une entreprise spécialisée dans ${companyActivity}.`, 30, yPos);
   
-  yPos += 50;
+  yPos += 30;
   doc.setFont('helvetica', 'bold');
   doc.text('Coordonnées et Localisation', 30, yPos);
   yPos += 15;
@@ -257,13 +259,18 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   // ==== LE CODE DU TRAVAIL ====
   doc.addPage();
   
-  // En-tête de section avec style
-  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.rect(0, 0, pageWidth, 25, 'F');
-  doc.setTextColor(255, 255, 255);
+  // En-tête de section simple
+  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.setLineWidth(2);
+  doc.line(20, 30, pageWidth - 20, 30);
+  
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('C. LE CODE DU TRAVAIL', pageWidth / 2, 17, { align: 'center' });
+  doc.text('C. LE CODE DU TRAVAIL', pageWidth / 2, 45, { align: 'center' });
+  
+  doc.setLineWidth(1);
+  doc.line(40, 55, pageWidth - 40, 55);
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
@@ -334,15 +341,15 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fontSize: 10, 
       cellPadding: 4,
       textColor: [52, 73, 94],
-      lineColor: [149, 165, 166],
+      lineColor: [200, 200, 200],
       lineWidth: 0.5
     },
     headStyles: { 
-      fillColor: [41, 128, 185],
-      textColor: [255, 255, 255],
+      fillColor: [230, 230, 230],
+      textColor: [52, 73, 94],
       fontStyle: 'bold'
     },
-    alternateRowStyles: { fillColor: [241, 245, 248] },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
       0: { cellWidth: 30, halign: 'center' },
       1: { cellWidth: 20, halign: 'center' },
@@ -369,15 +376,15 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fontSize: 10, 
       cellPadding: 4,
       textColor: [52, 73, 94],
-      lineColor: [149, 165, 166],
+      lineColor: [200, 200, 200],
       lineWidth: 0.5
     },
     headStyles: { 
-      fillColor: [52, 152, 219],
-      textColor: [255, 255, 255],
+      fillColor: [230, 230, 230],
+      textColor: [52, 73, 94],
       fontStyle: 'bold'
     },
-    alternateRowStyles: { fillColor: [241, 245, 248] },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
       0: { cellWidth: 30, halign: 'center' },
       1: { cellWidth: 60, halign: 'left' },
@@ -404,15 +411,15 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fontSize: 10, 
       cellPadding: 4,
       textColor: [52, 73, 94],
-      lineColor: [149, 165, 166],
+      lineColor: [200, 200, 200],
       lineWidth: 0.5
     },
     headStyles: { 
-      fillColor: [39, 174, 96],
-      textColor: [255, 255, 255],
+      fillColor: [230, 230, 230],
+      textColor: [52, 73, 94],
       fontStyle: 'bold'
     },
-    alternateRowStyles: { fillColor: [241, 245, 248] },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
       0: { cellWidth: 30, halign: 'center' },
       1: { cellWidth: 20, halign: 'center' },
@@ -441,21 +448,15 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fontSize: 10, 
       cellPadding: 4,
       textColor: [52, 73, 94],
-      lineColor: [149, 165, 166],
+      lineColor: [200, 200, 200],
       lineWidth: 0.5
     },
     headStyles: { 
-      fillColor: [243, 156, 18],
-      textColor: [255, 255, 255],
+      fillColor: [230, 230, 230],
+      textColor: [52, 73, 94],
       fontStyle: 'bold'
     },
-    alternateRowStyles: { fillColor: [241, 245, 248] },
-    bodyStyles: {
-      0: { fillColor: [46, 204, 113] }, // Vert pour faible
-      1: { fillColor: [241, 196, 15] }, // Jaune pour modéré
-      2: { fillColor: [230, 126, 34] }, // Orange pour moyenne
-      3: { fillColor: [231, 76, 60] }   // Rouge pour forte
-    },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
       0: { cellWidth: 40, halign: 'center' },
       1: { cellWidth: 50, halign: 'center' },
@@ -509,16 +510,16 @@ export async function generatePDFFile(risks: any[], companyName: string, company
         fontSize: 8, 
         cellPadding: 3,
         textColor: [52, 73, 94],
-        lineColor: [149, 165, 166],
-        lineWidth: 0.3
+        lineColor: [200, 200, 200],
+        lineWidth: 0.5
       },
       headStyles: { 
-        fillColor: [41, 128, 185],
-        textColor: [255, 255, 255],
+        fillColor: [230, 230, 230],
+        textColor: [52, 73, 94],
         fontStyle: 'bold',
         fontSize: 8
       },
-      alternateRowStyles: { fillColor: [250, 250, 250] },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: {
         0: { cellWidth: 20 },
         1: { cellWidth: 25 },
@@ -532,26 +533,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
         9: { cellWidth: 20, halign: 'center' },
         10: { cellWidth: 35 }
       },
-      margin: { left: 10, right: 10 },
-      didParseCell: function(data: any) {
-        // Colorier les priorités
-        if (data.column.index === 9) { // Colonne Priorité
-          const priority = data.cell.text[0];
-          if (priority?.includes('Priorité 1')) {
-            data.cell.styles.fillColor = [231, 76, 60]; // Rouge
-            data.cell.styles.textColor = [255, 255, 255];
-          } else if (priority?.includes('Priorité 2')) {
-            data.cell.styles.fillColor = [230, 126, 34]; // Orange
-            data.cell.styles.textColor = [255, 255, 255];
-          } else if (priority?.includes('Priorité 3')) {
-            data.cell.styles.fillColor = [241, 196, 15]; // Jaune
-            data.cell.styles.textColor = [52, 73, 94];
-          } else if (priority?.includes('Priorité 4')) {
-            data.cell.styles.fillColor = [46, 204, 113]; // Vert
-            data.cell.styles.textColor = [255, 255, 255];
-          }
-        }
-      }
+      margin: { left: 10, right: 10 }
     });
   });
   
