@@ -1,5 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
 import type { Risk } from "@shared/schema";
 
 interface RiskTableProps {
@@ -10,7 +12,7 @@ interface RiskTableProps {
   canEdit?: boolean;
 }
 
-import { RiskTableActions } from './RiskTableActions';
+import { SimpleRiskActions } from './SimpleRiskActions';
 
 export default function RiskTable({ 
   risks, 
@@ -69,10 +71,10 @@ export default function RiskTable({
     <div className="bg-slate-50 rounded-lg p-4 mb-6">
       <h4 className="font-medium text-slate-900 mb-3">Évaluation des risques professionnels</h4>
       
-      {/* Actions de gestion des risques */}
+      {/* Bouton d'ajout de risque */}
       {canEdit && (
-        <div className="mb-4">
-          <RiskTableActions 
+        <div className="mb-4 flex justify-end">
+          <SimpleRiskActions 
             risks={risks}
             documentId={documentId}
             onRisksUpdated={onRisksUpdated || (() => {})}
@@ -93,6 +95,7 @@ export default function RiskTable({
               <TableHead className="font-medium text-slate-700">Maîtrise</TableHead>
               <TableHead className="font-medium text-slate-700">Risque final</TableHead>
               <TableHead className="font-medium text-slate-700">Mesures existantes</TableHead>
+              {canEdit && <TableHead className="font-medium text-slate-700 w-24">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,6 +131,36 @@ export default function RiskTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-slate-700">{risk.measures}</TableCell>
+                {canEdit && (
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          // Déclencher l'édition du risque
+                          const event = new CustomEvent('editRisk', { detail: risk });
+                          window.dispatchEvent(event);
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          // Déclencher la suppression du risque
+                          const event = new CustomEvent('deleteRisk', { detail: risk.id });
+                          window.dispatchEvent(event);
+                        }}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
