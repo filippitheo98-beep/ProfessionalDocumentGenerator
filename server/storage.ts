@@ -256,11 +256,12 @@ export class DatabaseStorage implements IStorage {
 Identifiez TOUS les risques professionnels pertinents selon la réglementation française. Soyez exhaustif mais restez cohérent avec le contexte. Pour chaque risque identifié, indiquez :
 - type: Type de risque (TMS, Chute, Bruit, Incendie, Chimique, Électrique, etc.)
 - danger: Description précise du danger
-- gravity: "Faible", "Moyenne", ou "Élevée"  
-- frequency: "Rare", "Occasionnel", "Hebdomadaire", ou "Quotidien"
-- control: "Faible", "Moyenne", ou "Élevée"
-- finalRisk: "Faible", "Moyen", ou "Important" (calculé selon gravity × frequency ÷ control)
+- gravity: "Faible", "Moyenne", "Grave", ou "Très Grave"
+- frequency: "Annuelle", "Mensuelle", "Hebdomadaire", ou "Journalière"
+- control: "Très élevée", "Élevée", "Moyenne", ou "Absente"
 - measures: Mesures de prévention spécifiques
+
+IMPORTANT : Utilisez exactement ces valeurs pour gravity, frequency et control.
 
 Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous les risques identifiés.`;
 
@@ -278,16 +279,34 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
 
       const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
       
-      return result.risks.map((risk: any) => ({
-        id: crypto.randomUUID(),
-        type: risk.type || 'Risque général',
-        danger: risk.danger || 'Danger non spécifié',
-        gravity: risk.gravity || 'Moyenne',
-        frequency: risk.frequency || 'Occasionnel',
-        control: risk.control || 'Moyenne',
-        finalRisk: risk.finalRisk || 'Moyen',
-        measures: risk.measures || 'Mesures de prévention à définir'
-      }));
+      return result.risks.map((risk: any) => {
+        const gravity = risk.gravity || 'Moyenne';
+        const frequency = risk.frequency || 'Mensuelle';
+        const control = risk.control || 'Moyenne';
+        
+        // Calcul du score de risque selon votre méthode
+        const gravityValue = gravity === 'Faible' ? 1 : gravity === 'Moyenne' ? 4 : gravity === 'Grave' ? 20 : 100;
+        const frequencyValue = frequency === 'Annuelle' ? 1 : frequency === 'Mensuelle' ? 4 : frequency === 'Hebdomadaire' ? 10 : 50;
+        const controlValue = control === 'Très élevée' ? 0.05 : control === 'Élevée' ? 0.2 : control === 'Moyenne' ? 0.5 : 1;
+        
+        const riskScore = gravityValue * frequencyValue * controlValue;
+        const priority = riskScore >= 500 ? 'Priorité 1 (Forte)' : riskScore >= 100 ? 'Priorité 2 (Moyenne)' : riskScore >= 10 ? 'Priorité 3 (Modéré)' : 'Priorité 4 (Faible)';
+        
+        return {
+          id: crypto.randomUUID(),
+          type: risk.type || 'Risque général',
+          danger: risk.danger || 'Danger non spécifié',
+          gravity: gravity as 'Faible' | 'Moyenne' | 'Grave' | 'Très Grave',
+          gravityValue: gravityValue as 1 | 4 | 20 | 100,
+          frequency: frequency as 'Annuelle' | 'Mensuelle' | 'Hebdomadaire' | 'Journalière',
+          frequencyValue: frequencyValue as 1 | 4 | 10 | 50,
+          control: control as 'Très élevée' | 'Élevée' | 'Moyenne' | 'Absente',
+          controlValue: controlValue as 0.05 | 0.2 | 0.5 | 1,
+          riskScore: riskScore,
+          priority: priority as 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)',
+          measures: risk.measures || 'Mesures de prévention à définir'
+        };
+      });
     } catch (error) {
       console.error('Error calling OpenAI API:', error);
       return [];

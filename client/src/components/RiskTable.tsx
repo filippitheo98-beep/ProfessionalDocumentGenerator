@@ -25,35 +25,38 @@ export default function RiskTable({
     switch (gravity) {
       case 'Faible': return 'bg-green-100 text-green-800';
       case 'Moyenne': return 'bg-yellow-100 text-yellow-800';
-      case 'Élevée': return 'bg-red-100 text-red-800';
+      case 'Grave': return 'bg-orange-100 text-orange-800';
+      case 'Très Grave': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getFrequencyColor = (frequency: string) => {
     switch (frequency) {
-      case 'Rare': return 'bg-green-100 text-green-800';
-      case 'Occasionnel': return 'bg-yellow-100 text-yellow-800';
+      case 'Annuelle': return 'bg-green-100 text-green-800';
+      case 'Mensuelle': return 'bg-blue-100 text-blue-800';
       case 'Hebdomadaire': return 'bg-yellow-100 text-yellow-800';
-      case 'Quotidien': return 'bg-red-100 text-red-800';
+      case 'Journalière': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getControlColor = (control: string) => {
     switch (control) {
-      case 'Élevée': return 'bg-green-100 text-green-800';
+      case 'Très élevée': return 'bg-green-100 text-green-800';
+      case 'Élevée': return 'bg-blue-100 text-blue-800';
       case 'Moyenne': return 'bg-yellow-100 text-yellow-800';
-      case 'Faible': return 'bg-orange-100 text-orange-800';
+      case 'Absente': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getFinalRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'Faible': return 'bg-green-100 text-green-800';
-      case 'Moyen': return 'bg-yellow-100 text-yellow-800';
-      case 'Important': return 'bg-red-100 text-red-800';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Priorité 4 (Faible)': return 'bg-green-100 text-green-800';
+      case 'Priorité 3 (Modéré)': return 'bg-yellow-100 text-yellow-800';
+      case 'Priorité 2 (Moyenne)': return 'bg-orange-100 text-orange-800';
+      case 'Priorité 1 (Forte)': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -93,7 +96,8 @@ export default function RiskTable({
               <TableHead className="font-medium text-slate-700">Gravité</TableHead>
               <TableHead className="font-medium text-slate-700">Fréquence</TableHead>
               <TableHead className="font-medium text-slate-700">Maîtrise</TableHead>
-              <TableHead className="font-medium text-slate-700">Risque final</TableHead>
+              <TableHead className="font-medium text-slate-700">Score</TableHead>
+              <TableHead className="font-medium text-slate-700">Priorité</TableHead>
               <TableHead className="font-medium text-slate-700">Mesures existantes</TableHead>
               {canEdit && <TableHead className="font-medium text-slate-700 w-24">Actions</TableHead>}
             </TableRow>
@@ -126,8 +130,13 @@ export default function RiskTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge className={getFinalRiskColor(risk.finalRisk)} variant="secondary">
-                    {risk.finalRisk}
+                  <div className="text-center font-mono text-sm">
+                    {risk.riskScore ? Math.round(risk.riskScore * 100) / 100 : 'N/A'}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={getPriorityColor(risk.priority)} variant="secondary">
+                    {risk.priority}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-slate-700">{risk.measures}</TableCell>

@@ -197,10 +197,14 @@ export interface Risk {
   id: string;
   type: string;
   danger: string;
-  gravity: 'Faible' | 'Moyenne' | 'Élevée';
-  frequency: 'Rare' | 'Occasionnel' | 'Hebdomadaire' | 'Quotidien';
-  control: 'Faible' | 'Moyenne' | 'Élevée';
-  finalRisk: 'Faible' | 'Moyen' | 'Important';
+  gravity: 'Faible' | 'Moyenne' | 'Grave' | 'Très Grave';
+  gravityValue: 1 | 4 | 20 | 100;
+  frequency: 'Annuelle' | 'Mensuelle' | 'Hebdomadaire' | 'Journalière';
+  frequencyValue: 1 | 4 | 10 | 50;
+  control: 'Très élevée' | 'Élevée' | 'Moyenne' | 'Absente';
+  controlValue: 0.05 | 0.2 | 0.5 | 1;
+  riskScore: number; // Gravité × Fréquence × Maîtrise
+  priority: 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)';
   measures: string;
   source?: string;
   sourceType?: 'Lieu' | 'Poste';
@@ -254,4 +258,41 @@ export type GenerateRisksRequest = z.infer<typeof generateRisksRequestSchema>;
 
 export interface GenerateRisksResponse {
   risks: Risk[];
+}
+
+// Utility functions for risk calculation
+export const GRAVITY_VALUES = {
+  'Faible': 1,
+  'Moyenne': 4,
+  'Grave': 20,
+  'Très Grave': 100
+} as const;
+
+export const FREQUENCY_VALUES = {
+  'Annuelle': 1,
+  'Mensuelle': 4,
+  'Hebdomadaire': 10,
+  'Journalière': 50
+} as const;
+
+export const CONTROL_VALUES = {
+  'Très élevée': 0.05,
+  'Élevée': 0.2,
+  'Moyenne': 0.5,
+  'Absente': 1
+} as const;
+
+export function calculateRiskScore(
+  gravity: keyof typeof GRAVITY_VALUES,
+  frequency: keyof typeof FREQUENCY_VALUES,
+  control: keyof typeof CONTROL_VALUES
+): number {
+  return GRAVITY_VALUES[gravity] * FREQUENCY_VALUES[frequency] * CONTROL_VALUES[control];
+}
+
+export function calculatePriority(score: number): 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)' {
+  if (score >= 500) return 'Priorité 1 (Forte)';
+  if (score >= 100) return 'Priorité 2 (Moyenne)';
+  if (score >= 10) return 'Priorité 3 (Modéré)';
+  return 'Priorité 4 (Faible)';
 }

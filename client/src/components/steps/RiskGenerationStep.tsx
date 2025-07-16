@@ -44,10 +44,11 @@ export default function RiskGenerationStep({
   const totalItems = locations.length + workStations.length;
   const hasRisks = finalRisks.length > 0;
   
-  const risksByLevel = {
-    'Faible': finalRisks.filter(r => r.finalRisk === 'Faible').length,
-    'Moyen': finalRisks.filter(r => r.finalRisk === 'Moyen').length,
-    'Important': finalRisks.filter(r => r.finalRisk === 'Important').length,
+  const risksByPriority = {
+    'Priorité 1 (Forte)': finalRisks.filter(r => r.priority === 'Priorité 1 (Forte)').length,
+    'Priorité 2 (Moyenne)': finalRisks.filter(r => r.priority === 'Priorité 2 (Moyenne)').length,
+    'Priorité 3 (Modéré)': finalRisks.filter(r => r.priority === 'Priorité 3 (Modéré)').length,
+    'Priorité 4 (Faible)': finalRisks.filter(r => r.priority === 'Priorité 4 (Faible)').length,
   };
 
   const handleGenerate = () => {
@@ -202,29 +203,37 @@ export default function RiskGenerationStep({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-                  {risksByLevel['Faible']}
+                  {risksByPriority['Priorité 4 (Faible)']}
                 </div>
                 <div className="text-sm text-green-600 dark:text-green-300">
-                  Risques faibles
+                  Priorité 4 (Faible)
                 </div>
               </div>
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
-                  {risksByLevel['Moyen']}
+                  {risksByPriority['Priorité 3 (Modéré)']}
                 </div>
                 <div className="text-sm text-yellow-600 dark:text-yellow-300">
-                  Risques moyens
+                  Priorité 3 (Modéré)
+                </div>
+              </div>
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">
+                  {risksByPriority['Priorité 2 (Moyenne)']}
+                </div>
+                <div className="text-sm text-orange-600 dark:text-orange-300">
+                  Priorité 2 (Moyenne)
                 </div>
               </div>
               <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <div className="text-2xl font-bold text-red-700 dark:text-red-400">
-                  {risksByLevel['Important']}
+                  {risksByPriority['Priorité 1 (Forte)']}
                 </div>
                 <div className="text-sm text-red-600 dark:text-red-300">
-                  Risques importants
+                  Priorité 1 (Forte)
                 </div>
               </div>
             </div>
