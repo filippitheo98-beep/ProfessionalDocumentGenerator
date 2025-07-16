@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, type Risk } from "@shared/schema";
 import { z } from "zod";
-import { generateExcelFile, generatePDFFile } from './exportUtils';
+import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
 
@@ -436,34 +436,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export to PDF endpoint
-  app.post('/api/export/pdf', async (req, res) => {
+  // Export to Word endpoint
+  app.post('/api/export/word', async (req, res) => {
     try {
-      const { risks, companyName, companyActivity, companyData, locations, workStations, preventionMeasures, chartImages } = req.body;
+      const { risks, companyName, companyActivity, companyData, locations, workStations, preventionMeasures } = req.body;
       
       if (!risks || !Array.isArray(risks)) {
         return res.status(400).json({ message: 'Risks data is required' });
       }
 
-      const pdfBuffer = await generatePDFFile(
+      const wordBuffer = await generateWordFile(
         risks, 
         companyName, 
         companyActivity, 
         companyData,
         locations || [],
         workStations || [],
-        preventionMeasures || [],
-        chartImages || {}
+        preventionMeasures || []
       );
-      const fileName = `DUERP_${companyName || 'Export'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `DUERP_${companyName || 'Export'}_${new Date().toISOString().split('T')[0]}.docx`;
       
-      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.send(pdfBuffer);
+      res.send(wordBuffer);
       
     } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      res.status(500).json({ message: 'Failed to export to PDF' });
+      console.error('Error exporting to Word:', error);
+      res.status(500).json({ message: 'Failed to export to Word' });
     }
   });
 

@@ -30,7 +30,7 @@ interface AnalyticsStepProps {
   risks: Risk[];
   companyName: string;
   onSave: () => void;
-  onGeneratePDF: () => void;
+  onGenerateWord: () => void;
   locations: any[];
   workStations: any[];
   preventionMeasures: any[];
@@ -53,7 +53,7 @@ const RISK_TYPE_COLORS = [
   '#6B7280'
 ];
 
-export default function AnalyticsStep({ risks, companyName, onSave, onGeneratePDF, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
+export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
   // Données pour le graphique en barres (par niveau de risque)
   const riskLevelData = [
     {
@@ -352,9 +352,9 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGeneratePD
             </p>
             
             <div className="flex gap-4">
-              <Button onClick={onGeneratePDF} size="lg" className="flex-1">
+              <Button onClick={onGenerateWord} size="lg" className="flex-1">
                 <FileText className="h-4 w-4 mr-2" />
-                Générer le rapport PDF complet
+                Générer le rapport Word complet
               </Button>
               
               <Button onClick={onSave} variant="outline" size="lg">

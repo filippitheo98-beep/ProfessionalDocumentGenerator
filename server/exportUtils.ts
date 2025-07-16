@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, HeadingLevel, Media } from 'docx';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -208,4 +209,134 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   }
   
   return Buffer.from(doc.output('arraybuffer'));
+}
+
+export async function generateWordFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[]): Promise<Buffer> {
+  // Créer le titre du document
+  const title = new Paragraph({
+    text: `DOCUMENT UNIQUE D'ÉVALUATION DES RISQUES PROFESSIONNELS - ${companyName}`,
+    heading: HeadingLevel.TITLE,
+    alignment: AlignmentType.CENTER,
+    spacing: {
+      after: 400
+    }
+  });
+
+  // Créer le tableau des risques
+  const tableRows = [
+    // En-tête du tableau
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [new Paragraph({ text: "Source", alignment: AlignmentType.CENTER })],
+          width: { size: 12, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Type de risque", alignment: AlignmentType.CENTER })],
+          width: { size: 14, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Danger", alignment: AlignmentType.CENTER })],
+          width: { size: 18, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Gravité", alignment: AlignmentType.CENTER })],
+          width: { size: 10, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Fréquence", alignment: AlignmentType.CENTER })],
+          width: { size: 10, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Maîtrise", alignment: AlignmentType.CENTER })],
+          width: { size: 10, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Score", alignment: AlignmentType.CENTER })],
+          width: { size: 6, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Priorité", alignment: AlignmentType.CENTER })],
+          width: { size: 10, type: WidthType.PERCENTAGE }
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: "Mesures", alignment: AlignmentType.CENTER })],
+          width: { size: 20, type: WidthType.PERCENTAGE }
+        })
+      ]
+    }),
+    // Lignes de données
+    ...risks.map(risk => new TableRow({
+      children: [
+        new TableCell({
+          children: [new Paragraph({ text: risk.source || 'Non spécifié' })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.type || 'Non spécifié' })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.danger || 'Non spécifié' })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.gravity || 'Non spécifié', alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.frequency || 'Non spécifié', alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.control || 'Non spécifié', alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.riskScore ? risk.riskScore.toFixed(2) : '0', alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.priority || 'Non défini', alignment: AlignmentType.CENTER })]
+        }),
+        new TableCell({
+          children: [new Paragraph({ text: risk.measures || 'À définir' })]
+        })
+      ]
+    }))
+  ];
+
+  const table = new Table({
+    rows: tableRows,
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE
+    }
+  });
+
+  // Créer le document Word
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 1440,
+            right: 1440,
+            bottom: 1440,
+            left: 1440
+          }
+        }
+      },
+      children: [
+        title,
+        new Paragraph({
+          text: "TABLEAU DES RISQUES IDENTIFIÉS",
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: {
+            before: 200,
+            after: 200
+          }
+        }),
+        table
+      ]
+    }]
+  });
+
+  // Générer le buffer
+  const buffer = await Packer.toBuffer(doc);
+  return buffer;
 }

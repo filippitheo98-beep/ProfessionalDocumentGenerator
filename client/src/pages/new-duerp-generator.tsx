@@ -375,53 +375,14 @@ export default function NewDuerpGenerator() {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportWord = async () => {
     try {
       toast({
         title: "Génération en cours",
-        description: "Capture des graphiques...",
-      });
-      
-      // Capturer les graphiques
-      const chartImages: { [key: string]: string } = {};
-      
-      // Importer html2canvas dynamiquement
-      const html2canvas = (await import('html2canvas')).default;
-      
-      // Capturer le graphique en barres
-      const barChartElement = document.querySelector('[data-chart="bar"]');
-      if (barChartElement) {
-        const canvas = await html2canvas(barChartElement as HTMLElement, {
-          backgroundColor: 'white',
-          scale: 1,
-          useCORS: true,
-          logging: false,
-          width: 800,
-          height: 400
-        });
-        chartImages.barChart = canvas.toDataURL('image/jpeg', 0.8);
-      }
-      
-      // Capturer le graphique en secteurs
-      const pieChartElement = document.querySelector('[data-chart="pie"]');
-      if (pieChartElement) {
-        const canvas = await html2canvas(pieChartElement as HTMLElement, {
-          backgroundColor: 'white',
-          scale: 1,
-          useCORS: true,
-          logging: false,
-          width: 800,
-          height: 400
-        });
-        chartImages.pieChart = canvas.toDataURL('image/jpeg', 0.8);
-      }
-
-      toast({
-        title: "Génération en cours",
-        description: "Création du document PDF...",
+        description: "Création du document Word...",
       });
 
-      const response = await fetch('/api/export/pdf', {
+      const response = await fetch('/api/export/word', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -437,8 +398,7 @@ export default function NewDuerpGenerator() {
           },
           locations: locations,
           workStations: workStations,
-          preventionMeasures: preventionMeasures,
-          chartImages: chartImages
+          preventionMeasures: preventionMeasures
         }),
       });
       
@@ -447,20 +407,20 @@ export default function NewDuerpGenerator() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `DUERP_${company?.name || 'Export'}.pdf`;
+        a.download = `DUERP_${company?.name || 'Export'}.docx`;
         a.click();
         window.URL.revokeObjectURL(url);
         
         toast({
           title: "Export réussi",
-          description: "Le rapport PDF complet avec graphiques a été téléchargé",
+          description: "Le document Word a été téléchargé avec succès",
         });
       }
     } catch (error) {
-      console.error('Erreur lors de l\'export PDF:', error);
+      console.error('Erreur lors de l\'export Word:', error);
       toast({
         title: "Erreur d'export",
-        description: "Impossible d'exporter le fichier PDF. Vérifiez que les risques sont générés.",
+        description: "Impossible d'exporter le fichier Word. Vérifiez que les risques sont générés.",
         variant: "destructive",
       });
     }
@@ -536,7 +496,7 @@ export default function NewDuerpGenerator() {
                 risks={finalRisks}
                 companyName={company?.name || 'Entreprise'}
                 onSave={handleSaveProgress}
-                onGeneratePDF={handleExportPDF}
+                onGenerateWord={handleExportWord}
                 locations={locations}
                 workStations={workStations}
                 preventionMeasures={preventionMeasures}
