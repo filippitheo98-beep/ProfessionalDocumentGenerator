@@ -73,6 +73,10 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Added API endpoints for partial document updates (add/remove/update risks)
 - **2025-07-13**: Created DocumentTitleInput component with uniqueness validation
 - **2025-07-13**: Enhanced error handling for duplicate document names with auto-generation of alternatives
+- **2025-07-16**: Simplified PDF export to contain only tables and charts, removing all other content sections
+- **2025-07-16**: Added automatic risk value recalculation system to ensure all risks have correct numeric values
+- **2025-07-16**: Fixed priority calculation issues with comprehensive recalculation function
+- **2025-07-16**: Streamlined PDF structure to focus exclusively on essential risk assessment data
 
 ## System Architecture
 
