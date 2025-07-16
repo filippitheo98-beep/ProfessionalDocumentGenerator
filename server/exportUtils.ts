@@ -13,7 +13,8 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
     'Gravité': risk.gravity,
     'Fréquence': risk.frequency,
     'Maîtrise': risk.control,
-    'Risque final': risk.finalRisk,
+    'Score': risk.riskScore?.toFixed(2) || '',
+    'Priorité': risk.priority,
     'Mesures de prévention': risk.measures
   }));
 
@@ -31,7 +32,8 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
     { wch: 12 }, // Gravité
     { wch: 12 }, // Fréquence
     { wch: 12 }, // Maîtrise
-    { wch: 15 }, // Risque final
+    { wch: 10 }, // Score
+    { wch: 18 }, // Priorité
     { wch: 50 }  // Mesures de prévention
   ];
   worksheet['!cols'] = columnWidths;
@@ -45,299 +47,397 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
 }
 
 export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF();
   
-  // PAGE DE COUVERTURE
-  // En-tête coloré
-  doc.setFillColor(41, 128, 185);
-  doc.rect(0, 0, 210, 60, 'F');
-  
-  // Titre principal
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
+  // ==== PAGE DE GARDE ====
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('DOCUMENT UNIQUE', 105, 20, { align: 'center' });
-  doc.text('D\'ÉVALUATION DES RISQUES', 105, 30, { align: 'center' });
-  doc.text('PROFESSIONNELS', 105, 40, { align: 'center' });
-  doc.setFontSize(16);
-  doc.text('(DUERP)', 105, 50, { align: 'center' });
+  
+  // Titre principal centré
+  const pageWidth = doc.internal.pageSize.width;
+  doc.text('DOCUMENT UNIQUE', pageWidth / 2, 60, { align: 'center' });
+  doc.text('D\'ÉVALUATION DES RISQUES', pageWidth / 2, 75, { align: 'center' });
+  doc.text('PROFESSIONNELS', pageWidth / 2, 90, { align: 'center' });
+  
+  // Références légales
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('(En application du décret n° 2001-1016 du 5 novembre 2001)', pageWidth / 2, 110, { align: 'center' });
+  doc.text('(Articles R4121-1 à R4121-4 et L4121-3 et L4121-3-1 du Code du Travail)', pageWidth / 2, 125, { align: 'center' });
   
   // Informations de l'entreprise
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(16);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Informations de l\'entreprise', 20, 80);
+  let yPos = 160;
+  doc.text(`Entreprise : ${companyName}`, 20, yPos);
   
-  // Tableau des informations entreprise
-  const companyInfo = [
-    ['Nom de l\'entreprise', companyName || 'Non renseigné'],
-    ['Activité', companyActivity || 'Non renseigné'],
-    ['Adresse', companyData?.address || 'Non renseignée'],
-    ['SIRET', companyData?.siret || 'Non renseigné'],
-    ['Téléphone', companyData?.phone || 'Non renseigné'],
-    ['Email', companyData?.email || 'Non renseigné'],
-    ['Nombre d\'employés', companyData?.employeeCount || 'Non renseigné'],
-    ['Date d\'export', new Date().toLocaleDateString('fr-FR')]
-  ];
-  
-  autoTable(doc, {
-    body: companyInfo,
-    startY: 90,
-    styles: {
-      fontSize: 11,
-      cellPadding: 4,
-    },
-    columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 60, fillColor: [240, 240, 240] },
-      1: { cellWidth: 120 }
-    },
-    theme: 'grid'
-  });
-  
-  // Résumé des risques
-  const yAfterCompanyInfo = (doc as any).lastAutoTable.finalY + 20;
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Résumé de l\'évaluation', 20, yAfterCompanyInfo);
-  
-  const riskCounts = risks.reduce((acc: any, risk: any) => {
-    acc[risk.finalRisk] = (acc[risk.finalRisk] || 0) + 1;
-    return acc;
-  }, {});
-  
-  const totalRisks = risks.length;
-  const summaryData = [
-    ['Niveau de risque', 'Nombre', 'Pourcentage'],
-    ['Risques faibles', riskCounts['Faible'] || 0, `${Math.round(((riskCounts['Faible'] || 0) / totalRisks) * 100)}%`],
-    ['Risques moyens', riskCounts['Moyen'] || 0, `${Math.round(((riskCounts['Moyen'] || 0) / totalRisks) * 100)}%`],
-    ['Risques importants', riskCounts['Important'] || 0, `${Math.round(((riskCounts['Important'] || 0) / totalRisks) * 100)}%`],
-    ['Total des risques', totalRisks, '100%']
-  ];
-  
-  autoTable(doc, {
-    head: [summaryData[0]],
-    body: summaryData.slice(1),
-    startY: yAfterCompanyInfo + 10,
-    styles: {
-      fontSize: 11,
-      cellPadding: 4,
-    },
-    headStyles: {
-      fillColor: [52, 152, 219],
-      textColor: 255,
-      fontStyle: 'bold',
-      halign: 'center'
-    },
-    columnStyles: {
-      0: { cellWidth: 80 },
-      1: { cellWidth: 40, halign: 'center' },
-      2: { cellWidth: 40, halign: 'center' }
-    },
-    theme: 'grid'
-  });
-  
-  // Page break before charts section
-  doc.addPage();
-  
-  // Section graphiques
-  if (chartImages && (chartImages.barChart || chartImages.pieChart)) {
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Analyse graphique des risques', 20, 30);
-    
-    let yPos = 50;
-    
-    // Graphique en barres
-    if (chartImages.barChart) {
-      try {
-        const barChart = chartImages.barChart.replace(/^data:image\/[a-z]+;base64,/, '');
-        doc.addImage(barChart, 'JPEG', 20, yPos, 170, 80);
-        yPos += 90;
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Graphique 1 : Répartition des risques par niveau', 20, yPos);
-        yPos += 10;
-      } catch (error) {
-        console.error('Erreur lors de l\'ajout du graphique en barres:', error);
-      }
-    }
-    
-    // Graphique en secteurs
-    if (chartImages.pieChart) {
-      try {
-        // Vérifier si on a assez de place, sinon nouvelle page
-        if (yPos > 150) {
-          doc.addPage();
-          yPos = 30;
-        }
-        
-        const pieChart = chartImages.pieChart.replace(/^data:image\/[a-z]+;base64,/, '');
-        doc.addImage(pieChart, 'JPEG', 20, yPos, 170, 80);
-        yPos += 90;
-        
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Graphique 2 : Types de risques', 20, yPos);
-        yPos += 10;
-      } catch (error) {
-        console.error('Erreur lors de l\'ajout du graphique en secteurs:', error);
-      }
-    }
-  }
-  
-  // Page break before locations section
-  doc.addPage();
-  
-  let yPos = 30;
-  
-  // Locations section
-  if (locations && locations.length > 0) {
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Lieux de travail', 20, yPos);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
+  if (companyData) {
     yPos += 15;
-    
-    locations.forEach((location: any, index: number) => {
-      doc.text(`${index + 1}. ${location.name}`, 25, yPos);
-      yPos += 8;
-      
-      if (location.preventionMeasures && location.preventionMeasures.length > 0) {
-        doc.text('Mesures de prévention:', 30, yPos);
-        yPos += 6;
-        location.preventionMeasures.forEach((measure: any) => {
-          doc.text(`• ${measure.description}`, 35, yPos);
-          yPos += 6;
-        });
-      }
-      yPos += 4;
-    });
+    if (companyData.address) {
+      doc.text(`Adresse : ${companyData.address}`, 20, yPos);
+      yPos += 15;
+    }
+    if (companyData.phone) {
+      doc.text(`Téléphone : ${companyData.phone}`, 20, yPos);
+      yPos += 15;
+    }
+    if (companyData.email) {
+      doc.text(`Courriel : ${companyData.email}`, 20, yPos);
+      yPos += 15;
+    }
   }
   
-  // Work stations section
-  if (workStations && workStations.length > 0) {
-    doc.setFontSize(16);
+  // Date de réalisation
+  const today = new Date().toLocaleDateString('fr-FR');
+  yPos += 15;
+  doc.text(`Réalisé le : ${today}`, 20, yPos);
+  yPos += 15;
+  doc.text('Dernière mise à jour le : ', 20, yPos);
+  
+  // ==== TABLE DES MATIÈRES ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Table des matières', 20, 30);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  yPos = 60;
+  
+  const tableOfContents = [
+    'A. Tableau de mise à jour',
+    'B. Présentation de la société',
+    'C. Le code du travail',
+    'D. Méthodes d\'évaluation du risque',
+    'E. DUERP',
+    'F. Plan d\'action',
+    'G. Analyse'
+  ];
+  
+  tableOfContents.forEach((item, index) => {
+    doc.text(item, 20, yPos);
+    yPos += 15;
+  });
+  
+  // ==== PRÉSENTATION DE LA SOCIÉTÉ ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('B. Présentation de la société', 20, 30);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  yPos = 60;
+  
+  doc.text(`Présentation de la société :`, 20, yPos);
+  yPos += 15;
+  doc.text(`${companyName} est une entreprise spécialisée dans ${companyActivity}.`, 20, yPos);
+  
+  yPos += 30;
+  doc.text('Coordonnées et Localisation', 20, yPos);
+  yPos += 15;
+  
+  if (companyData) {
+    if (companyData.address) {
+      doc.text(`• Adresse : ${companyData.address}`, 20, yPos);
+      yPos += 15;
+    }
+    if (companyData.phone) {
+      doc.text(`• Téléphone : ${companyData.phone}`, 20, yPos);
+      yPos += 15;
+    }
+    if (companyData.email) {
+      doc.text(`• Email : ${companyData.email}`, 20, yPos);
+      yPos += 15;
+    }
+    if (companyData.employeeCount) {
+      doc.text(`• Effectif : ${companyData.employeeCount} employés`, 20, yPos);
+      yPos += 15;
+    }
+  }
+  
+  // ==== LE CODE DU TRAVAIL ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('C. Le code du travail', 20, 30);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  yPos = 60;
+  
+  doc.text('Introduction :', 20, yPos);
+  yPos += 15;
+  const introduction = 'Le Document Unique d\'Évaluation des Risques Professionnels (DUERP) est une obligation légale pour toutes les entreprises, quel que soit leur effectif, selon le Code du Travail. Il vise à recenser, évaluer et prévenir les risques auxquels sont exposés les salariés.';
+  const splitIntro = doc.splitTextToSize(introduction, 170);
+  doc.text(splitIntro, 20, yPos);
+  yPos += splitIntro.length * 5 + 20;
+  
+  doc.text('Références légales :', 20, yPos);
+  yPos += 15;
+  
+  const legalRefs = [
+    'Article L4121-1 : L\'employeur prend les mesures nécessaires pour assurer la sécurité et protéger la santé physique et mentale des travailleurs.',
+    'Article L4121-2 : Ces mesures comprennent des actions de prévention des risques professionnels, des actions d\'information et de formation.',
+    'Article R4121-1 : L\'employeur transcrit et met à jour dans un document unique les résultats de l\'évaluation des risques.'
+  ];
+  
+  legalRefs.forEach(ref => {
+    const splitRef = doc.splitTextToSize(ref, 170);
+    doc.text(splitRef, 20, yPos);
+    yPos += splitRef.length * 5 + 10;
+  });
+  
+  // ==== MÉTHODOLOGIE D'ÉVALUATION ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('D. Méthodes d\'évaluation du risque', 20, 30);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  yPos = 60;
+  
+  const methodology = [
+    '1/ Identifier l\'unité de travail',
+    '2/ Identifier les dangers et les situations dangereuses liées à l\'unité de travail',
+    '3/ Estimer la gravité de chaque situation dangereuse',
+    '4/ Estimer la fréquence d\'exposition à la situation dangereuse',
+    '5/ Estimer la maîtrise de la situation dangereuse par les actions de prévention existantes',
+    '6/ Calcul du risque et des priorités d\'actions'
+  ];
+  
+  methodology.forEach(item => {
+    doc.text(item, 20, yPos);
+    yPos += 12;
+  });
+  
+  // Tableau de gravité
+  yPos += 20;
+  doc.setFont('helvetica', 'bold');
+  doc.text('3/ Estimer la gravité de chaque situation dangereuse', 20, yPos);
+  yPos += 15;
+  
+  (doc as any).autoTable({
+    head: [['Gravité', 'Indice', 'Définition']],
+    body: [
+      ['Faible', '1', 'Incident sans arrêt de travail - Situation occasionnant un inconfort'],
+      ['Moyenne', '4', 'Accident avec arrêt de travail mais sans séquelles'],
+      ['Grave', '20', 'Accident avec arrêt de travail et possibilité de séquelles'],
+      ['Très Grave', '100', 'Accident pouvant entraîner un décès ou une invalidité permanente']
+    ],
+    startY: yPos,
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [200, 200, 200] },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 120 }
+    }
+  });
+  
+  // Tableau de fréquence
+  yPos = (doc as any).lastAutoTable.finalY + 20;
+  doc.setFont('helvetica', 'bold');
+  doc.text('4/ Estimer la fréquence d\'exposition', 20, yPos);
+  yPos += 15;
+  
+  (doc as any).autoTable({
+    head: [['Exposition', 'Fréquence d\'exposition', 'Indice']],
+    body: [
+      ['Annuelle', 'Environ 1 fois/an', '1'],
+      ['Mensuelle', 'Environ 1 fois/mois', '4'],
+      ['Hebdomadaire', 'Environ 1 fois/semaine', '10'],
+      ['Journalière', 'Tous les jours', '50']
+    ],
+    startY: yPos,
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [200, 200, 200] },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 20 }
+    }
+  });
+  
+  // Tableau de maîtrise
+  yPos = (doc as any).lastAutoTable.finalY + 20;
+  doc.setFont('helvetica', 'bold');
+  doc.text('5/ Estimer la maîtrise du risque', 20, yPos);
+  yPos += 15;
+  
+  (doc as any).autoTable({
+    head: [['Maîtrise du risque', 'Indice', 'Définition']],
+    body: [
+      ['Très élevée', '0,05', 'Mesures très efficaces, aucune autre mesure possible'],
+      ['Élevée', '0,2', 'Mesures répondant à la situation, compléments possibles'],
+      ['Moyenne', '0,5', 'Mesures existantes mais insuffisantes'],
+      ['Absente', '1', 'Pas de mesures ou mesures inefficaces']
+    ],
+    startY: yPos,
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [200, 200, 200] },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 120 }
+    }
+  });
+  
+  // Calcul du risque
+  doc.addPage();
+  doc.setFont('helvetica', 'bold');
+  doc.text('6/ Calcul du risque et des priorités d\'actions', 20, 30);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text('Dans cette méthode le Risque = Gravité × Fréquence × Maîtrise', 20, 50);
+  
+  (doc as any).autoTable({
+    head: [['Cotation du Risque', 'Classement de la priorité', 'Interprétation']],
+    body: [
+      ['< 10', 'Priorité 4 - Faible', 'Situation limitée ou maîtrisée'],
+      ['10 ≤ Note < 100', 'Priorité 3 - Modéré', 'Situation limitée, mesures supplémentaires possibles'],
+      ['100 ≤ Note < 500', 'Priorité 2 - Moyenne', 'Situation insuffisamment maîtrisée'],
+      ['500 ≤ Note ≤ 5000', 'Priorité 1 - Forte', 'Situation dangereuse, mesures urgentes']
+    ],
+    startY: 70,
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [200, 200, 200] },
+    columnStyles: {
+      0: { cellWidth: 40 },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 80 }
+    }
+  });
+  
+  // ==== DUERP - UNE PAGE PAR LIEU/POSTE ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('E. DUERP', 20, 30);
+  
+  // Grouper les risques par source
+  const risksBySource = {};
+  risks.forEach(risk => {
+    const source = risk.source || 'Non spécifié';
+    if (!risksBySource[source]) {
+      risksBySource[source] = [];
+    }
+    risksBySource[source].push(risk);
+  });
+  
+  // Créer une page pour chaque lieu/poste
+  Object.entries(risksBySource).forEach(([source, sourceRisks]: [string, any[]]) => {
+    doc.addPage();
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Postes de travail', 20, yPos + 10);
+    doc.text(`Unité de Travail : ${source}`, 20, 30);
     
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    yPos += 25;
+    // Tableau des risques pour cette unité
+    const sourceTableData = sourceRisks.map(risk => [
+      risk.type || '',
+      risk.danger || '',
+      risk.gravity || '',
+      risk.gravityValue || '',
+      risk.frequency || '',
+      risk.frequencyValue || '',
+      risk.control || '',
+      risk.controlValue || '',
+      risk.riskScore?.toFixed(2) || '',
+      risk.priority || '',
+      risk.measures || ''
+    ]);
     
-    workStations.forEach((workStation: any, index: number) => {
-      doc.text(`${index + 1}. ${workStation.name}`, 25, yPos);
-      yPos += 8;
-      
-      if (workStation.description) {
-        doc.text(`Description: ${workStation.description}`, 30, yPos);
-        yPos += 6;
-      }
-      
-      if (workStation.preventionMeasures && workStation.preventionMeasures.length > 0) {
-        doc.text('Mesures de prévention:', 30, yPos);
-        yPos += 6;
-        workStation.preventionMeasures.forEach((measure: any) => {
-          doc.text(`• ${measure.description}`, 35, yPos);
-          yPos += 6;
-        });
-      }
-      yPos += 4;
+    (doc as any).autoTable({
+      head: [['Risque', 'Dommages éventuels', 'Gravité', 'G', 'Exposition', 'E', 'Maîtrise', 'M', 'Score', 'Priorité', 'Mesures de prévention']],
+      body: sourceTableData,
+      startY: 50,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [200, 200, 200] },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 8 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 8 },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 8 },
+        8: { cellWidth: 12 },
+        9: { cellWidth: 20 },
+        10: { cellWidth: 35 }
+      },
+      margin: { left: 10, right: 10 }
     });
-  }
+  });
   
-  // Prevention measures section
-  if (preventionMeasures && preventionMeasures.length > 0) {
+  // ==== PLAN D'ACTION ====
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('F. Plan d\'action', 20, 30);
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  yPos = 60;
+  
+  // Statistiques des priorités
+  const priorityStats = {
+    'Priorité 1 (Forte)': risks.filter(r => r.priority === 'Priorité 1 (Forte)').length,
+    'Priorité 2 (Moyenne)': risks.filter(r => r.priority === 'Priorité 2 (Moyenne)').length,
+    'Priorité 3 (Modéré)': risks.filter(r => r.priority === 'Priorité 3 (Modéré)').length,
+    'Priorité 4 (Faible)': risks.filter(r => r.priority === 'Priorité 4 (Faible)').length,
+  };
+  
+  doc.text('Répartition des risques par priorité :', 20, yPos);
+  yPos += 15;
+  
+  Object.entries(priorityStats).forEach(([priority, count]) => {
+    doc.text(`• ${priority}: ${count} risques`, 20, yPos);
+    yPos += 10;
+  });
+  
+  // Actions recommandées
+  yPos += 20;
+  doc.text('Actions recommandées par priorité :', 20, yPos);
+  yPos += 15;
+  
+  const actions = [
+    'Priorité 1 (Forte) : Actions correctives immédiates à mettre en place',
+    'Priorité 2 (Moyenne) : Actions de prévention à planifier à court terme',
+    'Priorité 3 (Modéré) : Actions d\'amélioration à programmer',
+    'Priorité 4 (Faible) : Actions de surveillance et de maintien'
+  ];
+  
+  actions.forEach(action => {
+    const splitAction = doc.splitTextToSize(action, 170);
+    doc.text(splitAction, 20, yPos);
+    yPos += splitAction.length * 5 + 10;
+  });
+  
+  // ==== ANALYSE GRAPHIQUE ====
+  if (chartImages && Object.keys(chartImages).length > 0) {
     doc.addPage();
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Mesures de prévention générales', 20, 30);
+    doc.text('G. Analyse', 20, 30);
     
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    yPos = 40;
-    
-    preventionMeasures.forEach((measure: any, index: number) => {
-      doc.text(`${index + 1}. ${measure.description}`, 25, yPos);
-      yPos += 8;
+    let yPosition = 50;
+    Object.entries(chartImages).forEach(([chartName, imageData]: [string, any]) => {
+      if (imageData && typeof imageData === 'string') {
+        try {
+          doc.addImage(imageData, 'PNG', 20, yPosition, 160, 80);
+          yPosition += 100;
+          
+          if (yPosition > 200) {
+            doc.addPage();
+            yPosition = 20;
+          }
+        } catch (error) {
+          console.error('Error adding chart image:', error);
+        }
+      }
     });
-  }
-  
-  // Page break before risks table
-  doc.addPage();
-  
-  // Risks table header
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Tableau des risques professionnels', 20, 30);
-  
-  // Table headers
-  const headers = [
-    'N°', 'Source', 'Type risque', 'Danger', 
-    'Gravité', 'Fréquence', 'Maîtrise', 'Risque final', 'Mesures prévention'
-  ];
-  
-  // Table data
-  const tableData = risks.map((risk: any, index: number) => [
-    index + 1,
-    risk.source || 'N/A',
-    risk.type,
-    risk.danger,
-    risk.gravity,
-    risk.frequency,
-    risk.control,
-    risk.finalRisk,
-    risk.measures
-  ]);
-  
-  // Generate table with better formatting - portrait orientation
-  autoTable(doc, {
-    head: [headers],
-    body: tableData,
-    startY: 40,
-    styles: {
-      fontSize: 5,
-      cellPadding: 1,
-      lineColor: [200, 200, 200],
-      lineWidth: 0.1,
-      overflow: 'linebreak',
-      halign: 'left'
-    },
-    headStyles: {
-      fillColor: [41, 128, 185],
-      textColor: 255,
-      fontSize: 6,
-      fontStyle: 'bold',
-      halign: 'center'
-    },
-    columnStyles: {
-      0: { cellWidth: 8, halign: 'center' },   // N°
-      1: { cellWidth: 22, fontSize: 4 },       // Source
-      2: { cellWidth: 22, fontSize: 4 },       // Type risque
-      3: { cellWidth: 40, fontSize: 4 },       // Danger
-      4: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Gravité
-      5: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Fréquence
-      6: { cellWidth: 12, halign: 'center', fontSize: 4 },  // Maîtrise
-      7: { cellWidth: 15, halign: 'center', fontSize: 4 },  // Risque final
-      8: { cellWidth: 47, fontSize: 4 }        // Mesures prévention
-    },
-    alternateRowStyles: {
-      fillColor: [248, 249, 250]
-    },
-    theme: 'grid',
-    margin: { top: 20, left: 5, right: 5 },
-    tableWidth: 'auto'
-  });
-  
-  // Ajouter la numérotation des pages
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Page ${i} sur ${pageCount}`, 105, 290, { align: 'center' });
   }
   
   return Buffer.from(doc.output('arraybuffer'));
