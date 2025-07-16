@@ -38,6 +38,16 @@ export interface IStorage {
     preventionMeasures: PreventionMeasure[];
   }): Promise<DuerpDocument>;
   updateDuerpDocument(id: number, updates: Partial<DuerpDocument>): Promise<DuerpDocument>;
+  updateDuerpDocumentPartial(id: number, updates: {
+    title?: string;
+    locations?: Location[];
+    workStations?: any[];
+    finalRisks?: Risk[];
+    preventionMeasures?: PreventionMeasure[];
+    addRisks?: Risk[];
+    removeRisks?: string[];
+    updateRisks?: Array<{ id: string; updates: Partial<Risk> }>;
+  }): Promise<DuerpDocument>;
   
   // Risk operations
   generateRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]>;
@@ -422,6 +432,76 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     if (!document) {
       throw new Error(`DUERP document with id ${documentId} not found`);
     }
+    return document;
+  }
+
+  async updateDuerpDocumentPartial(id: number, updates: {
+    title?: string;
+    locations?: Location[];
+    workStations?: any[];
+    finalRisks?: Risk[];
+    preventionMeasures?: PreventionMeasure[];
+    addRisks?: Risk[];
+    removeRisks?: string[];
+    updateRisks?: Array<{ id: string; updates: Partial<Risk> }>;
+  }): Promise<DuerpDocument> {
+    // Récupérer le document existant
+    const [existingDoc] = await db
+      .select()
+      .from(duerpDocuments)
+      .where(eq(duerpDocuments.id, id))
+      .limit(1);
+
+    if (!existingDoc) {
+      throw new Error(`Document DUERP avec l'ID ${id} non trouvé`);
+    }
+
+    let finalRisks = existingDoc.finalRisks as Risk[];
+
+    // Gérer les modifications de risques
+    if (updates.addRisks) {
+      finalRisks = [...finalRisks, ...updates.addRisks];
+    }
+
+    if (updates.removeRisks) {
+      finalRisks = finalRisks.filter(risk => !updates.removeRisks!.includes(risk.id));
+    }
+
+    if (updates.updateRisks) {
+      finalRisks = finalRisks.map(risk => {
+        const update = updates.updateRisks!.find(u => u.id === risk.id);
+        return update ? { ...risk, ...update.updates } : risk;
+      });
+    }
+
+    // Remplacer complètement les risques si spécifié
+    if (updates.finalRisks) {
+      finalRisks = updates.finalRisks;
+    }
+
+    // Préparer les données de mise à jour
+    const updateData: any = {
+      updatedAt: new Date()
+    };
+
+    if (updates.title) updateData.title = updates.title;
+    if (updates.locations) updateData.locations = updates.locations;
+    if (updates.workStations) updateData.workStations = updates.workStations;
+    if (updates.preventionMeasures) updateData.preventionMeasures = updates.preventionMeasures;
+    
+    updateData.finalRisks = finalRisks;
+
+    // Effectuer la mise à jour
+    const [document] = await db
+      .update(duerpDocuments)
+      .set(updateData)
+      .where(eq(duerpDocuments.id, id))
+      .returning();
+
+    if (!document) {
+      throw new Error(`Impossible de mettre à jour le document DUERP avec l'ID ${id}`);
+    }
+
     return document;
   }
 

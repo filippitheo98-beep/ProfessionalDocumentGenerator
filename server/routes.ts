@@ -439,6 +439,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update document partially (selective updates)
+  app.put('/api/duerp/document/:id/partial', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { 
+        title, 
+        locations, 
+        workStations, 
+        finalRisks, 
+        preventionMeasures,
+        addRisks,
+        removeRisks,
+        updateRisks
+      } = req.body;
+
+      const document = await storage.updateDuerpDocumentPartial(documentId, {
+        title,
+        locations,
+        workStations,
+        finalRisks,
+        preventionMeasures,
+        addRisks,
+        removeRisks,
+        updateRisks
+      });
+
+      res.json(document);
+    } catch (error) {
+      console.error('Error updating document partially:', error);
+      res.status(500).json({ message: error.message || 'Failed to update document' });
+    }
+  });
+
+  // Add risks to existing document
+  app.post('/api/duerp/document/:id/risks', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { risks } = req.body;
+
+      if (!risks || !Array.isArray(risks)) {
+        return res.status(400).json({ message: 'Risks array is required' });
+      }
+
+      const document = await storage.updateDuerpDocumentPartial(documentId, {
+        addRisks: risks
+      });
+
+      res.json(document);
+    } catch (error) {
+      console.error('Error adding risks to document:', error);
+      res.status(500).json({ message: error.message || 'Failed to add risks' });
+    }
+  });
+
+  // Remove risks from existing document
+  app.delete('/api/duerp/document/:id/risks', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { riskIds } = req.body;
+
+      if (!riskIds || !Array.isArray(riskIds)) {
+        return res.status(400).json({ message: 'Risk IDs array is required' });
+      }
+
+      const document = await storage.updateDuerpDocumentPartial(documentId, {
+        removeRisks: riskIds
+      });
+
+      res.json(document);
+    } catch (error) {
+      console.error('Error removing risks from document:', error);
+      res.status(500).json({ message: error.message || 'Failed to remove risks' });
+    }
+  });
+
+  // Update specific risks in existing document
+  app.put('/api/duerp/document/:id/risks', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { updates } = req.body;
+
+      if (!updates || !Array.isArray(updates)) {
+        return res.status(400).json({ message: 'Updates array is required' });
+      }
+
+      const document = await storage.updateDuerpDocumentPartial(documentId, {
+        updateRisks: updates
+      });
+
+      res.json(document);
+    } catch (error) {
+      console.error('Error updating risks in document:', error);
+      res.status(500).json({ message: error.message || 'Failed to update risks' });
+    }
+  });
+
   // Revision tracking routes
   app.get("/api/revisions/needed", async (req, res) => {
     try {

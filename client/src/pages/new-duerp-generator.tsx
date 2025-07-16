@@ -17,6 +17,7 @@ import type {
   Risk,
   PreventionMeasure
 } from '@shared/schema';
+import { SelectiveUpdateModal } from '@/components/SelectiveUpdateModal';
 
 export default function NewDuerpGenerator() {
   const { toast } = useToast();
@@ -33,6 +34,8 @@ export default function NewDuerpGenerator() {
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
   const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
   const [isGeneratingRisks, setIsGeneratingRisks] = useState(false);
+  const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
+  const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
   
   // Gestion du document (création/modification)
   const urlParams = new URLSearchParams(window.location.search);
@@ -464,6 +467,24 @@ export default function NewDuerpGenerator() {
           </>
         )}
       </div>
+
+      {/* Modal de mise à jour sélective */}
+      <SelectiveUpdateModal
+        isOpen={showSelectiveUpdateModal}
+        onClose={() => setShowSelectiveUpdateModal(false)}
+        documentId={documentId ? parseInt(documentId) : 0}
+        documentTitle={existingDocument?.title || `${company?.name} - DUERP`}
+        existingRisks={finalRisks}
+        newRisks={newGeneratedRisks}
+        onUpdateComplete={() => {
+          // Recharger le document après la mise à jour
+          queryClient.invalidateQueries({ queryKey: ['/api/duerp/document', documentId] });
+          toast({
+            title: "Document mis à jour",
+            description: "Les modifications ont été appliquées avec succès",
+          });
+        }}
+      />
     </div>
   );
 }

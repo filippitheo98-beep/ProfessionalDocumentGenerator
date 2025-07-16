@@ -67,6 +67,12 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Integrated 30-day advance notifications for 1-year revision cycles
 - **2025-07-13**: Added dedicated Revisions page with legal compliance information
 - **2025-07-13**: Updated header navigation with revision notifications display
+- **2025-07-13**: Created selective update system for existing DUERP documents
+- **2025-07-13**: Added updateDuerpDocumentPartial function for incremental document updates
+- **2025-07-13**: Implemented SelectiveUpdateModal component for choosing specific modifications
+- **2025-07-13**: Added API endpoints for partial document updates (add/remove/update risks)
+- **2025-07-13**: Created DocumentTitleInput component with uniqueness validation
+- **2025-07-13**: Enhanced error handling for duplicate document names with auto-generation of alternatives
 
 ## System Architecture
 
@@ -110,8 +116,10 @@ Preferred communication style: Simple, everyday language.
 6. **Smart Suggestions**: AI-powered recommendations based on detected risks
 7. **Photo Analysis**: Multi-photo upload with captions, location descriptions, and AI-powered risk detection
 8. **Version History**: Track and restore previous document versions
-9. **Auto-save**: Automatic data persistence with visual feedback
-10. **Multi-theme Support**: Dark/light mode with system preference detection
+9. **Multi-theme Support**: Dark/light mode with system preference detection
+10. **Selective Updates**: Incremental document updates without full regeneration
+11. **Document Title Validation**: Uniqueness checks with automatic alternative generation
+12. **Revision Tracking**: 1-year cycle notifications with 30-day advance warnings
 
 ### UI Components
 - **CompanyForm**: Company information input with validation
@@ -123,8 +131,11 @@ Preferred communication style: Simple, everyday language.
 - **SmartSuggestions**: AI-powered prevention measure recommendations
 - **PhotoAnalysis**: Upload and analyze workplace photos for risk detection
 - **VersionHistory**: Document version tracking and restoration
-- **AutoSaveIndicator**: Visual feedback for save status
 - **ThemeProvider**: Dark/light theme management
+- **SelectiveUpdateModal**: Choose specific document modifications
+- **DocumentTitleInput**: Title validation with uniqueness checking
+- **SelectiveUpdateButton**: Smart update options for existing documents
+- **RevisionNotifications**: Automated revision cycle management
 
 ## Data Flow
 
