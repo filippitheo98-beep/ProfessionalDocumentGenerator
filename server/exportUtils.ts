@@ -16,7 +16,6 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   const excelData = risks.map((risk: any, index: number) => ({
     'N°': index + 1,
     'Source': risk.source || 'Non spécifié',
-    'Type de source': risk.sourceType || 'Non spécifié',
     'Type de risque': risk.type || 'Non spécifié',
     'Danger/Dommage': risk.danger || 'Non spécifié',
     'Gravité': risk.gravity || 'Non spécifié',
@@ -38,7 +37,6 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   const columnWidths = [
     { wch: 5 },  // N°
     { wch: 20 }, // Source
-    { wch: 15 }, // Type de source
     { wch: 20 }, // Type de risque
     { wch: 40 }, // Danger/Dommage
     { wch: 15 }, // Gravité
