@@ -67,25 +67,6 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-13**: Integrated 30-day advance notifications for 1-year revision cycles
 - **2025-07-13**: Added dedicated Revisions page with legal compliance information
 - **2025-07-13**: Updated header navigation with revision notifications display
-- **2025-07-13**: Enhanced document name uniqueness validation system with real-time checking
-- **2025-07-13**: Added DocumentTitleInput component with automatic unique title generation
-- **2025-07-13**: Implemented comprehensive deployment package with installation scripts
-- **2025-07-13**: Created Docker support and automated setup scripts for local installation
-- **2025-07-13**: Added detailed README and installation guides for standalone deployment
-- **2025-07-13**: Completely removed authentication system for local single-user deployment
-- **2025-07-13**: Simplified application to direct access without login requirements
-- **2025-07-13**: Updated installation documentation for authentication-free usage
-- **2025-07-13**: Created streamlined user experience for personal/local use only
-- **2025-07-13**: Cleaned up configuration files and simplified port management to use unified port 5000
-- **2025-07-13**: Removed unnecessary scripts and files created during configuration process
-- **2025-07-13**: Streamlined start.bat to skip database initialization step for simpler deployment
-- **2025-07-13**: Created alternative version with in-memory storage (no PostgreSQL required)
-- **2025-07-13**: Added start-simple.bat for ultra-fast deployment without database configuration
-- **2025-07-13**: Implemented MemoryStorage class as complete alternative to DatabaseStorage
-- **2025-07-13**: Provided two deployment options: simple (memory) and complete (PostgreSQL)
-- **2025-07-13**: Complete project cleanup - removed all unnecessary files and scripts
-- **2025-07-13**: Simplified to single START.bat file and minimal README.md
-- **2025-07-13**: Streamlined server startup code and removed verbose logging
 
 ## System Architecture
 
@@ -110,12 +91,6 @@ Preferred communication style: Simple, everyday language.
 - **Monorepo Structure**: Shared types and schemas between client/server
 - **Hot Reloading**: Vite dev server integration with Express
 - **Type Safety**: Full TypeScript coverage across all layers
-
-### Deployment Architecture
-- **Local Installation**: Complete package with automated setup scripts
-- **Docker Support**: Full containerization with docker-compose
-- **Cloud Ready**: Compatible with Neon, Supabase, and other cloud databases
-- **Cross-platform**: Installation scripts for Windows, Mac, and Linux
 
 ## Key Components
 

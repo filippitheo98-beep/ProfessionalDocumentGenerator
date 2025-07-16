@@ -8,18 +8,12 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-// Vérifier les variables d'environnement Replit seulement si on n'est pas en mode local
-const isLocalEnvironment = !process.env.REPLIT_DB_URL && !process.env.REPL_ID;
-
-if (!isLocalEnvironment && !process.env.REPLIT_DOMAINS) {
+if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
 }
 
 const getOidcConfig = memoize(
   async () => {
-    if (isLocalEnvironment) {
-      return null;
-    }
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
       process.env.REPL_ID!
@@ -75,41 +69,6 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
-  // Vérifier si on est en environnement local (pas de clientId Replit)
-  const isLocalEnvironment = !process.env.REPLIT_DB_URL && !process.env.REPL_ID;
-  
-  if (isLocalEnvironment) {
-    console.log("🔧 Mode local détecté - Authentification simplifiée activée");
-    
-    // Configuration de session simplifiée pour l'environnement local
-    app.set("trust proxy", 1);
-    app.use(getSession());
-    app.use(passport.initialize());
-    app.use(passport.session());
-    
-    // Stratégie d'authentification locale simple
-    passport.serializeUser((user: any, done) => {
-      done(null, user);
-    });
-    
-    passport.deserializeUser((user: any, done) => {
-      done(null, user);
-    });
-    
-    // Routes d'authentification locale
-    app.get("/api/login", (req, res) => {
-      res.redirect("/"); // Pas d'authentification nécessaire en mode local
-    });
-    
-    app.get("/api/logout", (req, res) => {
-      req.logout(() => {
-        res.redirect("/");
-      });
-    });
-    
-    return;
-  }
-
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -160,35 +119,17 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
-      if (config) {
-        res.redirect(
-          client.buildEndSessionUrl(config, {
-            client_id: process.env.REPL_ID!,
-            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-          }).href
-        );
-      } else {
-        res.redirect("/");
-      }
+      res.redirect(
+        client.buildEndSessionUrl(config, {
+          client_id: process.env.REPL_ID!,
+          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+        }).href
+      );
     });
   });
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const isLocalEnvironment = !process.env.REPLIT_DB_URL && !process.env.REPL_ID;
-  
-  if (isLocalEnvironment) {
-    // Mode local : créer un utilisateur fictif pour les tests
-    req.user = {
-      id: "local-user",
-      email: "user@localhost",
-      firstName: "Utilisateur",
-      lastName: "Local",
-      profileImageUrl: null,
-    };
-    return next();
-  }
-
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

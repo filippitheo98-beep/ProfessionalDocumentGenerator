@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Plus, X, CheckCircle } from "lucide-react";
-import type { PreventionMeasure } from "@shared/simpleSchema";
+import type { PreventionMeasure } from "@shared/schema";
 
 interface PreventionSectionProps {
   measures: PreventionMeasure[];

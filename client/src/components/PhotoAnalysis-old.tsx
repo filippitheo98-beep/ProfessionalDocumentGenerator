@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Camera, Upload, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Risk } from '@shared/simpleSchema';
+import { Risk } from '@shared/schema';
 
 interface PhotoAnalysisProps {
   onRisksDetected: (risks: Risk[]) => void;

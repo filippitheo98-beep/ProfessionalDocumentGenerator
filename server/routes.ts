@@ -1,33 +1,50 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./memStorage";
-// Auth supprimé pour usage local
-import { generateRisksRequestSchema, insertCompanySchema } from "@shared/simpleSchema";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
+import { db } from "./db";
+import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Pas d'authentification pour usage local
-  console.log("🔧 Application configurée pour usage local sans authentification");
+  // Auth middleware
+  await setupAuth(app);
 
-  // Routes d'authentification simplifiées (pour compatibilité)
-  app.get('/api/auth/user', async (req: any, res) => {
-    res.json({
-      id: "local-user",
-      email: "user@localhost",
-      firstName: "Utilisateur",
-      lastName: "Local",
-      profileImageUrl: null,
-    });
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userClaims = req.user?.claims;
+      if (!userClaims) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = {
+        id: userClaims.sub,
+        email: userClaims.email,
+        firstName: userClaims.first_name,
+        lastName: userClaims.last_name,
+        profileImageUrl: userClaims.profile_image_url,
+      };
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
   });
 
   // Dashboard routes
-  app.get('/api/dashboard/stats', async (req, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
     try {
-      // Simple stats for memory storage
+      // Calculate real stats from database
+      const [companiesCount] = await db.select({ count: count() }).from(companies);
+      const [documentsCount] = await db.select({ count: count() }).from(duerpDocuments);
+      
       const stats = {
-        totalCompanies: 1,
-        totalDocuments: 0,
+        totalCompanies: companiesCount?.count || 0,
+        totalDocuments: documentsCount?.count || 0,
         pendingActions: 0,
         expiringSoon: 0,
         completedActions: 0,
@@ -40,31 +57,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/activity', async (req, res) => {
+  app.get('/api/dashboard/activity', isAuthenticated, async (req, res) => {
     try {
-      // Simple activity for memory storage
-      const activities = [
-        {
-          id: "1",
-          type: "document_created",
-          title: "Document Test",
-          description: "Document pour l'entreprise Test",
-          timestamp: new Date().toLocaleDateString(),
-          priority: "medium"
-        }
-      ];
+      // Get recent activity from database
+      const activities = await db
+        .select({
+          id: duerpDocuments.id,
+          title: duerpDocuments.title,
+          companyName: companies.name,
+          timestamp: duerpDocuments.updatedAt
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .orderBy(desc(duerpDocuments.updatedAt))
+        .limit(5);
       
-      res.json(activities);
+      const formattedActivities = activities.map(activity => ({
+        id: activity.id.toString(),
+        type: "document_created",
+        title: activity.title,
+        description: `Document pour l'entreprise ${activity.companyName}`,
+        timestamp: activity.timestamp ? new Date(activity.timestamp).toLocaleDateString() : "Récemment",
+        priority: "medium"
+      }));
+      
+      res.json(formattedActivities);
     } catch (error) {
       console.error("Error fetching activity:", error);
       res.status(500).json({ message: "Failed to fetch activity" });
     }
   });
 
-  app.get('/api/documents/expiring', async (req, res) => {
+  app.get('/api/documents/expiring', isAuthenticated, async (req, res) => {
     try {
-      // Simple expiring documents for memory storage
-      res.json([]);
+      // Get documents expiring within 30 days
+      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const expiring = await db
+        .select({
+          id: duerpDocuments.id,
+          companyName: companies.name,
+          nextReviewDate: duerpDocuments.nextReviewDate
+        })
+        .from(duerpDocuments)
+        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+        .where(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow))
+        .orderBy(duerpDocuments.nextReviewDate);
+      
+      res.json(expiring);
     } catch (error) {
       console.error("Error fetching expiring documents:", error);
       res.status(500).json({ message: "Failed to fetch expiring documents" });
@@ -88,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get company by ID
-  app.get("/api/companies/:id", async (req, res) => {
+  app.get("/api/companies/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const company = await storage.getCompany(id);
@@ -103,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update company
-  app.put("/api/companies/:id", async (req, res) => {
+  app.put("/api/companies/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const updates = req.body;

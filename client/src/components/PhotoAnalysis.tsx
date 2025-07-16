@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Risk } from '@shared/simpleSchema';
+import { Risk } from '@shared/schema';
 
 interface PhotoData {
   id: string;

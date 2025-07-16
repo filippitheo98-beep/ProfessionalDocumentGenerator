@@ -17,7 +17,7 @@ import {
   Eye,
   Trash2
 } from 'lucide-react';
-import type { Location, WorkStation, PreventionMeasure } from '@shared/simpleSchema';
+import type { Location, WorkStation, PreventionMeasure } from '@shared/schema';
 
 interface LocationPhoto {
   id: string;

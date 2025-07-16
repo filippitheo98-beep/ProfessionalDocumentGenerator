@@ -1,4 +1,4 @@
-import { Bell, Building, FileText, Home, Settings, Users, TrendingUp, Shield, Archive } from 'lucide-react';
+import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield, Archive } from 'lucide-react';
 import { RevisionNotifications } from './RevisionNotifications';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -12,9 +12,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Header() {
   const [location, navigate] = useLocation();
+  const { user } = useAuth();
+
+  const handleLogout = () => {
+    window.location.href = '/api/auth/logout';
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -97,21 +103,28 @@ export function Header() {
 
           <ThemeToggle />
 
-          {/* Menu Paramètres */}
+          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
-                <Settings className="h-4 w-4" />
+                <User className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>
-                Générateur DUERP
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Settings className="h-4 w-4 mr-2" />
                 Paramètres
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Déconnexion
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

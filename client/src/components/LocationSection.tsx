@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Plus, Trash2, Settings, X, Shield } from "lucide-react";
-import type { Location, WorkUnit } from "@shared/simpleSchema";
+import type { Location, WorkUnit } from "@shared/schema";
 import RiskTable from "./RiskTable";
 import PreventionSection from "./PreventionSection";
 
