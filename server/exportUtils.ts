@@ -75,7 +75,7 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
 }
 
 export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {
-  const doc = new jsPDF();
+  const doc = new jsPDF('landscape', 'mm', 'a4');
   
   // Apply autoTable to the document
   autoTable(doc, {});
@@ -128,10 +128,11 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   doc.setFont('helvetica', 'bold');
   doc.text('TABLEAU DES RISQUES IDENTIFIÉS', pageWidth / 2, 30, { align: 'center' });
   
-  // Tableau des risques - format simplifié avec 7 colonnes
+  // Tableau des risques - format simplifié avec 8 colonnes (ajout de la source)
   const tableData = risks.map(risk => [
     risk.type || 'Non spécifié',
     risk.danger || 'Non spécifié',
+    risk.source || 'Non spécifié',
     risk.gravity || 'Non spécifié',
     risk.frequency || 'Non spécifié',
     risk.control || 'Non spécifié',
@@ -140,11 +141,11 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   ]);
   
   autoTable(doc, {
-    head: [['Type de risque', 'Danger', 'Gravité', 'Fréquence', 'Maîtrise', 'Score', 'Priorité']],
+    head: [['Type de risque', 'Danger', 'Source', 'Gravité', 'Fréquence', 'Maîtrise', 'Score', 'Priorité']],
     body: tableData,
     startY: 50,
     styles: { 
-      fontSize: 8,
+      fontSize: 9,
       cellPadding: 3,
       textColor: [52, 73, 94],
       lineColor: [200, 200, 200],
@@ -154,17 +155,18 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       fillColor: [41, 128, 185],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 8
+      fontSize: 9
     },
     alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
-      0: { cellWidth: 22, halign: 'left' },
-      1: { cellWidth: 28, halign: 'left' },
-      2: { cellWidth: 18, halign: 'center' },
+      0: { cellWidth: 30, halign: 'left' },
+      1: { cellWidth: 35, halign: 'left' },
+      2: { cellWidth: 25, halign: 'left' },
       3: { cellWidth: 20, halign: 'center' },
-      4: { cellWidth: 18, halign: 'center' },
-      5: { cellWidth: 15, halign: 'center' },
-      6: { cellWidth: 24, halign: 'center' }
+      4: { cellWidth: 25, halign: 'center' },
+      5: { cellWidth: 20, halign: 'center' },
+      6: { cellWidth: 15, halign: 'center' },
+      7: { cellWidth: 25, halign: 'center' }
     },
     margin: { top: 30, left: 14, right: 14, bottom: 30 }
   });
