@@ -13,6 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import RiskTable from '@/components/RiskTable';
+import { RiskModificationGuide } from '@/components/RiskModificationGuide';
 import type { Location, WorkStation, Risk } from '@shared/schema';
 
 interface RiskGenerationStepProps {
@@ -222,6 +223,11 @@ export default function RiskGenerationStep({
         </Card>
       )}
 
+      {/* Guide de modification des risques */}
+      {hasRisks && (
+        <RiskModificationGuide />
+      )}
+
       {/* Tableau des risques */}
       {hasRisks && (
         <Card>
@@ -229,7 +235,15 @@ export default function RiskGenerationStep({
             <CardTitle>Tableau des risques professionnels</CardTitle>
           </CardHeader>
           <CardContent>
-            <RiskTable risks={finalRisks} showSource={true} />
+            <RiskTable 
+              risks={finalRisks} 
+              showSource={true} 
+              canEdit={true}
+              onRisksUpdated={(updatedRisks) => {
+                // Mettre à jour les risques dans le composant parent
+                window.dispatchEvent(new CustomEvent('risksUpdated', { detail: updatedRisks }));
+              }}
+            />
           </CardContent>
         </Card>
       )}

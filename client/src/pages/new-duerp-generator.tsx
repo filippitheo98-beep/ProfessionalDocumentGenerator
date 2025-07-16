@@ -78,6 +78,18 @@ export default function NewDuerpGenerator() {
     }
   }, [existingDocument, existingCompany]);
 
+  // Écouter les mises à jour de risques depuis le tableau
+  useEffect(() => {
+    const handleRisksUpdated = (event: CustomEvent) => {
+      setFinalRisks(event.detail);
+    };
+
+    window.addEventListener('risksUpdated', handleRisksUpdated as EventListener);
+    return () => {
+      window.removeEventListener('risksUpdated', handleRisksUpdated as EventListener);
+    };
+  }, []);
+
   // Mutations pour sauvegarder
   const createCompanyMutation = useMutation({
     mutationFn: async (companyData: any) => {

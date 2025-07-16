@@ -119,12 +119,12 @@ export function DocumentTitleInput({
           <Input
             id="document-title"
             type="text"
-            value={value}
+            value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
             disabled={disabled}
             className={`pr-8 ${
-              !isValid ? 'border-red-500' : isValid && value.trim() ? 'border-green-500' : ''
+              !isValid ? 'border-red-500' : isValid && value?.trim() ? 'border-green-500' : ''
             }`}
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2">

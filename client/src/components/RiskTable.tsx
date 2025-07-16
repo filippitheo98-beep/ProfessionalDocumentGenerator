@@ -5,9 +5,20 @@ import type { Risk } from "@shared/schema";
 interface RiskTableProps {
   risks: Risk[];
   showSource?: boolean;
+  documentId?: number;
+  onRisksUpdated?: (risks: Risk[]) => void;
+  canEdit?: boolean;
 }
 
-export default function RiskTable({ risks, showSource = false }: RiskTableProps) {
+import { RiskTableActions } from './RiskTableActions';
+
+export default function RiskTable({ 
+  risks, 
+  showSource = false, 
+  documentId,
+  onRisksUpdated,
+  canEdit = false
+}: RiskTableProps) {
   const getGravityColor = (gravity: string) => {
     switch (gravity) {
       case 'Faible': return 'bg-green-100 text-green-800';
@@ -57,6 +68,19 @@ export default function RiskTable({ risks, showSource = false }: RiskTableProps)
   return (
     <div className="bg-slate-50 rounded-lg p-4 mb-6">
       <h4 className="font-medium text-slate-900 mb-3">Évaluation des risques professionnels</h4>
+      
+      {/* Actions de gestion des risques */}
+      {canEdit && (
+        <div className="mb-4">
+          <RiskTableActions 
+            risks={risks}
+            documentId={documentId}
+            onRisksUpdated={onRisksUpdated || (() => {})}
+            canEdit={canEdit}
+          />
+        </div>
+      )}
+      
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
