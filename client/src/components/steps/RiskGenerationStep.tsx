@@ -10,7 +10,8 @@ import {
   Loader2, 
   RefreshCw, 
   List,
-  Save
+  Save,
+  Download
 } from 'lucide-react';
 
 import RiskTable from '@/components/RiskTable';
@@ -22,6 +23,7 @@ interface RiskGenerationStepProps {
   finalRisks: Risk[];
   preventionMeasures: PreventionMeasure[];
   companyActivity: string;
+  companyName?: string;
   onGenerateRisks: () => void;
   onRegenerateRisks: () => void;
   isGenerating: boolean;
@@ -34,6 +36,7 @@ export default function RiskGenerationStep({
   finalRisks,
   preventionMeasures,
   companyActivity,
+  companyName,
   onGenerateRisks,
   onRegenerateRisks,
   isGenerating,
@@ -171,14 +174,53 @@ export default function RiskGenerationStep({
             )}
             
             {hasRisks && (
-              <Button 
-                onClick={onSave}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Sauvegarder les données
-              </Button>
+              <>
+                <Button 
+                  onClick={onSave}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Sauvegarder les données
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/export/excel', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          risks: finalRisks,
+                          companyName: companyName || 'Entreprise'
+                        })
+                      });
+                      
+                      if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `DUERP_${companyName || 'Entreprise'}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                      } else {
+                        console.error('Erreur lors de l\'export Excel');
+                      }
+                    } catch (error) {
+                      console.error('Erreur lors de l\'export Excel:', error);
+                    }
+                  }}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Exporter en Excel
+                </Button>
+              </>
             )}
           </div>
 

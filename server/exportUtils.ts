@@ -11,42 +11,62 @@ declare module 'jspdf' {
 }
 
 export async function generateExcelFile(risks: any[], companyName: string): Promise<Buffer> {
-  // Prepare data for Excel
+  // Prepare data for Excel with comprehensive information
   const excelData = risks.map((risk: any, index: number) => ({
     'N°': index + 1,
-    'Source': risk.source || '',
-    'Type de source': risk.sourceType || '',
-    'Type de risque': risk.type,
-    'Danger': risk.danger,
-    'Gravité': risk.gravity,
-    'Fréquence': risk.frequency,
-    'Maîtrise': risk.control,
-    'Score': risk.riskScore?.toFixed(2) || '',
-    'Priorité': risk.priority,
-    'Mesures de prévention': risk.measures
+    'Source': risk.source || 'Non spécifié',
+    'Type de source': risk.sourceType || 'Non spécifié',
+    'Type de risque': risk.type || 'Non spécifié',
+    'Danger/Dommage': risk.danger || 'Non spécifié',
+    'Gravité': risk.gravity || 'Non spécifié',
+    'Valeur Gravité': risk.gravityValue || '',
+    'Fréquence': risk.frequency || 'Non spécifié',
+    'Valeur Fréquence': risk.frequencyValue || '',
+    'Maîtrise': risk.control || 'Non spécifié',
+    'Valeur Maîtrise': risk.controlValue || '',
+    'Score de risque': risk.riskScore?.toFixed(2) || '0',
+    'Priorité': risk.priority || 'Non définie',
+    'Mesures de prévention': risk.measures || 'À définir'
   }));
 
   // Create workbook and worksheet
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.json_to_sheet(excelData);
   
-  // Set column widths
+  // Set column widths for better readability
   const columnWidths = [
     { wch: 5 },  // N°
     { wch: 20 }, // Source
     { wch: 15 }, // Type de source
-    { wch: 15 }, // Type de risque
-    { wch: 40 }, // Danger
-    { wch: 12 }, // Gravité
-    { wch: 12 }, // Fréquence
-    { wch: 12 }, // Maîtrise
-    { wch: 10 }, // Score
-    { wch: 18 }, // Priorité
+    { wch: 20 }, // Type de risque
+    { wch: 40 }, // Danger/Dommage
+    { wch: 15 }, // Gravité
+    { wch: 8 },  // Valeur Gravité
+    { wch: 15 }, // Fréquence
+    { wch: 8 },  // Valeur Fréquence
+    { wch: 15 }, // Maîtrise
+    { wch: 8 },  // Valeur Maîtrise
+    { wch: 12 }, // Score de risque
+    { wch: 20 }, // Priorité
     { wch: 50 }  // Mesures de prévention
   ];
   worksheet['!cols'] = columnWidths;
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Risques');
+  // Add title and company info
+  const titleData = [
+    [`DOCUMENT UNIQUE D'ÉVALUATION DES RISQUES PROFESSIONNELS`],
+    [`Entreprise: ${companyName}`],
+    [`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`],
+    [''], // Empty row
+    ['TABLEAU DES RISQUES IDENTIFIÉS']
+  ];
+  
+  // Create title sheet
+  const titleSheet = XLSX.utils.aoa_to_sheet(titleData);
+  XLSX.utils.book_append_sheet(workbook, titleSheet, 'Page de garde');
+  
+  // Add main data sheet
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Analyse des risques');
   
   // Generate Excel file
   const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });

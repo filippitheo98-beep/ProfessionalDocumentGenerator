@@ -523,6 +523,7 @@ export default function NewDuerpGenerator() {
                 finalRisks={finalRisks}
                 preventionMeasures={preventionMeasures}
                 companyActivity={company?.activity || ''}
+                companyName={company?.name}
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
                 isGenerating={isGeneratingRisks}
