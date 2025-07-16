@@ -170,6 +170,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate prevention recommendations
+  app.post("/api/generate-prevention-recommendations", async (req, res) => {
+    try {
+      const { companyActivity, risks, locations, workStations } = req.body;
+      
+      if (!companyActivity || !risks) {
+        return res.status(400).json({ message: "Company activity and risks are required" });
+      }
+
+      const recommendations = await storage.generatePreventionRecommendations(
+        companyActivity,
+        risks,
+        locations,
+        workStations
+      );
+      
+      res.json({ recommendations });
+    } catch (error) {
+      console.error("Error generating prevention recommendations:", error);
+      res.status(500).json({ 
+        message: "Erreur lors de la génération des recommandations de prévention" 
+      });
+    }
+  });
+
   // DUERP Documents API
   app.get('/api/duerp/:companyId', async (req, res) => {
     try {

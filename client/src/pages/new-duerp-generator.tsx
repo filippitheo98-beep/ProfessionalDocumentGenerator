@@ -9,6 +9,7 @@ import StepperDuerp from '@/components/StepperDuerp';
 import CompanyInfoStep from '@/components/steps/CompanyInfoStep';
 import LocationsWorkstationsStep from '@/components/steps/LocationsWorkstationsStep';
 import RiskGenerationStep from '@/components/steps/RiskGenerationStep';
+import PreventionMeasuresStep from '@/components/steps/PreventionMeasuresStep';
 import AnalyticsStep from '@/components/steps/AnalyticsStep';
 import type { 
   Company, 
@@ -259,6 +260,66 @@ export default function NewDuerpGenerator() {
     setPreventionMeasures(newMeasures);
   };
 
+  // Gestionnaires des mesures de prévention
+  const handleAddPreventionMeasure = (measure: PreventionMeasure) => {
+    setPreventionMeasures(prev => [...prev, measure]);
+  };
+
+  const handleUpdatePreventionMeasure = (measureId: string, updates: Partial<PreventionMeasure>) => {
+    setPreventionMeasures(prev => 
+      prev.map(m => m.id === measureId ? { ...m, ...updates } : m)
+    );
+  };
+
+  const handleRemovePreventionMeasure = (measureId: string) => {
+    setPreventionMeasures(prev => prev.filter(m => m.id !== measureId));
+  };
+
+  const handleGeneratePreventionRecommendations = async () => {
+    if (!company || finalRisks.length === 0) return;
+
+    try {
+      const response = await apiRequest('/api/generate-prevention-recommendations', {
+        method: 'POST',
+        body: JSON.stringify({
+          companyActivity: company.activity,
+          risks: finalRisks,
+          locations: locations,
+          workStations: workStations
+        }),
+      });
+
+      if (response.recommendations) {
+        const newMeasures = response.recommendations.map((rec: any) => ({
+          id: crypto.randomUUID(),
+          description: rec.description,
+          level: rec.level || 'Général',
+          category: rec.category || 'Technique',
+          priority: rec.priority || 'Moyenne',
+          cost: rec.cost || 'Moyenne',
+          effectiveness: rec.effectiveness || 'Moyenne',
+          targetRiskIds: rec.targetRiskIds || [],
+          locationId: rec.locationId,
+          workStationId: rec.workStationId
+        }));
+
+        setPreventionMeasures(prev => [...prev, ...newMeasures]);
+        
+        toast({
+          title: "Recommandations générées",
+          description: `${newMeasures.length} mesures de prévention ont été générées automatiquement`,
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la génération des recommandations:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de générer les recommandations automatiques",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleAnalyzePhotos = async (photos: any[], locationOrWorkstation: string) => {
     // Ici on pourrait analyser les photos avec l'IA
     toast({
@@ -456,10 +517,14 @@ export default function NewDuerpGenerator() {
                 locations={locations}
                 workStations={workStations}
                 finalRisks={finalRisks}
+                preventionMeasures={preventionMeasures}
                 companyActivity={company?.activity || ''}
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
-
+                onAddPreventionMeasure={handleAddPreventionMeasure}
+                onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
+                onRemovePreventionMeasure={handleRemovePreventionMeasure}
+                onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
                 isGenerating={isGeneratingRisks}
                 onSave={handleSaveProgress}
               />

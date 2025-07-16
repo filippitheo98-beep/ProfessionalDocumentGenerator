@@ -209,6 +209,16 @@ export interface Risk {
 export interface PreventionMeasure {
   id: string;
   description: string;
+  level: 'Général' | 'Lieu' | 'Poste'; // Niveau d'application
+  category: 'Technique' | 'Organisationnel' | 'Humain' | 'EPI'; // Catégorie de mesure
+  priority: 'Élevée' | 'Moyenne' | 'Faible'; // Priorité
+  responsible?: string; // Responsable de la mise en œuvre
+  deadline?: string; // Date limite d'application
+  cost?: 'Faible' | 'Moyenne' | 'Élevée'; // Coût estimé
+  effectiveness?: 'Faible' | 'Moyenne' | 'Élevée'; // Efficacité estimée
+  targetRiskIds?: string[]; // IDs des risques ciblés
+  locationId?: string; // ID du lieu si applicable
+  workStationId?: string; // ID du poste si applicable
 }
 
 export interface WorkUnit {

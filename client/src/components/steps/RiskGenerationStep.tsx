@@ -4,26 +4,34 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   FileText, 
   AlertTriangle, 
   CheckCircle, 
   Loader2,
   Download,
-  RefreshCw
+  RefreshCw,
+  Shield,
+  List
 } from 'lucide-react';
 import RiskTable from '@/components/RiskTable';
+import { PreventionMeasuresManager } from '@/components/PreventionMeasuresManager';
 
-import type { Location, WorkStation, Risk } from '@shared/schema';
+import type { Location, WorkStation, Risk, PreventionMeasure } from '@shared/schema';
 
 interface RiskGenerationStepProps {
   locations: Location[];
   workStations: WorkStation[];
   finalRisks: Risk[];
+  preventionMeasures: PreventionMeasure[];
   companyActivity: string;
   onGenerateRisks: () => void;
   onRegenerateRisks: () => void;
-
+  onAddPreventionMeasure: (measure: PreventionMeasure) => void;
+  onUpdatePreventionMeasure: (measureId: string, updates: Partial<PreventionMeasure>) => void;
+  onRemovePreventionMeasure: (measureId: string) => void;
+  onGeneratePreventionRecommendations: () => void;
   isGenerating: boolean;
   onSave: () => void;
 }
@@ -32,9 +40,14 @@ export default function RiskGenerationStep({
   locations,
   workStations,
   finalRisks,
+  preventionMeasures,
   companyActivity,
   onGenerateRisks,
   onRegenerateRisks,
+  onAddPreventionMeasure,
+  onUpdatePreventionMeasure,
+  onRemovePreventionMeasure,
+  onGeneratePreventionRecommendations,
   isGenerating,
   onSave
 }: RiskGenerationStepProps) {
@@ -223,22 +236,76 @@ export default function RiskGenerationStep({
         </Card>
       )}
 
-      {/* Tableau des risques */}
+      {/* Onglets pour Risques et Mesures de Prévention */}
       {hasRisks && (
         <Card>
           <CardHeader>
-            <CardTitle>Tableau des risques professionnels</CardTitle>
+            <CardTitle>Gestion des risques et mesures de prévention</CardTitle>
           </CardHeader>
           <CardContent>
-            <RiskTable 
-              risks={finalRisks} 
-              showSource={true} 
-              canEdit={true}
-              onRisksUpdated={(updatedRisks) => {
-                // Mettre à jour les risques dans le composant parent
-                window.dispatchEvent(new CustomEvent('risksUpdated', { detail: updatedRisks }));
-              }}
-            />
+            <Tabs defaultValue="risks" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="risks" className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  Risques ({finalRisks.length})
+                </TabsTrigger>
+                <TabsTrigger value="prevention" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Mesures de prévention ({preventionMeasures.length})
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="risks" className="space-y-4">
+                <div className="mt-4">
+                  <RiskTable 
+                    risks={finalRisks} 
+                    showSource={true} 
+                    canEdit={true}
+                    onRisksUpdated={(updatedRisks) => {
+                      // Mettre à jour les risques dans le composant parent
+                      window.dispatchEvent(new CustomEvent('risksUpdated', { detail: updatedRisks }));
+                    }}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="prevention" className="space-y-4">
+                <div className="mt-4">
+                  <PreventionMeasuresManager
+                    measures={preventionMeasures}
+                    risks={finalRisks}
+                    locations={locations}
+                    workStations={workStations}
+                    onAddMeasure={onAddPreventionMeasure}
+                    onUpdateMeasure={onUpdatePreventionMeasure}
+                    onRemoveMeasure={onRemovePreventionMeasure}
+                  />
+                  
+                  {/* Bouton de génération de recommandations */}
+                  {preventionMeasures.length === 0 && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-blue-900 dark:text-blue-100">
+                            Génération automatique de recommandations
+                          </h4>
+                          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                            Nous pouvons générer automatiquement des mesures de prévention basées sur vos risques identifiés.
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={onGeneratePreventionRecommendations}
+                          className="flex items-center gap-2"
+                        >
+                          <Shield className="h-4 w-4" />
+                          Générer les recommandations
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}

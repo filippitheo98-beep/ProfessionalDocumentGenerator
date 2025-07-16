@@ -54,6 +54,9 @@ export interface IStorage {
   getRiskTemplates(sector?: string): Promise<RiskTemplate[]>;
   createRiskTemplate(template: Omit<RiskTemplate, 'id' | 'createdAt'>): Promise<RiskTemplate>;
   
+  // Prevention measures operations
+  generatePreventionRecommendations(companyActivity: string, risks: Risk[], locations: any[], workStations: any[]): Promise<any[]>;
+  
   // Action operations
   getActionsByDuerp(duerpId: number): Promise<Action[]>;
   createAction(action: Omit<Action, 'id' | 'createdAt' | 'updatedAt'>): Promise<Action>;
@@ -317,6 +320,203 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     // Return 5-10 most relevant risks
     const shuffled = applicableRisks.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, Math.min(10, shuffled.length));
+  }
+
+  async generatePreventionRecommendations(companyActivity: string, risks: Risk[], locations: any[], workStations: any[]): Promise<any[]> {
+    // Analyse des risques pour générer des recommandations
+    const recommendations = [];
+    
+    // Recommandations générales basées sur l'activité de l'entreprise
+    const generalRecommendations = this.getGeneralRecommendations(companyActivity);
+    recommendations.push(...generalRecommendations);
+    
+    // Recommandations spécifiques aux risques identifiés
+    for (const risk of risks) {
+      const riskSpecificRecommendations = this.getRiskSpecificRecommendations(risk);
+      recommendations.push(...riskSpecificRecommendations);
+    }
+    
+    // Recommandations par lieu
+    for (const location of locations) {
+      const locationRecommendations = this.getLocationRecommendations(location);
+      recommendations.push(...locationRecommendations);
+    }
+    
+    // Recommandations par poste de travail
+    for (const workStation of workStations) {
+      const workStationRecommendations = this.getWorkStationRecommendations(workStation);
+      recommendations.push(...workStationRecommendations);
+    }
+    
+    // Déduplication et priorisation
+    return this.deduplicateAndPrioritize(recommendations);
+  }
+
+  private getGeneralRecommendations(companyActivity: string): any[] {
+    const recommendations = [
+      {
+        description: "Mettre en place un système de management de la sécurité et santé au travail",
+        level: "Général",
+        category: "Organisationnel",
+        priority: "Élevée",
+        cost: "Moyenne",
+        effectiveness: "Élevée"
+      },
+      {
+        description: "Organiser des formations régulières sur les risques professionnels",
+        level: "Général",
+        category: "Humain",
+        priority: "Élevée",
+        cost: "Moyenne",
+        effectiveness: "Élevée"
+      },
+      {
+        description: "Établir des procédures d'urgence et d'évacuation",
+        level: "Général",
+        category: "Organisationnel",
+        priority: "Élevée",
+        cost: "Faible",
+        effectiveness: "Élevée"
+      }
+    ];
+
+    // Recommandations spécifiques selon l'activité
+    if (companyActivity.toLowerCase().includes('bureau')) {
+      recommendations.push({
+        description: "Aménager les postes de travail informatiques selon les normes ergonomiques",
+        level: "Général",
+        category: "Technique",
+        priority: "Moyenne",
+        cost: "Moyenne",
+        effectiveness: "Élevée"
+      });
+    }
+
+    if (companyActivity.toLowerCase().includes('industrie') || companyActivity.toLowerCase().includes('production')) {
+      recommendations.push({
+        description: "Mettre en place une maintenance préventive des équipements",
+        level: "Général",
+        category: "Technique",
+        priority: "Élevée",
+        cost: "Élevée",
+        effectiveness: "Élevée"
+      });
+    }
+
+    return recommendations;
+  }
+
+  private getRiskSpecificRecommendations(risk: Risk): any[] {
+    const recommendations = [];
+    
+    if (risk.type.toLowerCase().includes('tms') || risk.type.toLowerCase().includes('musculo')) {
+      recommendations.push({
+        description: "Formation aux gestes et postures pour prévenir les TMS",
+        level: "Général",
+        category: "Humain",
+        priority: "Élevée",
+        cost: "Faible",
+        effectiveness: "Élevée",
+        targetRiskIds: [risk.id]
+      });
+    }
+
+    if (risk.type.toLowerCase().includes('chute')) {
+      recommendations.push({
+        description: "Installer des revêtements antidérapants et améliorer l'éclairage",
+        level: "Lieu",
+        category: "Technique",
+        priority: "Élevée",
+        cost: "Moyenne",
+        effectiveness: "Élevée",
+        targetRiskIds: [risk.id]
+      });
+    }
+
+    if (risk.type.toLowerCase().includes('chimique')) {
+      recommendations.push({
+        description: "Fournir des équipements de protection individuelle adaptés",
+        level: "Poste",
+        category: "EPI",
+        priority: "Élevée",
+        cost: "Moyenne",
+        effectiveness: "Élevée",
+        targetRiskIds: [risk.id]
+      });
+    }
+
+    if (risk.type.toLowerCase().includes('bruit')) {
+      recommendations.push({
+        description: "Mettre en place des protections auditives et réduire le bruit à la source",
+        level: "Lieu",
+        category: "Technique",
+        priority: "Élevée",
+        cost: "Élevée",
+        effectiveness: "Élevée",
+        targetRiskIds: [risk.id]
+      });
+    }
+
+    return recommendations;
+  }
+
+  private getLocationRecommendations(location: any): any[] {
+    return [
+      {
+        description: `Améliorer la signalisation de sécurité dans ${location.name}`,
+        level: "Lieu",
+        category: "Technique",
+        priority: "Moyenne",
+        cost: "Faible",
+        effectiveness: "Moyenne",
+        locationId: location.id
+      },
+      {
+        description: `Maintenir l'ordre et la propreté dans ${location.name}`,
+        level: "Lieu",
+        category: "Organisationnel",
+        priority: "Moyenne",
+        cost: "Faible",
+        effectiveness: "Moyenne",
+        locationId: location.id
+      }
+    ];
+  }
+
+  private getWorkStationRecommendations(workStation: any): any[] {
+    return [
+      {
+        description: `Adapter le poste de travail ${workStation.name} aux spécificités des tâches`,
+        level: "Poste",
+        category: "Technique",
+        priority: "Moyenne",
+        cost: "Moyenne",
+        effectiveness: "Élevée",
+        workStationId: workStation.id
+      },
+      {
+        description: `Former spécifiquement les opérateurs du poste ${workStation.name}`,
+        level: "Poste",
+        category: "Humain",
+        priority: "Élevée",
+        cost: "Faible",
+        effectiveness: "Élevée",
+        workStationId: workStation.id
+      }
+    ];
+  }
+
+  private deduplicateAndPrioritize(recommendations: any[]): any[] {
+    // Supprimer les doublons basés sur la description
+    const uniqueRecommendations = recommendations.filter((rec, index, arr) => 
+      index === arr.findIndex(r => r.description === rec.description)
+    );
+
+    // Trier par priorité (Élevée > Moyenne > Faible)
+    const priorityOrder = { 'Élevée': 3, 'Moyenne': 2, 'Faible': 1 };
+    return uniqueRecommendations.sort((a, b) => 
+      priorityOrder[b.priority] - priorityOrder[a.priority]
+    );
   }
 
   // Action operations
