@@ -173,6 +173,7 @@ export default function NewDuerpGenerator() {
             workUnitName: location.name,
             locationName: location.name,
             companyActivity: company?.activity || '',
+            companyDescription: (company as any)?.description || '',
           }),
         });
         
@@ -193,6 +194,7 @@ export default function NewDuerpGenerator() {
             workUnitName: workStation.name,
             locationName: workStation.description || workStation.name,
             companyActivity: company?.activity || '',
+            companyDescription: (company as any)?.description || '',
           }),
         });
         

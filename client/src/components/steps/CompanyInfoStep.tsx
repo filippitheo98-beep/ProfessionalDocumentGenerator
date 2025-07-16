@@ -13,6 +13,7 @@ import type { Company } from "@shared/schema";
 const companyInfoSchema = z.object({
   name: z.string().min(1, "Le nom de la société est requis"),
   activity: z.string().min(1, "Le secteur d'activité est requis"),
+  description: z.string().optional(),
   sector: z.string().optional(),
   address: z.string().optional(),
   siret: z.string().optional(),
@@ -41,6 +42,7 @@ export default function CompanyInfoStep({
     defaultValues: {
       name: "",
       activity: "",
+      description: "",
       sector: "",
       address: "",
       siret: "",
@@ -56,6 +58,7 @@ export default function CompanyInfoStep({
       form.reset({
         name: initialData.name || "",
         activity: initialData.activity || "",
+        description: (initialData as any).description || "",
         sector: initialData.sector || "",
         address: initialData.address || "",
         siret: initialData.siret || "",
@@ -140,6 +143,28 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="Ex: Commerce de détail, Services informatiques, BTP..."
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Description de l'entreprise */}
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel className="flex items-center gap-2">
+                        <Building className="h-4 w-4" />
+                        Description de l'entreprise
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Décrivez les activités principales de votre entreprise, ses processus de travail, ses équipements spécifiques, etc. Cette description aide l'IA à mieux comprendre votre contexte professionnel pour générer des risques plus précis."
+                          rows={4}
                           {...field}
                         />
                       </FormControl>

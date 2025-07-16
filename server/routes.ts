@@ -160,7 +160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const risks = await storage.generateRisks(
         validatedData.workUnitName,
         validatedData.locationName,
-        validatedData.companyActivity
+        validatedData.companyActivity,
+        validatedData.companyDescription
       );
       res.json({ risks });
     } catch (error) {

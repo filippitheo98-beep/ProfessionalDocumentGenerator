@@ -77,6 +77,11 @@ Preferred communication style: Simple, everyday language.
 - **2025-07-16**: Added automatic risk value recalculation system to ensure all risks have correct numeric values
 - **2025-07-16**: Fixed priority calculation issues with comprehensive recalculation function
 - **2025-07-16**: Streamlined PDF structure to focus exclusively on essential risk assessment data
+- **2025-07-16**: Replaced PDF export with Word export using docx library for better compatibility
+- **2025-07-16**: Modified Excel export to remove "Type de source" column and "N°" column, keeping only "Source" column
+- **2025-07-16**: Added company description field to enhance AI risk generation context
+- **2025-07-16**: Updated database schema to include description field in companies table
+- **2025-07-16**: Enhanced CompanyInfoStep component with description textarea field for better AI context
 
 ## System Architecture
 

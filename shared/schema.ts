@@ -8,6 +8,7 @@ export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   activity: text("activity").notNull(),
+  description: text("description"),
   sector: text("sector"),
   address: text("address"),
   siret: text("siret"),
@@ -252,6 +253,7 @@ export const generateRisksRequestSchema = z.object({
   workUnitName: z.string(),
   locationName: z.string(),
   companyActivity: z.string(),
+  companyDescription: z.string().optional(),
 });
 
 export type GenerateRisksRequest = z.infer<typeof generateRisksRequestSchema>;

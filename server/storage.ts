@@ -50,7 +50,7 @@ export interface IStorage {
   }): Promise<DuerpDocument>;
   
   // Risk operations
-  generateRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]>;
+  generateRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]>;
   getRiskTemplates(sector?: string): Promise<RiskTemplate[]>;
   createRiskTemplate(template: Omit<RiskTemplate, 'id' | 'createdAt'>): Promise<RiskTemplate>;
   
@@ -219,10 +219,10 @@ export class DatabaseStorage implements IStorage {
     return riskTemplate;
   }
 
-  async generateRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]> {
+  async generateRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
     // Use OpenAI to generate contextual risks
     try {
-      const aiRisks = await this.generateAIRisks(workUnitName, locationName, companyActivity);
+      const aiRisks = await this.generateAIRisks(workUnitName, locationName, companyActivity, companyDescription);
       if (aiRisks.length > 0) {
         return aiRisks;
       }
@@ -261,10 +261,16 @@ export class DatabaseStorage implements IStorage {
     return risks;
   }
 
-  private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string): Promise<Risk[]> {
+  private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
-    const prompt = `En tant qu'expert en santé et sécurité au travail français, analysez le poste "${workUnitName}" dans le lieu "${locationName}" d'une entreprise de "${companyActivity}".
+    const descriptionContext = companyDescription ? `
+
+Description détaillée de l'entreprise : ${companyDescription}
+
+Utilisez cette description pour mieux comprendre le contexte spécifique de l'entreprise et identifier des risques plus précis et pertinents.` : '';
+    
+    const prompt = `En tant qu'expert en santé et sécurité au travail français, analysez le poste "${workUnitName}" dans le lieu "${locationName}" d'une entreprise de "${companyActivity}".${descriptionContext}
 
 Identifiez TOUS les risques professionnels pertinents selon la réglementation française. Soyez exhaustif mais restez cohérent avec le contexte. Pour chaque risque identifié, indiquez :
 - type: Type de risque (TMS, Chute, Bruit, Incendie, Chimique, Électrique, etc.)
