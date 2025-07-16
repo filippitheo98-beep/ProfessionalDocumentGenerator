@@ -487,53 +487,63 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     doc.setFont('helvetica', 'bold');
     doc.text(`Unité de Travail : ${source}`, 20, 30);
     
-    // Tableau des risques pour cette unité
+    // Tableau des risques pour cette unité - format simplifié
     const sourceTableData = sourceRisks.map(risk => [
-      risk.type || '',
-      risk.danger || '',
-      risk.gravity || '',
-      risk.gravityValue || '',
-      risk.frequency || '',
-      risk.frequencyValue || '',
-      risk.control || '',
-      risk.controlValue || '',
-      risk.riskScore?.toFixed(2) || '',
-      risk.priority || '',
-      risk.measures || ''
+      risk.type || 'Non spécifié',
+      risk.danger || 'Non spécifié',
+      risk.gravity || 'Non spécifié',
+      String(risk.gravityValue || ''),
+      risk.frequency || 'Non spécifié',
+      String(risk.frequencyValue || ''),
+      risk.control || 'Non spécifié',
+      String(risk.controlValue || ''),
+      risk.riskScore ? risk.riskScore.toFixed(2) : '0',
+      risk.priority || 'Non défini',
+      risk.measures || 'À définir'
     ]);
     
+    // Créer un tableau plus compact et lisible
     autoTable(doc, {
-      head: [['Risque', 'Dommages éventuels', 'Gravité', 'G', 'Exposition', 'E', 'Maîtrise', 'M', 'Score', 'Priorité', 'Mesures de prévention']],
-      body: sourceTableData,
+      head: [['Type de risque', 'Gravité', 'Fréquence', 'Maîtrise', 'Score', 'Priorité', 'Mesures de prévention']],
+      body: sourceTableData.map(row => [
+        row[0], // Type de risque
+        `${row[2]} (${row[3]})`, // Gravité avec valeur
+        `${row[4]} (${row[5]})`, // Fréquence avec valeur
+        `${row[6]} (${row[7]})`, // Maîtrise avec valeur
+        row[8], // Score
+        row[9], // Priorité
+        row[10] // Mesures
+      ]),
       startY: 50,
       styles: { 
         fontSize: 8, 
         cellPadding: 3,
         textColor: [52, 73, 94],
         lineColor: [200, 200, 200],
-        lineWidth: 0.5
+        lineWidth: 0.5,
+        overflow: 'linebreak',
+        halign: 'left'
       },
       headStyles: { 
         fillColor: [230, 230, 230],
         textColor: [52, 73, 94],
         fontStyle: 'bold',
-        fontSize: 8
+        fontSize: 8,
+        halign: 'center'
       },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 8, halign: 'center' },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 8, halign: 'center' },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 8, halign: 'center' },
-        8: { cellWidth: 12, halign: 'center' },
-        9: { cellWidth: 20, halign: 'center' },
-        10: { cellWidth: 35 }
+        0: { cellWidth: 25 }, // Type de risque
+        1: { cellWidth: 25 }, // Gravité
+        2: { cellWidth: 25 }, // Fréquence
+        3: { cellWidth: 25 }, // Maîtrise
+        4: { cellWidth: 15, halign: 'center' }, // Score
+        5: { cellWidth: 25, halign: 'center' }, // Priorité
+        6: { cellWidth: 40 } // Mesures
       },
-      margin: { left: 10, right: 10 }
+      margin: { left: 10, right: 10 },
+      showHead: 'everyPage',
+      pageBreak: 'auto'
     });
   });
   
