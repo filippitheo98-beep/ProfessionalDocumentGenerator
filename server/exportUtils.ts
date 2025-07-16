@@ -14,7 +14,6 @@ declare module 'jspdf' {
 export async function generateExcelFile(risks: any[], companyName: string): Promise<Buffer> {
   // Prepare data for Excel with comprehensive information
   const excelData = risks.map((risk: any, index: number) => ({
-    'N°': index + 1,
     'Source': risk.source || 'Non spécifié',
     'Type de risque': risk.type || 'Non spécifié',
     'Danger/Dommage': risk.danger || 'Non spécifié',
@@ -35,7 +34,6 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   
   // Set column widths for better readability
   const columnWidths = [
-    { wch: 5 },  // N°
     { wch: 20 }, // Source
     { wch: 20 }, // Type de risque
     { wch: 40 }, // Danger/Dommage
