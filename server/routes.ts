@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, type Risk } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile } from './exportUtils';
 import { db } from "./db";
@@ -251,10 +251,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const document = documents[0];
-      res.json({
-        ...document.duerp_documents,
-        company: document.companies
-      });
+      const docData = { ...document.duerp_documents, company: document.companies };
+      
+      // Recalculer les valeurs numériques et la priorité pour tous les risques
+      if (docData.finalRisks) {
+        docData.finalRisks = (docData.finalRisks as Risk[]).map(risk => {
+          const gravityValue = risk.gravity === 'Faible' ? 1 : risk.gravity === 'Moyenne' ? 4 : risk.gravity === 'Grave' ? 20 : 100;
+          const frequencyValue = risk.frequency === 'Annuelle' ? 1 : risk.frequency === 'Mensuelle' ? 4 : risk.frequency === 'Hebdomadaire' ? 10 : 50;
+          const controlValue = risk.control === 'Très élevée' ? 0.05 : risk.control === 'Élevée' ? 0.2 : risk.control === 'Moyenne' ? 0.5 : 1;
+          
+          const riskScore = gravityValue * frequencyValue * controlValue;
+          const priority = riskScore >= 500 ? 'Priorité 1 (Forte)' : riskScore >= 100 ? 'Priorité 2 (Moyenne)' : riskScore >= 10 ? 'Priorité 3 (Modéré)' : 'Priorité 4 (Faible)';
+          
+          return {
+            ...risk,
+            gravityValue: gravityValue as 1 | 4 | 20 | 100,
+            frequencyValue: frequencyValue as 1 | 4 | 10 | 50,
+            controlValue: controlValue as 0.05 | 0.2 | 0.5 | 1,
+            riskScore: riskScore,
+            priority: priority as 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)'
+          };
+        });
+      }
+      
+      res.json(docData);
     } catch (error) {
       console.error('Error fetching DUERP document:', error);
       res.status(500).json({ message: 'Failed to fetch document' });

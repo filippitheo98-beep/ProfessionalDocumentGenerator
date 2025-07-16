@@ -115,6 +115,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(duerpDocuments.companyId, companyId))
       .orderBy(desc(duerpDocuments.createdAt))
       .limit(1);
+    
+    if (document && document.finalRisks) {
+      // Recalculer les valeurs numériques et la priorité pour tous les risques
+      document.finalRisks = (document.finalRisks as Risk[]).map(risk => this.recalculateRiskValues(risk));
+    }
+    
     return document;
   }
 
@@ -124,7 +130,14 @@ export class DatabaseStorage implements IStorage {
       .from(duerpDocuments)
       .where(eq(duerpDocuments.companyId, companyId))
       .orderBy(desc(duerpDocuments.createdAt));
-    return documents;
+    
+    // Recalculer les valeurs numériques et la priorité pour tous les risques de tous les documents
+    return documents.map(doc => {
+      if (doc.finalRisks) {
+        doc.finalRisks = (doc.finalRisks as Risk[]).map(risk => this.recalculateRiskValues(risk));
+      }
+      return doc;
+    });
   }
 
   async createDuerpDocument(data: {
@@ -654,6 +667,25 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     return document;
   }
 
+  // Fonction utilitaire pour recalculer les valeurs numériques et la priorité
+  private recalculateRiskValues(risk: Risk): Risk {
+    const gravityValue = risk.gravity === 'Faible' ? 1 : risk.gravity === 'Moyenne' ? 4 : risk.gravity === 'Grave' ? 20 : 100;
+    const frequencyValue = risk.frequency === 'Annuelle' ? 1 : risk.frequency === 'Mensuelle' ? 4 : risk.frequency === 'Hebdomadaire' ? 10 : 50;
+    const controlValue = risk.control === 'Très élevée' ? 0.05 : risk.control === 'Élevée' ? 0.2 : risk.control === 'Moyenne' ? 0.5 : 1;
+    
+    const riskScore = gravityValue * frequencyValue * controlValue;
+    const priority = riskScore >= 500 ? 'Priorité 1 (Forte)' : riskScore >= 100 ? 'Priorité 2 (Moyenne)' : riskScore >= 10 ? 'Priorité 3 (Modéré)' : 'Priorité 4 (Faible)';
+    
+    return {
+      ...risk,
+      gravityValue: gravityValue as 1 | 4 | 20 | 100,
+      frequencyValue: frequencyValue as 1 | 4 | 10 | 50,
+      controlValue: controlValue as 0.05 | 0.2 | 0.5 | 1,
+      riskScore: riskScore,
+      priority: priority as 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)'
+    };
+  }
+
   async updateDuerpDocumentPartial(id: number, updates: {
     title?: string;
     locations?: Location[];
@@ -675,11 +707,11 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       throw new Error(`Document DUERP avec l'ID ${id} non trouvé`);
     }
 
-    let finalRisks = existingDoc.finalRisks as Risk[];
+    let finalRisks = (existingDoc.finalRisks as Risk[]).map(risk => this.recalculateRiskValues(risk));
 
     // Gérer les modifications de risques
     if (updates.addRisks) {
-      finalRisks = [...finalRisks, ...updates.addRisks];
+      finalRisks = [...finalRisks, ...updates.addRisks.map(risk => this.recalculateRiskValues(risk))];
     }
 
     if (updates.removeRisks) {
@@ -689,13 +721,13 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     if (updates.updateRisks) {
       finalRisks = finalRisks.map(risk => {
         const update = updates.updateRisks!.find(u => u.id === risk.id);
-        return update ? { ...risk, ...update.updates } : risk;
+        return update ? this.recalculateRiskValues({ ...risk, ...update.updates }) : risk;
       });
     }
 
     // Remplacer complètement les risques si spécifié
     if (updates.finalRisks) {
-      finalRisks = updates.finalRisks;
+      finalRisks = updates.finalRisks.map(risk => this.recalculateRiskValues(risk));
     }
 
     // Préparer les données de mise à jour
