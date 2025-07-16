@@ -178,91 +178,33 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   
   // ==== GRAPHIQUES ====
   if (chartImages && Object.keys(chartImages).length > 0) {
-    doc.addPage();
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('GRAPHIQUES D\'ANALYSE', pageWidth / 2, 25, { align: 'center' });
-    
     const chartNames = Object.keys(chartImages);
-    const numCharts = chartNames.length;
     
-    if (numCharts === 1) {
-      // Un seul graphique - centré et plus grand
-      const chartWidth = 180;
-      const chartHeight = 120;
-      const xPosition = (pageWidth - chartWidth) / 2;
-      const yPosition = 45;
-      
-      const imageData = chartImages[chartNames[0]];
+    chartNames.forEach((chartName, index) => {
+      const imageData = chartImages[chartName];
       if (imageData && typeof imageData === 'string') {
         try {
+          // Nouvelle page pour chaque graphique
+          doc.addPage();
+          
+          // Titre de la page
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.text('GRAPHIQUES D\'ANALYSE', pageWidth / 2, 25, { align: 'center' });
+          
+          // Graphique centré et optimisé pour la page
+          const chartWidth = 200;  // Largeur maximale pour format paysage
+          const chartHeight = 130; // Hauteur proportionnelle
+          const xPosition = (pageWidth - chartWidth) / 2;
+          const yPosition = 50;
+          
           doc.addImage(imageData, 'PNG', xPosition, yPosition, chartWidth, chartHeight);
+          
         } catch (error) {
           console.error('Error adding chart image:', error);
         }
       }
-    } else if (numCharts === 2) {
-      // Deux graphiques - côte à côte
-      const chartWidth = 120;
-      const chartHeight = 80;
-      const spacing = 20;
-      const totalWidth = (chartWidth * 2) + spacing;
-      const startX = (pageWidth - totalWidth) / 2;
-      const yPosition = 45;
-      
-      chartNames.forEach((chartName, index) => {
-        const imageData = chartImages[chartName];
-        if (imageData && typeof imageData === 'string') {
-          try {
-            const xPosition = startX + (index * (chartWidth + spacing));
-            doc.addImage(imageData, 'PNG', xPosition, yPosition, chartWidth, chartHeight);
-          } catch (error) {
-            console.error('Error adding chart image:', error);
-          }
-        }
-      });
-    } else {
-      // Plus de 2 graphiques - disposition en grille
-      const chartWidth = 100;
-      const chartHeight = 70;
-      const spacingX = 15;
-      const spacingY = 15;
-      const chartsPerRow = 2;
-      
-      let currentRow = 0;
-      let currentCol = 0;
-      let yPosition = 45;
-      
-      chartNames.forEach((chartName, index) => {
-        const imageData = chartImages[chartName];
-        if (imageData && typeof imageData === 'string') {
-          try {
-            const totalRowWidth = (chartWidth * chartsPerRow) + (spacingX * (chartsPerRow - 1));
-            const startX = (pageWidth - totalRowWidth) / 2;
-            const xPosition = startX + (currentCol * (chartWidth + spacingX));
-            
-            // Vérifier s'il faut une nouvelle page
-            if (yPosition + chartHeight > 180) {
-              doc.addPage();
-              yPosition = 25;
-              currentRow = 0;
-              currentCol = 0;
-            }
-            
-            doc.addImage(imageData, 'PNG', xPosition, yPosition, chartWidth, chartHeight);
-            
-            currentCol++;
-            if (currentCol >= chartsPerRow) {
-              currentCol = 0;
-              currentRow++;
-              yPosition += chartHeight + spacingY;
-            }
-          } catch (error) {
-            console.error('Error adding chart image:', error);
-          }
-        }
-      });
-    }
+    });
   }
   
   return Buffer.from(doc.output('arraybuffer'));
