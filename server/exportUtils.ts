@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -56,6 +56,9 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
 
 export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {
   const doc = new jsPDF();
+  
+  // Apply autoTable to the document
+  autoTable(doc, {});
   
   // ==== PAGE DE GARDE ====
   doc.setFontSize(18);
@@ -226,7 +229,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   doc.text('3/ Estimer la gravité de chaque situation dangereuse', 20, yPos);
   yPos += 15;
   
-  doc.autoTable({
+  autoTable(doc, {
     head: [['Gravité', 'Indice', 'Définition']],
     body: [
       ['Faible', '1', 'Incident sans arrêt de travail - Situation occasionnant un inconfort'],
@@ -245,12 +248,12 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   });
   
   // Tableau de fréquence
-  yPos = doc.lastAutoTable.finalY + 20;
+  yPos = (doc as any).lastAutoTable.finalY + 20;
   doc.setFont('helvetica', 'bold');
   doc.text('4/ Estimer la fréquence d\'exposition', 20, yPos);
   yPos += 15;
   
-  doc.autoTable({
+  autoTable(doc, {
     head: [['Exposition', 'Fréquence d\'exposition', 'Indice']],
     body: [
       ['Annuelle', 'Environ 1 fois/an', '1'],
@@ -269,12 +272,12 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   });
   
   // Tableau de maîtrise
-  yPos = doc.lastAutoTable.finalY + 20;
+  yPos = (doc as any).lastAutoTable.finalY + 20;
   doc.setFont('helvetica', 'bold');
   doc.text('5/ Estimer la maîtrise du risque', 20, yPos);
   yPos += 15;
   
-  doc.autoTable({
+  autoTable(doc, {
     head: [['Maîtrise du risque', 'Indice', 'Définition']],
     body: [
       ['Très élevée', '0,05', 'Mesures très efficaces, aucune autre mesure possible'],
@@ -300,7 +303,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
   doc.setFont('helvetica', 'normal');
   doc.text('Dans cette méthode le Risque = Gravité × Fréquence × Maîtrise', 20, 50);
   
-  doc.autoTable({
+  autoTable(doc, {
     head: [['Cotation du Risque', 'Classement de la priorité', 'Interprétation']],
     body: [
       ['< 10', 'Priorité 4 - Faible', 'Situation limitée ou maîtrisée'],
@@ -356,7 +359,7 @@ export async function generatePDFFile(risks: any[], companyName: string, company
       risk.measures || ''
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Risque', 'Dommages éventuels', 'Gravité', 'G', 'Exposition', 'E', 'Maîtrise', 'M', 'Score', 'Priorité', 'Mesures de prévention']],
       body: sourceTableData,
       startY: 50,
