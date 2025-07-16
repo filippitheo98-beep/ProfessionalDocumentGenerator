@@ -161,15 +161,15 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     },
     alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
-      0: { cellWidth: 18, halign: 'left' },     // Source
-      1: { cellWidth: 20, halign: 'left' },     // Type de risque
-      2: { cellWidth: 32, halign: 'left' },     // Danger
-      3: { cellWidth: 16, halign: 'center' },   // Gravité
-      4: { cellWidth: 18, halign: 'center' },   // Fréquence
-      5: { cellWidth: 16, halign: 'center' },   // Maîtrise
-      6: { cellWidth: 10, halign: 'center' },   // Score
-      7: { cellWidth: 16, halign: 'center' },   // Priorité
-      8: { cellWidth: 40, halign: 'left' }      // Mesures
+      0: { cellWidth: 16, halign: 'left' },     // Source
+      1: { cellWidth: 18, halign: 'left' },     // Type de risque
+      2: { cellWidth: 28, halign: 'left' },     // Danger
+      3: { cellWidth: 14, halign: 'center' },   // Gravité
+      4: { cellWidth: 16, halign: 'center' },   // Fréquence
+      5: { cellWidth: 14, halign: 'center' },   // Maîtrise
+      6: { cellWidth: 8, halign: 'center' },    // Score
+      7: { cellWidth: 14, halign: 'center' },   // Priorité
+      8: { cellWidth: 35, halign: 'left' }      // Mesures
     },
     margin: { top: 30, left: 8, right: 8, bottom: 30 },
     pageBreak: 'auto',
@@ -184,16 +184,23 @@ export async function generatePDFFile(risks: any[], companyName: string, company
     doc.text('GRAPHIQUES D\'ANALYSE', pageWidth / 2, 30, { align: 'center' });
     
     let yPosition = 50;
+    const chartWidth = 120;  // Largeur optimisée pour le format paysage
+    const chartHeight = 80;  // Hauteur proportionnelle
+    const xPosition = (pageWidth - chartWidth) / 2;  // Centré horizontalement
+    
     Object.entries(chartImages).forEach(([chartName, imageData]: [string, any]) => {
       if (imageData && typeof imageData === 'string') {
         try {
-          doc.addImage(imageData, 'PNG', 20, yPosition, 160, 80);
-          yPosition += 100;
-          
-          if (yPosition > 200) {
+          // Vérifier s'il y a assez d'espace sur la page actuelle
+          if (yPosition + chartHeight > 180) {
             doc.addPage();
-            yPosition = 20;
+            yPosition = 50;
           }
+          
+          // Ajouter le graphique centré
+          doc.addImage(imageData, 'PNG', xPosition, yPosition, chartWidth, chartHeight);
+          yPosition += chartHeight + 20;  // Espacement entre les graphiques
+          
         } catch (error) {
           console.error('Error adding chart image:', error);
         }
