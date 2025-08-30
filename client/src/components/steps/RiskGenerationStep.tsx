@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import RiskTable from '@/components/RiskTable';
+import SelectLocationModal from '@/components/SelectLocationModal';
 import type { Location, WorkStation, Risk, PreventionMeasure } from '@shared/schema';
 
 interface RiskGenerationStepProps {
@@ -29,6 +30,7 @@ interface RiskGenerationStepProps {
   onGenerateRisks: () => void;
   onRegenerateRisks: () => void;
   onAddNewRisks?: () => void;
+  onAddSelectiveRisks?: (selectedLocations: Location[], selectedWorkStations: WorkStation[]) => void;
   isGenerating: boolean;
   onSave: () => void;
 }
@@ -43,10 +45,12 @@ export default function RiskGenerationStep({
   onGenerateRisks,
   onRegenerateRisks,
   onAddNewRisks,
+  onAddSelectiveRisks,
   isGenerating,
   onSave
 }: RiskGenerationStepProps) {
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [showSelectLocationModal, setShowSelectLocationModal] = useState(false);
   
   const totalItems = locations.length + workStations.length;
   const hasRisks = finalRisks.length > 0;
@@ -185,17 +189,13 @@ export default function RiskGenerationStep({
               </Button>
             ) : (
               <>
-                {onAddNewRisks && (
+                {onAddSelectiveRisks && (
                   <Button 
-                    onClick={handleAddNewRisks}
+                    onClick={() => setShowSelectLocationModal(true)}
                     disabled={isGenerating || totalItems === 0}
                     className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
                   >
-                    {isGenerating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
+                    <Plus className="h-4 w-4" />
                     Ajouter de nouveaux risques
                   </Button>
                 )}
@@ -343,6 +343,20 @@ export default function RiskGenerationStep({
           </CardContent>
         </Card>
       )}
+
+      {/* Modal de sélection des lieux et postes */}
+      <SelectLocationModal
+        isOpen={showSelectLocationModal}
+        onClose={() => setShowSelectLocationModal(false)}
+        locations={locations}
+        workStations={workStations}
+        onGenerate={(selectedLocations, selectedWorkStations) => {
+          if (onAddSelectiveRisks) {
+            onAddSelectiveRisks(selectedLocations, selectedWorkStations);
+          }
+        }}
+        isGenerating={isGenerating}
+      />
     </div>
   );
 }

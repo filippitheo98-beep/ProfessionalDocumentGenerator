@@ -208,6 +208,86 @@ export default function NewDuerpGenerator() {
     },
   });
 
+  // Mutation pour ajouter des risques sélectifs (lieux/postes choisis)
+  const addSelectiveRisksMutation = useMutation({
+    mutationFn: async ({ selectedLocations, selectedWorkStations }: { 
+      selectedLocations: Location[], 
+      selectedWorkStations: WorkStation[] 
+    }) => {
+      setIsGeneratingRisks(true);
+      const newRisks: Risk[] = [];
+      
+      // Générer les risques pour les lieux sélectionnés
+      for (const location of selectedLocations) {
+        const response = await apiRequest('/api/generate-risks', {
+          method: 'POST',
+          body: JSON.stringify({
+            workUnitName: location.name,
+            locationName: location.name,
+            companyActivity: company?.activity || '',
+            companyDescription: (company as any)?.description || '',
+          }),
+        });
+        
+        const locationRisks = response.risks.map((risk: Risk) => ({
+          ...risk,
+          id: crypto.randomUUID(), // Assurer des IDs uniques
+          source: location.name,
+          sourceType: 'Lieu' as const,
+        }));
+        
+        newRisks.push(...locationRisks);
+      }
+      
+      // Générer les risques pour les postes sélectionnés
+      for (const workStation of selectedWorkStations) {
+        const response = await apiRequest('/api/generate-risks', {
+          method: 'POST',
+          body: JSON.stringify({
+            workUnitName: workStation.name,
+            locationName: workStation.description || workStation.name,
+            companyActivity: company?.activity || '',
+            companyDescription: (company as any)?.description || '',
+          }),
+        });
+        
+        const workStationRisks = response.risks.map((risk: Risk) => ({
+          ...risk,
+          id: crypto.randomUUID(), // Assurer des IDs uniques
+          source: workStation.name,
+          sourceType: 'Poste' as const,
+        }));
+        
+        newRisks.push(...workStationRisks);
+      }
+      
+      // Ajouter les nouveaux risques aux existants
+      const updatedRisks = [...finalRisks, ...newRisks];
+      setFinalRisks(updatedRisks);
+      setIsGeneratingRisks(false);
+      
+      const sourceNames = [
+        ...selectedLocations.map(l => l.name),
+        ...selectedWorkStations.map(w => w.name)
+      ];
+      
+      toast({
+        title: "Nouveaux risques ajoutés",
+        description: `${newRisks.length} nouveaux risques ajoutés pour: ${sourceNames.join(', ')}. Total: ${updatedRisks.length} risques.`,
+      });
+      
+      return newRisks;
+    },
+    onError: () => {
+      setIsGeneratingRisks(false);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter les nouveaux risques",
+        variant: "destructive",
+      });
+    },
+  });
+
   const saveDuerpMutation = useMutation({
     mutationFn: async (data: any) => {
       if (documentId) {
@@ -560,7 +640,9 @@ export default function NewDuerpGenerator() {
                 companyName={company?.name}
                 onGenerateRisks={() => generateRisksMutation.mutate()}
                 onRegenerateRisks={() => generateRisksMutation.mutate()}
-                onAddNewRisks={() => addNewRisksMutation.mutate()}
+                onAddSelectiveRisks={(selectedLocations, selectedWorkStations) => 
+                  addSelectiveRisksMutation.mutate({ selectedLocations, selectedWorkStations })
+                }
                 isGenerating={isGeneratingRisks}
                 onSave={handleSaveProgress}
               />
