@@ -11,7 +11,9 @@ import {
   RefreshCw, 
   List,
   Save,
-  Download
+  Download,
+  Plus,
+  RotateCcw
 } from 'lucide-react';
 
 import RiskTable from '@/components/RiskTable';
@@ -26,6 +28,7 @@ interface RiskGenerationStepProps {
   companyName?: string;
   onGenerateRisks: () => void;
   onRegenerateRisks: () => void;
+  onAddNewRisks?: () => void;
   isGenerating: boolean;
   onSave: () => void;
 }
@@ -39,6 +42,7 @@ export default function RiskGenerationStep({
   companyName,
   onGenerateRisks,
   onRegenerateRisks,
+  onAddNewRisks,
   isGenerating,
   onSave
 }: RiskGenerationStepProps) {
@@ -84,6 +88,24 @@ export default function RiskGenerationStep({
         return prev + 20;
       });
     }, 500);
+  };
+
+  const handleAddNewRisks = () => {
+    if (onAddNewRisks) {
+      setGenerationProgress(0);
+      onAddNewRisks();
+      
+      // Simuler la progression
+      const interval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 20;
+        });
+      }, 500);
+    }
   };
 
   return (
@@ -147,12 +169,12 @@ export default function RiskGenerationStep({
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {!hasRisks ? (
               <Button 
                 onClick={handleGenerate}
                 disabled={isGenerating || totalItems === 0}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
               >
                 {isGenerating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -162,15 +184,31 @@ export default function RiskGenerationStep({
                 Générer les risques
               </Button>
             ) : (
-              <Button 
-                onClick={handleRegenerate}
-                disabled={isGenerating}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Régénérer les risques
-              </Button>
+              <>
+                {onAddNewRisks && (
+                  <Button 
+                    onClick={handleAddNewRisks}
+                    disabled={isGenerating || totalItems === 0}
+                    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    Ajouter de nouveaux risques
+                  </Button>
+                )}
+                <Button 
+                  onClick={handleRegenerate}
+                  disabled={isGenerating}
+                  variant="outline"
+                  className="flex items-center gap-2 border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Régénérer tout le tableau
+                </Button>
+              </>
             )}
             
             {hasRisks && (
