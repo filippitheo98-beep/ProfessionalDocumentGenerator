@@ -751,18 +751,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Faible", size: 24 })]
+                children: [new TextRun({ text: "Faible", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "1", size: 24 })]
+                children: [new TextRun({ text: "1", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Incident sans arrêt de travail - Situation occasionnant un inconfort", size: 24 })]
+                children: [new TextRun({ text: "Incident sans arrêt de travail - Situation occasionnant un inconfort", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -772,18 +772,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Moyenne", size: 24 })]
+                children: [new TextRun({ text: "Moyenne", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "4", size: 24 })]
+                children: [new TextRun({ text: "4", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Accident avec arrêt de travail mais sans séquelles", size: 24 })]
+                children: [new TextRun({ text: "Accident avec arrêt de travail mais sans séquelles", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -793,18 +793,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Grave", size: 24 })]
+                children: [new TextRun({ text: "Grave", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "20", size: 24 })]
+                children: [new TextRun({ text: "20", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Accident avec arrêt de travail et possibilité de séquelles", size: 24 })]
+                children: [new TextRun({ text: "Accident avec arrêt de travail et possibilité de séquelles", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -814,18 +814,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Très Grave", size: 24 })]
+                children: [new TextRun({ text: "Très Grave", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "100", size: 24 })]
+                children: [new TextRun({ text: "100", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Accident pouvant entraîner un décès ou une invalidité permanente", size: 24 })]
+                children: [new TextRun({ text: "Accident pouvant entraîner un décès ou une invalidité permanente", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -857,19 +857,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Exposition", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Exposition", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Fréquence d'exposition", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Fréquence d'exposition", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Indice", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Indice", bold: true, size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -879,19 +879,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Annuelle", size: 24 })]
+                children: [new TextRun({ text: "Annuelle", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Environ 1 fois/an", size: 24 })]
+                children: [new TextRun({ text: "Environ 1 fois/an", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "1", size: 24 })]
+                children: [new TextRun({ text: "1", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -901,19 +901,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Mensuelle", size: 24 })]
+                children: [new TextRun({ text: "Mensuelle", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Environ 1 fois/mois", size: 24 })]
+                children: [new TextRun({ text: "Environ 1 fois/mois", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "4", size: 24 })]
+                children: [new TextRun({ text: "4", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -923,19 +923,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Hebdomadaire", size: 24 })]
+                children: [new TextRun({ text: "Hebdomadaire", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Environ 1 fois/semaine", size: 24 })]
+                children: [new TextRun({ text: "Environ 1 fois/semaine", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "10", size: 24 })]
+                children: [new TextRun({ text: "10", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -945,19 +945,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Journalière", size: 24 })]
+                children: [new TextRun({ text: "Journalière", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Tous les jours", size: 24 })]
+                children: [new TextRun({ text: "Tous les jours", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "50", size: 24 })]
+                children: [new TextRun({ text: "50", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -989,19 +989,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Maîtrise du risque", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Maîtrise du risque", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Indice", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Indice", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Définition", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Définition", bold: true, size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1011,18 +1011,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Très élevée", size: 24 })]
+                children: [new TextRun({ text: "Très élevée", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "0,05", size: 24 })]
+                children: [new TextRun({ text: "0,05", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Mesures très efficaces, aucune autre mesure possible", size: 24 })]
+                children: [new TextRun({ text: "Mesures très efficaces, aucune autre mesure possible", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1032,18 +1032,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Élevée", size: 24 })]
+                children: [new TextRun({ text: "Élevée", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "0,2", size: 24 })]
+                children: [new TextRun({ text: "0,2", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Mesures adaptées, des compléments pourraient être apportés", size: 24 })]
+                children: [new TextRun({ text: "Mesures adaptées, des compléments pourraient être apportés", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1053,18 +1053,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Moyenne", size: 24 })]
+                children: [new TextRun({ text: "Moyenne", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "0,5", size: 24 })]
+                children: [new TextRun({ text: "0,5", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Mesures existantes mais insuffisantes", size: 24 })]
+                children: [new TextRun({ text: "Mesures existantes mais insuffisantes", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1074,18 +1074,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Absente", size: 24 })]
+                children: [new TextRun({ text: "Absente", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "1", size: 24 })]
+                children: [new TextRun({ text: "1", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Pas de mesures ou mesures inefficaces", size: 24 })]
+                children: [new TextRun({ text: "Pas de mesures ou mesures inefficaces", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1128,19 +1128,19 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Cotation du Risque", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Cotation du Risque", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Classement de la priorité", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Classement de la priorité", bold: true, size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Interprétation", bold: true, size: 24 })]
+                children: [new TextRun({ text: "Interprétation", bold: true, size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1150,18 +1150,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "< 10", size: 24 })]
+                children: [new TextRun({ text: "< 10", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Priorité 4 - Faible", size: 24 })]
+                children: [new TextRun({ text: "Priorité 4 - Faible", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Situation limitée ou maîtrisée. Des mesures supplémentaires peuvent être apportées.", size: 24 })]
+                children: [new TextRun({ text: "Situation limitée ou maîtrisée. Des mesures supplémentaires peuvent être apportées.", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1171,18 +1171,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "10 ≤ Note < 100", size: 24 })]
+                children: [new TextRun({ text: "10 ≤ Note < 100", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Priorité 3 - Modéré", size: 24 })]
+                children: [new TextRun({ text: "Priorité 3 - Modéré", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Situation limitée. Des mesures de prévention supplémentaires peuvent être apportées.", size: 24 })]
+                children: [new TextRun({ text: "Situation limitée. Des mesures de prévention supplémentaires peuvent être apportées.", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1192,18 +1192,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "100 ≤ Note < 500", size: 24 })]
+                children: [new TextRun({ text: "100 ≤ Note < 500", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Priorité 2 - Moyenne", size: 24 })]
+                children: [new TextRun({ text: "Priorité 2 - Moyenne", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Situation dangereuse insuffisamment maîtrisée. Des mesures complémentaires devraient être apportées.", size: 24 })]
+                children: [new TextRun({ text: "Situation dangereuse insuffisamment maîtrisée. Des mesures complémentaires devraient être apportées.", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1213,18 +1213,18 @@ export async function generateWordFile(risks: any[], companyName: string, compan
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "500 ≤ Note ≤ 5000", size: 24 })]
+                children: [new TextRun({ text: "500 ≤ Note ≤ 5000", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Priorité 1 - Forte", size: 24 })]
+                children: [new TextRun({ text: "Priorité 1 - Forte", size: 24, font: "Arial" })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                children: [new TextRun({ text: "Situation dangereuse. Des mesures correctives et de prévention doivent être apportées sans délai.", size: 24 })]
+                children: [new TextRun({ text: "Situation dangereuse. Des mesures correctives et de prévention doivent être apportées sans délai.", size: 24, font: "Arial" })]
               })]
             })
           ]
@@ -1285,49 +1285,49 @@ export async function generateWordFile(risks: any[], companyName: string, compan
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Type de risque", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Type de risque", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 18, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Danger", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Danger", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 25, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Gravité", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Gravité", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 12, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Fréquence", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Fréquence", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 12, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Maîtrise", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Maîtrise", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 12, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Priorité", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Priorité", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 12, type: WidthType.PERCENTAGE }
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "Mesures de prévention", bold: true, size: 24 })]
+              children: [new TextRun({ text: "Mesures de prévention", bold: true, size: 24, font: "Arial" })]
             })],
             width: { size: 29, type: WidthType.PERCENTAGE }
           })
@@ -1338,41 +1338,41 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         children: [
           new TableCell({
             children: [new Paragraph({ 
-              children: [new TextRun({ text: risk.type || 'Non spécifié', size: 24 })]
+              children: [new TextRun({ text: risk.type || 'Non spécifié', size: 24, font: "Arial" })]
             })]
           }),
           new TableCell({
             children: [new Paragraph({ 
-              children: [new TextRun({ text: risk.danger || 'Non spécifié', size: 24 })]
-            })]
-          }),
-          new TableCell({
-            children: [new Paragraph({ 
-              alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: risk.gravity || 'Non spécifié', size: 24 })]
+              children: [new TextRun({ text: risk.danger || 'Non spécifié', size: 24, font: "Arial" })]
             })]
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: risk.frequency || 'Non spécifié', size: 24 })]
+              children: [new TextRun({ text: risk.gravity || 'Non spécifié', size: 24, font: "Arial" })]
             })]
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: risk.control || 'Non spécifié', size: 24 })]
+              children: [new TextRun({ text: risk.frequency || 'Non spécifié', size: 24, font: "Arial" })]
             })]
           }),
           new TableCell({
             children: [new Paragraph({ 
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: risk.priority || 'Non défini', size: 24 })]
+              children: [new TextRun({ text: risk.control || 'Non spécifié', size: 24, font: "Arial" })]
             })]
           }),
           new TableCell({
             children: [new Paragraph({ 
-              children: [new TextRun({ text: risk.measures || 'À définir', size: 24 })]
+              alignment: AlignmentType.CENTER,
+              children: [new TextRun({ text: risk.priority || 'Non défini', size: 24, font: "Arial" })]
+            })]
+          }),
+          new TableCell({
+            children: [new Paragraph({ 
+              children: [new TextRun({ text: risk.measures || 'À définir', size: 24, font: "Arial" })]
             })]
           })
         ]
