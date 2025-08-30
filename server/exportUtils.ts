@@ -230,7 +230,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "DOCUMENT UNIQUE",
           font: "Arial",
-          size: 28,
+          size: 48,
           bold: true
         })
       ]
@@ -242,7 +242,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "D'ÉVALUATION DES RISQUES PROFESSIONNELS",
           font: "Arial",
-          size: 20,
+          size: 32,
           bold: true
         })
       ]
@@ -258,7 +258,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "(En application du décret n° 2001-1016 du 5 novembre 2001)",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -269,7 +269,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "(Articles R4121-1 à R4121-4 et L4121-3 et L4121-3-1 du Code du Travail)",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     })
@@ -285,7 +285,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Table des matières",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -296,7 +296,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "A.\tTableau de mise à jour\t3",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -306,7 +306,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "B.\tPrésentation de la société\t4",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -316,7 +316,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "C.\tLe code du travail\t5",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -326,7 +326,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "D.\tMéthodes d'évaluation du risque\t7",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -336,7 +336,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t1/ Identifier l'unité de travail\t7",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -346,7 +346,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t2/ Identifier les dangers et les situations dangereuses\t7",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -356,7 +356,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t3/ Estimer la gravité de chaque situation dangereuse\t7",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -366,7 +366,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t4/ Estimer la fréquence d'exposition à la situation dangereuse\t7",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -376,7 +376,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t5/ Estimer la maîtrise de la situation dangereuse\t8",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -386,7 +386,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t6/ Calcul du risque et des priorités d'actions\t8",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -396,7 +396,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\t7/ Tableau de hiérarchisation\t9",
           font: "Arial",
-          size: 11
+          size: 22
         })
       ]
     }),
@@ -406,7 +406,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "E.\tDUERP\t11",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -416,7 +416,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "F.\tPlan d'action\t48",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -426,7 +426,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "G.\tAnalyse\t85",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     })
@@ -442,7 +442,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Tableau de mise à jour",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -453,8 +453,8 @@ export async function generateWordFile(risks: any[], companyName: string, compan
           children: [
             new TableCell({
               children: [new Paragraph({ 
-                text: "Mise à jour du DUERP", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Mise à jour du DUERP", bold: true, size: 24 })]
               })],
               columnSpan: 5
             })
@@ -464,27 +464,27 @@ export async function generateWordFile(risks: any[], companyName: string, compan
           children: [
             new TableCell({
               children: [new Paragraph({ 
-                text: "Visite de réévaluation", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Visite de réévaluation", bold: true, size: 24 })]
               })],
               columnSpan: 2
             }),
             new TableCell({
               children: [new Paragraph({ 
-                text: "Modification du DUERP (Oui/Non)", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Modification du DUERP (Oui/Non)", bold: true, size: 24 })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                text: "Commentaire", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Commentaire", bold: true, size: 24 })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                text: "Signature", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Signature", bold: true, size: 24 })]
               })]
             })
           ]
@@ -493,14 +493,14 @@ export async function generateWordFile(risks: any[], companyName: string, compan
           children: [
             new TableCell({
               children: [new Paragraph({ 
-                text: "Effectué le :", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Effectué le :", size: 24 })]
               })]
             }),
             new TableCell({
               children: [new Paragraph({ 
-                text: "Par :", 
-                alignment: AlignmentType.CENTER 
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Par :", size: 24 })]
               })]
             }),
             new TableCell({
@@ -541,7 +541,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Présentation de la société",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -552,7 +552,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Présentation de la société :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -563,7 +563,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: companyDescription,
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -573,7 +573,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Mission et accompagnement :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -584,7 +584,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: `${companyName} assure une prise en charge globale dans son secteur d'activité : ${companyActivity}.`,
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -594,7 +594,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "L'objectif est de garantir la sécurité et la santé de tous les collaborateurs dans l'exercice de leurs fonctions.",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     })
@@ -610,7 +610,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Le code du travail",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -621,7 +621,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Introduction :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -632,7 +632,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Le Document Unique d'Évaluation des Risques Professionnels (DUERP) est une obligation légale pour toutes les entreprises, quel que soit leur effectif, selon le Code du Travail. Il vise à recenser, évaluer et prévenir les risques auxquels sont exposés les salariés. La mise à jour régulière du DUERP est essentielle pour garantir la sécurité et la santé des travailleurs.",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -642,7 +642,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Références légales :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -653,7 +653,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Article L4121-1 :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -664,7 +664,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\"L'employeur prend les mesures nécessaires pour assurer la sécurité et protéger la santé physique et mentale des travailleurs de l'établissement.\"",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     }),
@@ -674,7 +674,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Article R4121-1 :",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -685,7 +685,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "\"L'employeur transcrit et met à jour dans un document unique les résultats de l'évaluation des risques pour la santé et la sécurité des travailleurs [...]. Cette évaluation comporte un inventaire des risques identifiés dans chaque unité de travail de l'entreprise ou de l'établissement.\"",
           font: "Arial",
-          size: 12
+          size: 24
         })
       ]
     })
@@ -701,7 +701,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Méthodes d'évaluation du risque",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -713,7 +713,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Estimer la gravité de chaque situation dangereuse",
           font: "Arial",
-          size: 12,
+          size: 28,
           bold: true
         })
       ]
@@ -843,7 +843,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Estimer la fréquence d'exposition à la situation dangereuse",
           font: "Arial",
-          size: 12,
+          size: 28,
           bold: true
         })
       ]
@@ -975,7 +975,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Estimer la maîtrise de la situation dangereuse",
           font: "Arial",
-          size: 12,
+          size: 28,
           bold: true
         })
       ]
@@ -1103,7 +1103,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Calcul du risque et des priorités d'actions",
           font: "Arial",
-          size: 12,
+          size: 28,
           bold: true
         })
       ]
@@ -1114,7 +1114,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "Dans cette méthode le Risque = Gravité × Fréquence × Maîtrise",
           font: "Arial",
-          size: 12,
+          size: 24,
           bold: true
         })
       ]
@@ -1244,7 +1244,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
         new TextRun({
           text: "DUERP",
           font: "Arial",
-          size: 16,
+          size: 32,
           bold: true
         })
       ]
@@ -1271,7 +1271,7 @@ export async function generateWordFile(risks: any[], companyName: string, compan
           new TextRun({
             text: `Unité de Travail : ${sourceName}`,
             font: "Arial",
-            size: 14,
+            size: 28,
             bold: true
           })
         ]
