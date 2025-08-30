@@ -30,7 +30,7 @@ export function SimpleRiskActions({
     type: '',
     danger: '',
     gravity: 'Moyenne',
-    frequency: 'Occasionnel',
+    frequency: 'Mensuelle',
     control: 'Moyenne',
     finalRisk: 'Moyen',
     measures: '',
@@ -89,7 +89,7 @@ export function SimpleRiskActions({
         type: '',
         danger: '',
         gravity: 'Moyenne',
-        frequency: 'Occasionnel',
+        frequency: 'Mensuelle',
         control: 'Moyenne',
         finalRisk: 'Moyen',
         measures: '',
@@ -138,6 +138,36 @@ export function SimpleRiskActions({
     },
   });
 
+  // Fonction de calcul du score et de la priorité
+  const calculateRiskScore = (risk: Partial<Risk>) => {
+    const gravityValues = { 'Faible': 1, 'Moyenne': 2, 'Grave': 3, 'Très Grave': 4 };
+    const frequencyValues = { 'Annuelle': 1, 'Mensuelle': 2, 'Hebdomadaire': 3, 'Journalière': 4 };
+    const controlValues = { 'Très élevée': 1, 'Élevée': 2, 'Moyenne': 3, 'Absente': 4 };
+
+    const gravityScore = gravityValues[risk.gravity as keyof typeof gravityValues] || 2;
+    const frequencyScore = frequencyValues[risk.frequency as keyof typeof frequencyValues] || 2;
+    const controlScore = controlValues[risk.control as keyof typeof controlValues] || 2;
+
+    const riskScore = (gravityScore * frequencyScore * controlScore) / 4;
+    
+    let priority = 'Priorité 3 (Modéré)';
+    if (riskScore <= 4) priority = 'Priorité 4 (Faible)';
+    else if (riskScore <= 8) priority = 'Priorité 3 (Modéré)';
+    else if (riskScore <= 12) priority = 'Priorité 2 (Moyenne)';
+    else priority = 'Priorité 1 (Forte)';
+
+    return {
+      gravity: risk.gravity,
+      frequency: risk.frequency,
+      control: risk.control,
+      riskScore,
+      priority,
+      finalRisk: priority.includes('Faible') ? 'Faible' : 
+                priority.includes('Modéré') ? 'Modéré' :
+                priority.includes('Moyenne') ? 'Moyen' : 'Élevé'
+    };
+  };
+
   // Mutation pour modifier un risque
   const updateRiskMutation = useMutation({
     mutationFn: async (updates: { id: string; updates: Partial<Risk> }) => {
@@ -185,14 +215,19 @@ export function SimpleRiskActions({
       return;
     }
 
+    // Calculer automatiquement le score et la priorité
+    const calculated = calculateRiskScore(newRisk);
+
     const riskToAdd: Risk = {
       id: crypto.randomUUID(),
       type: newRisk.type!,
       danger: newRisk.danger!,
-      gravity: newRisk.gravity!,
-      frequency: newRisk.frequency!,
-      control: newRisk.control!,
-      finalRisk: newRisk.finalRisk!,
+      gravity: calculated.gravity || newRisk.gravity!,
+      frequency: calculated.frequency || newRisk.frequency!,
+      control: calculated.control || newRisk.control!,
+      riskScore: calculated.riskScore,
+      priority: calculated.priority,
+      finalRisk: calculated.finalRisk,
       measures: newRisk.measures!,
       source: newRisk.source,
       sourceType: newRisk.sourceType
@@ -254,7 +289,8 @@ export function SimpleRiskActions({
                 <SelectContent>
                   <SelectItem value="Faible">Faible</SelectItem>
                   <SelectItem value="Moyenne">Moyenne</SelectItem>
-                  <SelectItem value="Élevée">Élevée</SelectItem>
+                  <SelectItem value="Grave">Grave</SelectItem>
+                  <SelectItem value="Très Grave">Très Grave</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -265,23 +301,24 @@ export function SimpleRiskActions({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Rare">Rare</SelectItem>
-                  <SelectItem value="Occasionnel">Occasionnel</SelectItem>
+                  <SelectItem value="Annuelle">Annuelle</SelectItem>
+                  <SelectItem value="Mensuelle">Mensuelle</SelectItem>
                   <SelectItem value="Hebdomadaire">Hebdomadaire</SelectItem>
-                  <SelectItem value="Quotidien">Quotidien</SelectItem>
+                  <SelectItem value="Journalière">Journalière</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="control">Contrôle</Label>
+              <Label htmlFor="control">Maîtrise</Label>
               <Select value={newRisk.control} onValueChange={(value) => setNewRisk(prev => ({ ...prev, control: value as Risk['control'] }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Faible">Faible</SelectItem>
-                  <SelectItem value="Moyenne">Moyenne</SelectItem>
+                  <SelectItem value="Très élevée">Très élevée</SelectItem>
                   <SelectItem value="Élevée">Élevée</SelectItem>
+                  <SelectItem value="Moyenne">Moyenne</SelectItem>
+                  <SelectItem value="Absente">Absente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -340,7 +377,11 @@ export function SimpleRiskActions({
                 <Label htmlFor="edit-gravity">Gravité</Label>
                 <Select 
                   value={editingRisk.gravity} 
-                  onValueChange={(value) => setEditingRisk(prev => prev ? { ...prev, gravity: value as Risk['gravity'] } : null)}
+                  onValueChange={(value) => {
+                    const updatedRisk = { ...editingRisk, gravity: value as Risk['gravity'] };
+                    const calculated = calculateRiskScore(updatedRisk);
+                    setEditingRisk(prev => prev ? { ...prev, ...calculated } : null);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -348,9 +389,64 @@ export function SimpleRiskActions({
                   <SelectContent>
                     <SelectItem value="Faible">Faible</SelectItem>
                     <SelectItem value="Moyenne">Moyenne</SelectItem>
-                    <SelectItem value="Élevée">Élevée</SelectItem>
+                    <SelectItem value="Grave">Grave</SelectItem>
+                    <SelectItem value="Très Grave">Très Grave</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-frequency">Fréquence</Label>
+                <Select 
+                  value={editingRisk.frequency} 
+                  onValueChange={(value) => {
+                    const updatedRisk = { ...editingRisk, frequency: value as Risk['frequency'] };
+                    const calculated = calculateRiskScore(updatedRisk);
+                    setEditingRisk(prev => prev ? { ...prev, ...calculated } : null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Annuelle">Annuelle</SelectItem>
+                    <SelectItem value="Mensuelle">Mensuelle</SelectItem>
+                    <SelectItem value="Hebdomadaire">Hebdomadaire</SelectItem>
+                    <SelectItem value="Journalière">Journalière</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-control">Maîtrise</Label>
+                <Select 
+                  value={editingRisk.control} 
+                  onValueChange={(value) => {
+                    const updatedRisk = { ...editingRisk, control: value as Risk['control'] };
+                    const calculated = calculateRiskScore(updatedRisk);
+                    setEditingRisk(prev => prev ? { ...prev, ...calculated } : null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Très élevée">Très élevée</SelectItem>
+                    <SelectItem value="Élevée">Élevée</SelectItem>
+                    <SelectItem value="Moyenne">Moyenne</SelectItem>
+                    <SelectItem value="Absente">Absente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-score">Score calculé</Label>
+                <div className="h-10 px-3 py-2 border rounded-md bg-muted text-muted-foreground flex items-center">
+                  {editingRisk.riskScore ? Math.round(editingRisk.riskScore * 100) / 100 : 'N/A'}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-priority">Priorité calculée</Label>
+                <div className="h-10 px-3 py-2 border rounded-md bg-muted text-muted-foreground flex items-center">
+                  {editingRisk.priority || 'Non calculée'}
+                </div>
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="edit-danger">Description du danger</Label>
