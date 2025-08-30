@@ -83,38 +83,22 @@ export default function Reports() {
     }
   };
 
-  const mockReportData: ReportData = {
-    totalRisks: 247,
-    highRisks: 23,
-    mediumRisks: 89,
-    lowRisks: 135,
-    completedActions: 156,
-    pendingActions: 34,
-    companiesAnalyzed: 12,
-    riskTrends: [
-      { month: 'Jan', risks: 45, actions: 32 },
-      { month: 'Fév', risks: 52, actions: 38 },
-      { month: 'Mar', risks: 48, actions: 45 },
-      { month: 'Avr', risks: 61, actions: 52 },
-      { month: 'Mai', risks: 58, actions: 48 },
-      { month: 'Jun', risks: 67, actions: 59 },
-    ],
-    risksByCategory: [
-      { category: 'Chutes', count: 45, percentage: 18.2 },
-      { category: 'Électrique', count: 38, percentage: 15.4 },
-      { category: 'Chimique', count: 32, percentage: 13.0 },
-      { category: 'Ergonomique', count: 41, percentage: 16.6 },
-      { category: 'Mécanique', count: 29, percentage: 11.7 },
-      { category: 'Autres', count: 62, percentage: 25.1 },
-    ],
+  const data = reportData || {
+    totalRisks: 0,
+    highRisks: 0,
+    mediumRisks: 0,
+    lowRisks: 0,
+    completedActions: 0,
+    pendingActions: 0,
+    companiesAnalyzed: 0,
+    riskTrends: [],
+    risksByCategory: [],
     performanceMetrics: {
-      averageResolutionTime: 12.5,
-      complianceRate: 94.2,
-      preventionEffectiveness: 87.8,
+      averageResolutionTime: 0,
+      complianceRate: 0,
+      preventionEffectiveness: 0,
     }
   };
-
-  const data = reportData || mockReportData;
 
   return (
     <div className="min-h-screen bg-background">
