@@ -1,10 +1,13 @@
 import { RevisionNotifications } from '@/components/RevisionNotifications';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Header } from '@/components/Header';
 
 export default function Revisions() {
   return (
-    <div className="container mx-auto py-6">
+    <div className="min-h-screen bg-background">
+      <Header />
+      <div className="container mx-auto py-6">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -109,6 +112,7 @@ export default function Revisions() {
         </Card>
 
         <RevisionNotifications />
+      </div>
       </div>
     </div>
   );

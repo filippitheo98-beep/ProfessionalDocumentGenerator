@@ -63,41 +63,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg">
-                <Shield className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Générateur de DUERP</h1>
-                <p className="text-sm text-gray-600">Tableau de bord sécurité professionnelle</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <img 
-                  src={user?.profileImageUrl || "/api/placeholder/32/32"} 
-                  alt="Profile" 
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <a href="/api/logout">Se déconnecter</a>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
