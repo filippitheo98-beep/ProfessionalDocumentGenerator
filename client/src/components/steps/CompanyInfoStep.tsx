@@ -19,7 +19,7 @@ const companyInfoSchema = z.object({
   siret: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Format d'email invalide").optional().or(z.literal("")),
-  employeeCount: z.number().min(0, "Le nombre d'employés ne peut pas être négatif").optional(),
+  employeeCount: z.number().min(0, "Le nombre d'employés ne peut pas être négatif").default(0),
 });
 
 type CompanyInfoData = z.infer<typeof companyInfoSchema>;
@@ -48,7 +48,7 @@ export default function CompanyInfoStep({
       siret: "",
       phone: "",
       email: "",
-      employeeCount: undefined,
+      employeeCount: 0,
     },
   });
 
@@ -64,7 +64,7 @@ export default function CompanyInfoStep({
         siret: initialData.siret || "",
         phone: initialData.phone || "",
         email: initialData.email || "",
-        employeeCount: initialData.employeeCount || undefined,
+        employeeCount: initialData.employeeCount || 0,
       });
     }
   }, [initialData, form]);

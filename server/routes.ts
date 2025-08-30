@@ -656,15 +656,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: duerpDocuments.id,
           title: duerpDocuments.title,
           companyName: companies.name,
-          nextReviewDate: duerpDocuments.nextReviewDate,
-          notificationSent: duerpDocuments.notificationSent
+          nextReviewDate: duerpDocuments.nextReviewDate
         })
         .from(duerpDocuments)
         .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
         .where(ne(duerpDocuments.status, 'archived'));
 
       const notifications = documents.filter(doc => {
-        if (!doc.nextReviewDate || doc.notificationSent) return false;
+        if (!doc.nextReviewDate) return false;
         const reviewDate = new Date(doc.nextReviewDate);
         return reviewDate <= thirtyDaysFromNow && reviewDate >= today;
       });
