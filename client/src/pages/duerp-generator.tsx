@@ -19,7 +19,9 @@ import {
   Lightbulb,
   Settings,
   Save,
-  FolderOpen
+  FolderOpen,
+  Plus,
+  RotateCcw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -213,6 +215,7 @@ export default function DuerpGenerator() {
               workUnitName: location.name,
               locationName: location.name,
               companyActivity: company.activity,
+              companyDescription: company.description
             }),
           });
           
@@ -235,6 +238,7 @@ export default function DuerpGenerator() {
               workUnitName: workStation.name,
               locationName: workStation.description || workStation.name,
               companyActivity: company.activity,
+              companyDescription: company.description
             }),
           });
           
@@ -257,6 +261,89 @@ export default function DuerpGenerator() {
       toast({
         title: "Erreur",
         description: "Impossible de générer le tableau final des risques.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingFinalRisks(false);
+    }
+  };
+
+  // Generate additional risks (keeping existing ones)
+  const generateAdditionalRisks = async () => {
+    if (!company) return;
+    
+    setIsGeneratingFinalRisks(true);
+    const newRisks: Risk[] = [];
+    
+    try {
+      // Generate risks for each location
+      for (const location of locations) {
+        if (location.name.trim()) {
+          const response = await apiRequest('/api/generate-risks', {
+            method: 'POST',
+            body: JSON.stringify({
+              workUnitName: location.name,
+              locationName: location.name,
+              companyActivity: company.activity,
+              companyDescription: company.description
+            }),
+          });
+          
+          response.risks.forEach((risk: Risk) => {
+            newRisks.push({
+              ...risk,
+              id: crypto.randomUUID(), // Ensure unique IDs
+              source: location.name,
+              sourceType: 'Lieu'
+            });
+          });
+        }
+      }
+      
+      // Generate risks for each work station
+      for (const workStation of workStations) {
+        if (workStation.name.trim()) {
+          const response = await apiRequest('/api/generate-risks', {
+            method: 'POST',
+            body: JSON.stringify({
+              workUnitName: workStation.name,
+              locationName: workStation.description || workStation.name,
+              companyActivity: company.activity,
+              companyDescription: company.description
+            }),
+          });
+          
+          response.risks.forEach((risk: Risk) => {
+            newRisks.push({
+              ...risk,
+              id: crypto.randomUUID(), // Ensure unique IDs
+              source: workStation.name,
+              sourceType: 'Poste'
+            });
+          });
+        }
+      }
+      
+      // Add new risks to existing ones
+      const updatedRisks = [...finalRisks, ...newRisks];
+      setFinalRisks(updatedRisks);
+      
+      // If document exists, update it
+      if (documentId) {
+        await apiRequest(`/api/duerp/document/${documentId}/risks`, {
+          method: 'POST',
+          body: JSON.stringify({ risks: newRisks }),
+        });
+      }
+      
+      toast({
+        title: "Nouveaux risques ajoutés",
+        description: `${newRisks.length} nouveaux risques ajoutés. Total: ${updatedRisks.length} risques.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter les nouveaux risques.",
         variant: "destructive",
       });
     } finally {
@@ -610,24 +697,56 @@ export default function DuerpGenerator() {
                       </div>
                     ) : (
                       <>
-                        <Button
-                          onClick={generateFinalTable}
-                          disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
-                          className="w-full btn-gradient transition-all hover-lift py-6 relative overflow-hidden"
-                        >
-                          {isGeneratingFinalRisks ? (
-                            <>
-                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                              <span className="font-medium">Génération en cours...</span>
-                              <div className="absolute inset-0 bg-white/20 animate-shimmer"></div>
-                            </>
-                          ) : (
-                            <>
-                              <Shield className="h-5 w-5 mr-2" />
-                              <span className="font-medium">Générer le tableau des risques</span>
-                            </>
-                          )}
-                        </Button>
+                        {finalRisks.length === 0 ? (
+                          <Button
+                            onClick={generateFinalTable}
+                            disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
+                            className="w-full btn-gradient transition-all hover-lift py-6 relative overflow-hidden"
+                          >
+                            {isGeneratingFinalRisks ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                <span className="font-medium">Génération en cours...</span>
+                                <div className="absolute inset-0 bg-white/20 animate-shimmer"></div>
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="h-5 w-5 mr-2" />
+                                <span className="font-medium">Générer le tableau des risques</span>
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="space-y-3">
+                            <Button
+                              onClick={generateAdditionalRisks}
+                              disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
+                              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all hover-lift py-4"
+                            >
+                              {isGeneratingFinalRisks ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  <span className="font-medium">Ajout en cours...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  <span className="font-medium">Ajouter de nouveaux risques</span>
+                                </>
+                              )}
+                            </Button>
+                            
+                            <Button
+                              onClick={generateFinalTable}
+                              disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
+                              variant="outline"
+                              className="w-full border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-all hover-lift py-4"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              <span className="font-medium">Régénérer tout le tableau</span>
+                            </Button>
+                          </div>
+                        )}
                         
                         {finalRisks.length > 0 && (
                           <div className="space-y-2">
