@@ -476,51 +476,60 @@ export default function DuerpGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 dark:from-slate-950 dark:via-blue-950/30 dark:to-indigo-950/30">
       <Header />
       
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div className="animate-fade-in">
-            <h1 className="text-2xl font-bold">
-              {isViewMode ? "Visualisation du DUERP" : isEditing ? "Modifier le DUERP" : "Générateur de DUERP"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isViewMode 
-                ? `Consultez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
-                : isEditing 
-                ? `Modifiez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
-                : "Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA"}
-            </p>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg animate-bounce-soft">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  {isViewMode ? "Visualisation du DUERP" : isEditing ? "Modifier le DUERP" : "Générateur de DUERP"}
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  {isViewMode 
+                    ? `Consultez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
+                    : isEditing 
+                    ? `Modifiez votre Document Unique d'Évaluation des Risques "${duerpTitle}"` 
+                    : "Créez votre Document Unique d'Évaluation des Risques avec l'aide de l'IA"}
+                </p>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-4">
-            <AutoSaveIndicator 
-              lastSaved={lastSaved} 
-              hasUnsavedChanges={hasUnsavedChanges}
-              isAutoSaving={createCompanyMutation.isPending}
-            />
+            <div className="glass-card p-4 rounded-xl">
+              <AutoSaveIndicator 
+                lastSaved={lastSaved || undefined} 
+                hasUnsavedChanges={hasUnsavedChanges}
+                isAutoSaving={createCompanyMutation.isPending}
+              />
+            </div>
           </div>
         </div>
 
         <Tabs defaultValue="creation" className="w-full">
-          <TabsList className={`grid w-full ${isViewMode ? 'grid-cols-2' : 'grid-cols-4'}`}>
-            <TabsTrigger value="creation" className="flex items-center gap-2">
+          <TabsList className={`grid w-full ${isViewMode ? 'grid-cols-2' : 'grid-cols-4'} bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border shadow-lg rounded-xl p-1`}>
+            <TabsTrigger value="creation" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white transition-all hover-lift">
               <Shield className="h-4 w-4" />
               {isViewMode ? 'Document' : 'Création'}
             </TabsTrigger>
             {!isViewMode && (
-              <TabsTrigger value="analysis" className="flex items-center gap-2">
+              <TabsTrigger value="analysis" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white transition-all hover-lift">
                 <Camera className="h-4 w-4" />
                 Analyse IA
               </TabsTrigger>
             )}
-            <TabsTrigger value="suggestions" className="flex items-center gap-2">
+            <TabsTrigger value="suggestions" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white transition-all hover-lift">
               <Lightbulb className="h-4 w-4" />
               {isViewMode ? 'Infos' : 'Suggestions'}
             </TabsTrigger>
             {!isViewMode && (
-              <TabsTrigger value="history" className="flex items-center gap-2">
+              <TabsTrigger value="history" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-violet-600 data-[state=active]:text-white transition-all hover-lift">
                 <History className="h-4 w-4" />
                 Historique
               </TabsTrigger>
@@ -562,13 +571,10 @@ export default function DuerpGenerator() {
                           <span className="font-semibold">Nombre d'employés:</span> {company.employeeCount || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Contact:</span> {company.contactPerson || "Non renseigné"}
-                        </div>
-                        <div>
                           <span className="font-semibold">Email:</span> {company.email || "Non renseigné"}
                         </div>
                         <div>
-                          <span className="font-semibold">Téléphone:</span> {company.phoneNumber || "Non renseigné"}
+                          <span className="font-semibold">Téléphone:</span> {company.phone || "Non renseigné"}
                         </div>
                       </div>
                     </CardContent>
@@ -607,17 +613,18 @@ export default function DuerpGenerator() {
                         <Button
                           onClick={generateFinalTable}
                           disabled={!canGenerateFinalTable() || isGeneratingFinalRisks}
-                          className="w-full transition-all hover:scale-105"
+                          className="w-full btn-gradient transition-all hover-lift py-6 relative overflow-hidden"
                         >
                           {isGeneratingFinalRisks ? (
                             <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Génération en cours...
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                              <span className="font-medium">Génération en cours...</span>
+                              <div className="absolute inset-0 bg-white/20 animate-shimmer"></div>
                             </>
                           ) : (
                             <>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Générer le tableau des risques
+                              <Shield className="h-5 w-5 mr-2" />
+                              <span className="font-medium">Générer le tableau des risques</span>
                             </>
                           )}
                         </Button>
@@ -627,19 +634,19 @@ export default function DuerpGenerator() {
                             <Button
                               onClick={exportToExcel}
                               variant="outline"
-                              className="w-full transition-all hover:scale-105"
+                              className="w-full border-2 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all hover-lift py-4"
                             >
-                              <FileSpreadsheet className="h-4 w-4 mr-2" />
-                              Exporter Excel
+                              <FileSpreadsheet className="h-5 w-5 mr-2" />
+                              <span className="font-medium">Exporter Excel</span>
                             </Button>
                             
                             <Button
                               onClick={handleSaveDuerp}
                               disabled={saveDuerpMutation.isPending}
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all hover:scale-105"
+                              className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl transition-all hover-lift py-4"
                             >
-                              <Save className="h-4 w-4 mr-2" />
-                              {saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder DUERP'}
+                              <Save className="h-5 w-5 mr-2" />
+                              <span className="font-medium">{saveDuerpMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder DUERP'}</span>
                             </Button>
                           </div>
                         )}

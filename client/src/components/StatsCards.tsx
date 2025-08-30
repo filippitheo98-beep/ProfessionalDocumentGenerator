@@ -34,56 +34,64 @@ export function StatsCards({ stats, risks = [] }: StatsCardsProps) {
     : 0;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-fade-in">
-      <Card className="transition-all hover:shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Entreprises</CardTitle>
-          <Building className="h-4 w-4 text-muted-foreground" />
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 animate-fade-in">
+      <Card className="card-enhanced group">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Entreprises</CardTitle>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
+            <Building className="h-5 w-5 text-white" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalCompanies}</div>
-          <p className="text-xs text-muted-foreground">
+          <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.totalCompanies}</div>
+          <p className="text-sm text-muted-foreground">
             Documents créés
           </p>
         </CardContent>
       </Card>
 
-      <Card className="transition-all hover:shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Documents DUERP</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
+      <Card className="card-enhanced group">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Documents DUERP</CardTitle>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
+            <FileText className="h-5 w-5 text-white" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalDocuments}</div>
-          <p className="text-xs text-muted-foreground">
+          <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">{stats.totalDocuments}</div>
+          <p className="text-sm text-muted-foreground">
             Total générés
           </p>
         </CardContent>
       </Card>
 
-      <Card className="transition-all hover:shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Actions en cours</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+      <Card className="card-enhanced group">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Actions en cours</CardTitle>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
+            <AlertTriangle className="h-5 w-5 text-white" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.pendingActions}</div>
-          <p className="text-xs text-muted-foreground">
-            <span className="text-orange-600">{stats.expiringSoon} expire(nt) bientôt</span>
+          <div className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">{stats.pendingActions}</div>
+          <p className="text-sm text-muted-foreground">
+            <span className="text-orange-600 font-medium">{stats.expiringSoon} expire(nt) bientôt</span>
           </p>
         </CardContent>
       </Card>
 
-      <Card className="transition-all hover:shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Taux de completion</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+      <Card className="card-enhanced group">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Taux de completion</CardTitle>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
+            <TrendingUp className="h-5 w-5 text-white" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{completionRate}%</div>
-          <Progress value={completionRate} className="mt-2" />
-          <p className="text-xs text-muted-foreground mt-1">
-            {stats.completedActions} actions terminées
+          <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">{completionRate}%</div>
+          <Progress value={completionRate} className="mt-3 h-2" />
+          <p className="text-sm text-muted-foreground mt-2">
+            <span className="font-medium">{stats.completedActions}</span> actions terminées
           </p>
         </CardContent>
       </Card>
