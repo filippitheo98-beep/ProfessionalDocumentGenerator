@@ -153,15 +153,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Uploaded documents for AI context
+  app.get("/api/companies/:companyId/documents", isAuthenticated, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.companyId);
+      const documents = await storage.getUploadedDocuments(companyId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching uploaded documents:", error);
+      res.status(500).json({ message: "Erreur lors de la récupération des documents" });
+    }
+  });
+
+  app.post("/api/companies/:companyId/documents", isAuthenticated, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.companyId);
+      const { fileName, fileType, fileSize, extractedText, description } = req.body;
+      
+      const document = await storage.createUploadedDocument({
+        companyId,
+        fileName,
+        fileType,
+        fileSize,
+        extractedText,
+        description,
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error creating uploaded document:", error);
+      res.status(500).json({ message: "Erreur lors de l'ajout du document" });
+    }
+  });
+
+  app.patch("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const { description } = req.body;
+      
+      const document = await storage.updateUploadedDocument(documentId, { description });
+      res.json(document);
+    } catch (error) {
+      console.error("Error updating uploaded document:", error);
+      res.status(500).json({ message: "Erreur lors de la mise à jour du document" });
+    }
+  });
+
+  app.delete("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      await storage.deleteUploadedDocument(documentId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting uploaded document:", error);
+      res.status(500).json({ message: "Erreur lors de la suppression du document" });
+    }
+  });
+
   // Generate risks for a work unit
   app.post("/api/generate-risks", async (req, res) => {
     try {
       const validatedData = generateRisksRequestSchema.parse(req.body);
+      
+      // Build full context including uploaded documents
+      let fullDescription = validatedData.companyDescription || '';
+      
+      // Add uploaded documents context if company ID is provided
+      if (validatedData.companyId) {
+        const uploadedDocs = await storage.getUploadedDocuments(validatedData.companyId);
+        if (uploadedDocs.length > 0) {
+          const docsContext = uploadedDocs.map(doc => {
+            let context = `\n\n--- Document de référence: ${doc.fileName} ---`;
+            if (doc.description) {
+              context += `\nDescription: ${doc.description}`;
+            }
+            if (doc.extractedText) {
+              context += `\nContenu: ${doc.extractedText}`;
+            }
+            return context;
+          }).join('');
+          
+          fullDescription += `\n\n=== DOCUMENTS DE RÉFÉRENCE ===` + docsContext;
+        }
+      }
+      
+      // Also add any explicitly passed document context
+      if (validatedData.uploadedDocumentsContext) {
+        fullDescription += `\n\n${validatedData.uploadedDocumentsContext}`;
+      }
+      
       const risks = await storage.generateRisks(
         validatedData.workUnitName,
         validatedData.locationName,
         validatedData.companyActivity,
-        validatedData.companyDescription
+        fullDescription || undefined
       );
       res.json({ risks });
     } catch (error) {

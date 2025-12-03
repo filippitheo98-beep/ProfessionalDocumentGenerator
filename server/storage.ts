@@ -4,6 +4,7 @@ import {
   riskTemplates, 
   actions, 
   comments,
+  uploadedDocuments,
   type Company, 
   type InsertCompany, 
   type Location, 
@@ -13,7 +14,9 @@ import {
   type DuerpDocument,
   type RiskTemplate,
   type Action,
-  type Comment
+  type Comment,
+  type UploadedDocument,
+  type InsertUploadedDocument
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
@@ -74,6 +77,12 @@ export interface IStorage {
   
   // Utility operations
   generateUniqueDocumentTitle(baseTitle: string): Promise<string>;
+  
+  // Uploaded document operations
+  getUploadedDocuments(companyId: number): Promise<UploadedDocument[]>;
+  createUploadedDocument(data: InsertUploadedDocument): Promise<UploadedDocument>;
+  updateUploadedDocument(id: number, updates: Partial<UploadedDocument>): Promise<UploadedDocument>;
+  deleteUploadedDocument(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -919,6 +928,41 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
         }
       ]
     };
+  }
+
+  // Uploaded document operations
+  async getUploadedDocuments(companyId: number): Promise<UploadedDocument[]> {
+    const documents = await db
+      .select()
+      .from(uploadedDocuments)
+      .where(eq(uploadedDocuments.companyId, companyId))
+      .orderBy(desc(uploadedDocuments.uploadedAt));
+    return documents;
+  }
+
+  async createUploadedDocument(data: InsertUploadedDocument): Promise<UploadedDocument> {
+    const [document] = await db
+      .insert(uploadedDocuments)
+      .values(data)
+      .returning();
+    return document;
+  }
+
+  async updateUploadedDocument(id: number, updates: Partial<UploadedDocument>): Promise<UploadedDocument> {
+    const [document] = await db
+      .update(uploadedDocuments)
+      .set(updates)
+      .where(eq(uploadedDocuments.id, id))
+      .returning();
+    
+    if (!document) {
+      throw new Error(`Uploaded document with id ${id} not found`);
+    }
+    return document;
+  }
+
+  async deleteUploadedDocument(id: number): Promise<void> {
+    await db.delete(uploadedDocuments).where(eq(uploadedDocuments.id, id));
   }
 }
 

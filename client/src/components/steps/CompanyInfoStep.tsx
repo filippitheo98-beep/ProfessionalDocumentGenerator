@@ -1,14 +1,16 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building, Phone, Mail, Users, MapPin, Briefcase } from "lucide-react";
-import type { Company } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Building, Phone, Mail, Users, MapPin, Briefcase, FileText, Upload, X, File, Sparkles, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { Company, UploadedDocument } from "@shared/schema";
 
 const companyInfoSchema = z.object({
   name: z.string().min(1, "Le nom de la société est requis"),
@@ -29,14 +31,31 @@ interface CompanyInfoStepProps {
   onSave: (data: CompanyInfoData) => void;
   initialData?: Company | null;
   isLoading?: boolean;
+  companyId?: number;
+}
+
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  extractedText?: string;
+  description?: string;
+  uploading?: boolean;
+  error?: string;
 }
 
 export default function CompanyInfoStep({ 
   onSubmit, 
   onSave, 
   initialData, 
-  isLoading = false 
+  isLoading = false,
+  companyId
 }: CompanyInfoStepProps) {
+  const { toast } = useToast();
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
   const form = useForm<CompanyInfoData>({
     resolver: zodResolver(companyInfoSchema),
     defaultValues: {
@@ -52,7 +71,6 @@ export default function CompanyInfoStep({
     },
   });
 
-  // Update form when initialData changes
   useEffect(() => {
     if (initialData) {
       form.reset({
@@ -69,6 +87,32 @@ export default function CompanyInfoStep({
     }
   }, [initialData, form]);
 
+  useEffect(() => {
+    if (companyId) {
+      fetchUploadedDocuments();
+    }
+  }, [companyId]);
+
+  const fetchUploadedDocuments = async () => {
+    if (!companyId) return;
+    try {
+      const response = await fetch(`/api/companies/${companyId}/documents`);
+      if (response.ok) {
+        const docs: UploadedDocument[] = await response.json();
+        setUploadedFiles(docs.map(doc => ({
+          id: doc.id.toString(),
+          name: doc.fileName,
+          size: doc.fileSize || 0,
+          type: doc.fileType,
+          extractedText: doc.extractedText || undefined,
+          description: doc.description || undefined,
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
   const handleSubmit = (data: CompanyInfoData) => {
     onSubmit(data);
   };
@@ -76,6 +120,152 @@ export default function CompanyInfoStep({
   const handleSave = () => {
     const data = form.getValues();
     onSave(data);
+  };
+
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve(e.target?.result as string || '');
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsText(file);
+      } else {
+        resolve(`[Document: ${file.name}] - Contenu non extractible automatiquement. Veuillez ajouter une description.`);
+      }
+    });
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    for (const file of Array.from(files)) {
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+        toast({
+          title: "Format non supporté",
+          description: `Le fichier "${file.name}" n'est pas dans un format accepté (PDF, Word, Excel, TXT).`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      setUploadedFiles(prev => [...prev, {
+        id: tempId,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploading: true,
+      }]);
+
+      try {
+        const extractedText = await extractTextFromFile(file);
+
+        if (companyId) {
+          const savedDoc = await apiRequest(`/api/companies/${companyId}/documents`, {
+            method: 'POST',
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              extractedText: extractedText,
+              description: '',
+            }),
+          });
+          
+          setUploadedFiles(prev => prev.map(f => 
+            f.id === tempId 
+              ? { ...f, id: savedDoc.id.toString(), uploading: false, extractedText }
+              : f
+          ));
+        } else {
+          setUploadedFiles(prev => prev.map(f => 
+            f.id === tempId 
+              ? { ...f, uploading: false, extractedText }
+              : f
+          ));
+        }
+
+        toast({
+          title: "Document ajouté",
+          description: `"${file.name}" a été ajouté avec succès.`,
+        });
+      } catch (error) {
+        setUploadedFiles(prev => prev.map(f => 
+          f.id === tempId 
+            ? { ...f, uploading: false, error: 'Erreur lors de l\'upload' }
+            : f
+        ));
+        toast({
+          title: "Erreur d'upload",
+          description: `Impossible d'ajouter "${file.name}".`,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleRemoveFile = async (fileId: string) => {
+    if (companyId && !fileId.startsWith('temp-')) {
+      try {
+        await apiRequest(`/api/companies/${companyId}/documents/${fileId}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('Error deleting document:', error);
+      }
+    }
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const handleDescriptionChange = async (fileId: string, description: string) => {
+    setUploadedFiles(prev => prev.map(f => 
+      f.id === fileId ? { ...f, description } : f
+    ));
+
+    if (companyId && !fileId.startsWith('temp-')) {
+      try {
+        await apiRequest(`/api/companies/${companyId}/documents/${fileId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ description }),
+        });
+      } catch (error) {
+        console.error('Error updating document description:', error);
+      }
+    }
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileUpload(e.dataTransfer.files);
+  }, [companyId]);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   return (
@@ -91,7 +281,6 @@ export default function CompanyInfoStep({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nom de la société */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -104,6 +293,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="Entrez le nom de la société"
+                          data-testid="input-company-name"
                           {...field}
                         />
                       </FormControl>
@@ -112,7 +302,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* SIRET */}
                 <FormField
                   control={form.control}
                   name="siret"
@@ -122,6 +311,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="123 456 789 00012"
+                          data-testid="input-siret"
                           {...field}
                         />
                       </FormControl>
@@ -130,7 +320,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Secteur d'activité */}
                 <FormField
                   control={form.control}
                   name="activity"
@@ -143,6 +332,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="Ex: Commerce de détail, Services informatiques, BTP..."
+                          data-testid="input-activity"
                           {...field}
                         />
                       </FormControl>
@@ -151,29 +341,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Description de l'entreprise */}
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel className="flex items-center gap-2">
-                        <Building className="h-4 w-4" />
-                        Description de l'entreprise
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Décrivez les activités principales de votre entreprise, ses processus de travail, ses équipements spécifiques, etc. Cette description aide l'IA à mieux comprendre votre contexte professionnel pour générer des risques plus précis."
-                          rows={4}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Secteur (optionnel) */}
                 <FormField
                   control={form.control}
                   name="sector"
@@ -183,6 +350,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="Ex: Industrie, Services, Agriculture..."
+                          data-testid="input-sector"
                           {...field}
                         />
                       </FormControl>
@@ -191,7 +359,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Adresse */}
                 <FormField
                   control={form.control}
                   name="address"
@@ -204,6 +371,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Textarea 
                           placeholder="123 Rue de la Paix, 75001 Paris"
+                          data-testid="input-address"
                           {...field}
                         />
                       </FormControl>
@@ -212,7 +380,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Téléphone */}
                 <FormField
                   control={form.control}
                   name="phone"
@@ -225,6 +392,7 @@ export default function CompanyInfoStep({
                       <FormControl>
                         <Input 
                           placeholder="01 23 45 67 89"
+                          data-testid="input-phone"
                           {...field}
                         />
                       </FormControl>
@@ -233,7 +401,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Email */}
                 <FormField
                   control={form.control}
                   name="email"
@@ -247,6 +414,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="contact@entreprise.com"
                           type="email"
+                          data-testid="input-email"
                           {...field}
                         />
                       </FormControl>
@@ -255,7 +423,6 @@ export default function CompanyInfoStep({
                   )}
                 />
 
-                {/* Nombre d'employés */}
                 <FormField
                   control={form.control}
                   name="employeeCount"
@@ -270,9 +437,11 @@ export default function CompanyInfoStep({
                           placeholder="10"
                           type="number"
                           min="0"
+                          data-testid="input-employee-count"
                           {...field}
+                          value={field.value || 0}
                           onChange={(e) => {
-                            field.onChange(e.target.value ? parseInt(e.target.value) : undefined);
+                            field.onChange(e.target.value ? parseInt(e.target.value) : 0);
                           }}
                         />
                       </FormControl>
@@ -287,12 +456,161 @@ export default function CompanyInfoStep({
                   type="submit" 
                   disabled={isLoading}
                   className="min-w-32"
+                  data-testid="button-continue"
                 >
                   {isLoading ? 'Sauvegarde...' : 'Continuer'}
                 </Button>
               </div>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Description détaillée pour l'IA
+          </CardTitle>
+          <CardDescription>
+            Plus vous décrivez votre entreprise en détail, plus l'IA générera des risques précis et pertinents
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Textarea 
+                    placeholder={`Décrivez votre entreprise en détail pour aider l'IA à identifier les risques pertinents :
+
+• Quelles sont les principales activités de votre entreprise ?
+• Quels types d'équipements ou machines utilisez-vous ?
+• Quels produits chimiques ou matières dangereuses manipulez-vous ?
+• Comment sont organisés les espaces de travail ?
+• Quels sont les processus de fabrication ou de service ?
+• Y a-t-il des travaux en hauteur, en espace confiné, ou des conditions particulières ?
+• Quels sont les principaux risques que vous avez déjà identifiés ?
+• Quelles mesures de prévention sont déjà en place ?
+
+Exemple : "Notre entreprise de menuiserie emploie 15 personnes réparties sur 3 ateliers. Nous utilisons des machines-outils (scies circulaires, dégauchisseuses, toupies), manipulons des colles et vernis, et travaillons parfois en hauteur pour des installations. Nous avons des EPI de base mais souhaitons renforcer notre prévention..."`}
+                    className="min-h-[300px] text-base leading-relaxed"
+                    data-testid="textarea-description"
+                    {...field}
+                  />
+                </FormControl>
+                <div className="flex items-start gap-2 mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <strong>Astuce :</strong> Au lieu de remplir tous les champs un par un, vous pouvez simplement décrire votre entreprise ici. 
+                    L'IA utilisera cette description pour générer des risques adaptés à votre situation réelle.
+                  </p>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Documents de référence (optionnel)
+          </CardTitle>
+          <CardDescription>
+            Ajoutez des documents existants (anciens DUERP, fiches de postes, rapports d'inspection...) pour enrichir l'analyse IA
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`
+              border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer
+              ${isDragging 
+                ? 'border-primary bg-primary/10' 
+                : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+              }
+            `}
+            onClick={() => document.getElementById('file-upload')?.click()}
+            data-testid="dropzone-documents"
+          >
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+              className="hidden"
+              onChange={(e) => handleFileUpload(e.target.files)}
+            />
+            <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <p className="text-lg font-medium mb-1">
+              {isDragging ? 'Déposez les fichiers ici' : 'Glissez-déposez vos documents'}
+            </p>
+            <p className="text-sm text-muted-foreground mb-3">
+              ou cliquez pour parcourir vos fichiers
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Formats acceptés : PDF, Word (.doc, .docx), Excel (.xls, .xlsx), Texte (.txt)
+            </p>
+          </div>
+
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm">Documents ajoutés ({uploadedFiles.length})</h4>
+              {uploadedFiles.map((file) => (
+                <div 
+                  key={file.id} 
+                  className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg border"
+                  data-testid={`document-item-${file.id}`}
+                >
+                  <File className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">{file.name}</p>
+                      {file.uploading && (
+                        <span className="text-xs text-muted-foreground animate-pulse">Upload en cours...</span>
+                      )}
+                      {file.error && (
+                        <span className="text-xs text-destructive">{file.error}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                    <Textarea
+                      placeholder="Décrivez le contenu de ce document pour aider l'IA (ex: 'Ancien DUERP de 2022 avec focus sur les risques chimiques')"
+                      className="mt-2 text-sm min-h-[60px]"
+                      value={file.description || ''}
+                      onChange={(e) => handleDescriptionChange(file.id, e.target.value)}
+                      data-testid={`document-description-${file.id}`}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveFile(file.id)}
+                    className="flex-shrink-0"
+                    data-testid={`button-remove-document-${file.id}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              <strong>Note :</strong> Les documents uploadés sont analysés localement. Pour les PDF et Word, 
+              veuillez ajouter une description du contenu pour que l'IA puisse les exploiter efficacement.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

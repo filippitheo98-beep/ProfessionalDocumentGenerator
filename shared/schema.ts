@@ -68,6 +68,18 @@ export const actions = pgTable("actions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Uploaded reference documents for AI context
+export const uploadedDocuments = pgTable("uploaded_documents", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id).notNull(),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(), // pdf, docx, txt, etc.
+  fileSize: integer("file_size"),
+  extractedText: text("extracted_text"), // Text extracted from document for AI context
+  description: text("description"), // User description of the document
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
 // Risk templates/catalog
 export const riskTemplates = pgTable("risk_templates", {
   id: serial("id").primaryKey(),
@@ -185,6 +197,11 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   createdAt: true,
 });
 
+export const insertUploadedDocumentSchema = createInsertSchema(uploadedDocuments).omit({
+  id: true,
+  uploadedAt: true,
+});
+
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Company = typeof companies.$inferSelect;
 export type User = typeof users.$inferSelect;
@@ -192,6 +209,8 @@ export type DuerpDocument = typeof duerpDocuments.$inferSelect;
 export type Action = typeof actions.$inferSelect;
 export type RiskTemplate = typeof riskTemplates.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
+export type UploadedDocument = typeof uploadedDocuments.$inferSelect;
+export type InsertUploadedDocument = z.infer<typeof insertUploadedDocumentSchema>;
 
 // Types for nested data structures
 export interface Risk {
@@ -254,6 +273,8 @@ export const generateRisksRequestSchema = z.object({
   locationName: z.string(),
   companyActivity: z.string(),
   companyDescription: z.string().optional(),
+  companyId: z.number().optional(),
+  uploadedDocumentsContext: z.string().optional(),
 });
 
 export type GenerateRisksRequest = z.infer<typeof generateRisksRequestSchema>;
