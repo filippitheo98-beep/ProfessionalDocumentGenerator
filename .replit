@@ -14,6 +14,10 @@ run = ["npm", "run", "start"]
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 37957
+externalPort = 3000
+
 [workflows]
 runButton = "Project"
 
@@ -36,3 +40,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
+integrations = ["javascript_log_in_with_replit:1.0.0"]
