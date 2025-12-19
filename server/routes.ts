@@ -2,11 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, type Risk, type Site, type WorkZone, type WorkUnit, type Activity } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, type Risk, type Site, type WorkZone, type WorkUnit, type Activity } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
 import { db } from "./db";
-import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
+import { eq, desc, count, lt, ne, sql, ilike, or, and } from "drizzle-orm";
 
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
@@ -1141,6 +1141,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: `Export ${format} pour la période ${period} généré`,
       downloadUrl: `/api/download/report_${period}.${format}`
     });
+  });
+
+  // ============================================
+  // BIBLIOTHÈQUE DE RISQUES INRS/ARS
+  // ============================================
+
+  // Récupérer toutes les familles de risques
+  app.get('/api/risk-library/families', async (req, res) => {
+    try {
+      const families = await db.select().from(riskFamilies).where(eq(riskFamilies.isActive, true));
+      res.json(families);
+    } catch (error) {
+      console.error('Error fetching risk families:', error);
+      res.status(500).json({ message: 'Failed to fetch risk families' });
+    }
+  });
+
+  // Récupérer tous les secteurs
+  app.get('/api/risk-library/sectors', async (req, res) => {
+    try {
+      const allSectors = await db.select().from(sectors).where(eq(sectors.isActive, true));
+      res.json(allSectors);
+    } catch (error) {
+      console.error('Error fetching sectors:', error);
+      res.status(500).json({ message: 'Failed to fetch sectors' });
+    }
+  });
+
+  // Récupérer les risques avec filtres
+  app.get('/api/risk-library/risks', async (req, res) => {
+    try {
+      const { family, sector, level, search } = req.query;
+      
+      let conditions: any[] = [eq(riskLibrary.isActive, true)];
+      
+      if (family && family !== 'all') {
+        conditions.push(eq(riskLibrary.family, family as string));
+      }
+      
+      if (sector && sector !== 'all') {
+        if (sector === 'TOUS') {
+          // When specifically requesting generic risks only
+          conditions.push(eq(riskLibrary.sector, 'TOUS'));
+        } else {
+          // Include both sector-specific risks and generic risks (TOUS)
+          conditions.push(or(
+            eq(riskLibrary.sector, sector as string),
+            eq(riskLibrary.sector, 'TOUS')
+          ));
+        }
+      }
+      
+      if (level && level !== 'all') {
+        conditions.push(eq(riskLibrary.hierarchyLevel, level as string));
+      }
+      
+      if (search) {
+        const searchPattern = `%${search}%`;
+        conditions.push(or(
+          ilike(riskLibrary.situation, searchPattern),
+          ilike(riskLibrary.description, searchPattern),
+          ilike(riskLibrary.keywords, searchPattern)
+        ));
+      }
+      
+      const risks = await db.select().from(riskLibrary).where(and(...conditions));
+      res.json(risks);
+    } catch (error) {
+      console.error('Error fetching risk library:', error);
+      res.status(500).json({ message: 'Failed to fetch risk library' });
+    }
+  });
+
+  // Récupérer les statistiques de la bibliothèque
+  app.get('/api/risk-library/stats', async (req, res) => {
+    try {
+      const [totalCount] = await db.select({ count: count() }).from(riskLibrary).where(eq(riskLibrary.isActive, true));
+      const [familiesCount] = await db.select({ count: count() }).from(riskFamilies).where(eq(riskFamilies.isActive, true));
+      const [sectorsCount] = await db.select({ count: count() }).from(sectors).where(eq(sectors.isActive, true));
+      
+      // Count by hierarchy level
+      const levelCounts = await db.select({
+        level: riskLibrary.hierarchyLevel,
+        count: count()
+      }).from(riskLibrary)
+        .where(eq(riskLibrary.isActive, true))
+        .groupBy(riskLibrary.hierarchyLevel);
+      
+      res.json({
+        totalRisks: totalCount?.count || 0,
+        totalFamilies: familiesCount?.count || 0,
+        totalSectors: sectorsCount?.count || 0,
+        byLevel: levelCounts
+      });
+    } catch (error) {
+      console.error('Error fetching risk library stats:', error);
+      res.status(500).json({ message: 'Failed to fetch stats' });
+    }
+  });
+
+  // Récupérer un risque spécifique par ID
+  app.get('/api/risk-library/risks/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [risk] = await db.select().from(riskLibrary).where(eq(riskLibrary.id, id));
+      
+      if (!risk) {
+        return res.status(404).json({ message: 'Risk not found' });
+      }
+      
+      res.json(risk);
+    } catch (error) {
+      console.error('Error fetching risk:', error);
+      res.status(500).json({ message: 'Failed to fetch risk' });
+    }
+  });
+
+  // Récupérer les risques suggérés pour un contexte donné
+  app.post('/api/risk-library/suggest', async (req, res) => {
+    try {
+      const { sector, hierarchyLevel, activityType } = req.body;
+      
+      let conditions: any[] = [eq(riskLibrary.isActive, true)];
+      
+      // Filter by hierarchy level
+      if (hierarchyLevel) {
+        conditions.push(eq(riskLibrary.hierarchyLevel, hierarchyLevel));
+      }
+      
+      // Include sector-specific and generic risks
+      if (sector) {
+        conditions.push(or(
+          eq(riskLibrary.sector, sector),
+          eq(riskLibrary.sector, 'TOUS')
+        ));
+      }
+      
+      // Optional: search by activity type in keywords
+      if (activityType) {
+        conditions.push(or(
+          ilike(riskLibrary.keywords, `%${activityType}%`),
+          ilike(riskLibrary.situation, `%${activityType}%`)
+        ));
+      }
+      
+      const suggestedRisks = await db.select().from(riskLibrary).where(and(...conditions));
+      res.json(suggestedRisks);
+    } catch (error) {
+      console.error('Error suggesting risks:', error);
+      res.status(500).json({ message: 'Failed to suggest risks' });
+    }
   });
 
   const httpServer = createServer(app);

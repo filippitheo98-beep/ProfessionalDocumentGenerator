@@ -321,6 +321,7 @@ export type HierarchyLevel = 'Site' | 'Zone' | 'Unité' | 'Activité';
 // Interface de base pour un risque professionnel avec validation utilisateur
 export interface Risk {
   id: string;
+  catalogId?: number; // Reference to risk_library.id for deduplication
   type: string;
   family: RiskFamily; // Classification par famille de risque
   danger: string;

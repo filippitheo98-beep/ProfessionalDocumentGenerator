@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import RiskLibrarySelector from "@/components/RiskLibrarySelector";
 import { 
   Building2, 
   MapPin, 
@@ -25,7 +26,8 @@ import {
   Loader2,
   Eye,
   FolderTree,
-  Table
+  Table,
+  Library
 } from "lucide-react";
 import type { 
   Site, 
@@ -101,6 +103,13 @@ export default function HierarchicalEditorStep({
   } | null>(null);
   const [selectedPendingRisks, setSelectedPendingRisks] = useState<Set<string>>(new Set());
   const [reviewingRisk, setReviewingRisk] = useState<TableRisk | null>(null);
+  const [librarySelector, setLibrarySelector] = useState<{
+    isOpen: boolean;
+    level: 'Site' | 'Zone' | 'Unité' | 'Activité';
+    elementId: string;
+    elementName: string;
+    path: TreeSelection;
+  } | null>(null);
 
   const toggleNode = (nodeId: string) => {
     setExpandedNodes(prev => {
@@ -291,8 +300,51 @@ export default function HierarchicalEditorStep({
     toast({ title: "Risque retiré" });
   };
 
-  const TreeNode = ({ icon: Icon, iconColor, label, nodeId, isSelected, onSelect, onToggle, isExpanded, hasChildren, onAdd, onRemove, onGenerate, isGenerating, riskCount, depth = 0 }: {
-    icon: any; iconColor: string; label: string; nodeId: string; isSelected: boolean; onSelect: () => void; onToggle: () => void; isExpanded: boolean; hasChildren: boolean; onAdd?: () => void; onRemove: () => void; onGenerate: () => void; isGenerating: boolean; riskCount: number; depth?: number;
+  const openLibrary = (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: TreeSelection) => {
+    setLibrarySelector({ isOpen: true, level, elementId, elementName, path });
+  };
+
+  const handleLibraryRisksSelected = (risks: Risk[]) => {
+    if (!librarySelector) return;
+    const { level, elementId, path } = librarySelector;
+    
+    const getCurrentRisks = (): Risk[] => {
+      if (level === 'Site') return sites.find(s => s.id === elementId)?.risks || [];
+      if (level === 'Zone' && path.siteId) { const site = sites.find(s => s.id === path.siteId); return site?.zones.find(z => z.id === elementId)?.risks || []; }
+      if (level === 'Unité' && path.siteId && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); return zone?.workUnits.find(u => u.id === elementId)?.risks || []; }
+      if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); return unit?.activities.find(a => a.id === elementId)?.risks || []; }
+      return [];
+    };
+    
+    const existingRisks = getCurrentRisks();
+    
+    // Deduplicate: check for existing catalog IDs and danger matches
+    const existingCatalogIds = new Set(existingRisks.map((r: any) => r.catalogId).filter(Boolean));
+    const existingDangers = new Set(existingRisks.map(r => r.danger.toLowerCase().trim()));
+    
+    const newRisks = risks.filter((r: any) => {
+      const hasCatalogId = r.catalogId && existingCatalogIds.has(r.catalogId);
+      const hasDuplicate = existingDangers.has(r.danger.toLowerCase().trim());
+      return !hasCatalogId && !hasDuplicate;
+    });
+    
+    const duplicateCount = risks.length - newRisks.length;
+    const mergedRisks = [...existingRisks, ...newRisks];
+    
+    if (level === 'Site') updateSite(elementId, { risks: mergedRisks });
+    else if (level === 'Zone' && path.siteId) updateZone(path.siteId, elementId, { risks: mergedRisks });
+    else if (level === 'Unité' && path.siteId && path.zoneId) updateUnit(path.siteId, path.zoneId, elementId, { risks: mergedRisks });
+    else if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) updateActivity(path.siteId, path.zoneId, path.unitId, elementId, { risks: mergedRisks });
+    
+    const message = duplicateCount > 0 
+      ? `${newRisks.length} risque(s) ajouté(s), ${duplicateCount} doublon(s) ignoré(s)`
+      : `${newRisks.length} risque(s) ajouté(s) depuis la bibliothèque`;
+    toast({ title: message, description: newRisks.length > 0 ? "Les risques sont en attente de validation." : undefined });
+    setLibrarySelector(null);
+  };
+
+  const TreeNode = ({ icon: Icon, iconColor, label, nodeId, isSelected, onSelect, onToggle, isExpanded, hasChildren, onAdd, onRemove, onGenerate, onOpenLibrary, isGenerating, riskCount, depth = 0 }: {
+    icon: any; iconColor: string; label: string; nodeId: string; isSelected: boolean; onSelect: () => void; onToggle: () => void; isExpanded: boolean; hasChildren: boolean; onAdd?: () => void; onRemove: () => void; onGenerate: () => void; onOpenLibrary: () => void; isGenerating: boolean; riskCount: number; depth?: number;
   }) => (
     <div className={`group flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`} style={{ paddingLeft: `${depth * 12 + 8}px` }}>
       {hasChildren ? (
@@ -323,7 +375,10 @@ export default function HierarchicalEditorStep({
       )}
       {riskCount > 0 && <Badge variant="secondary" className="text-[9px] h-4 px-1">{riskCount}</Badge>}
       <div className="hidden group-hover:flex items-center gap-0.5">
-        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onGenerate(); }} disabled={isGenerating}>
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onOpenLibrary(); }} title="Bibliothèque INRS">
+          <Library className="h-3 w-3 text-blue-600" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onGenerate(); }} disabled={isGenerating} title="Générer avec IA">
           {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
         </Button>
         {onAdd && <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onAdd(); }}><Plus className="h-3 w-3" /></Button>}
@@ -378,6 +433,7 @@ export default function HierarchicalEditorStep({
                       onAdd={() => addZone(site.id)}
                       onRemove={() => removeSite(site.id)}
                       onGenerate={() => generateRisks('Site', site.id, site.name, { type: 'site', siteId: site.id })}
+                      onOpenLibrary={() => openLibrary('Site', site.id, site.name, { type: 'site', siteId: site.id })}
                       isGenerating={generatingFor === site.id}
                       riskCount={countRisks({ type: 'site', siteId: site.id })}
                       depth={0}
@@ -394,6 +450,7 @@ export default function HierarchicalEditorStep({
                           onAdd={() => addUnit(site.id, zone.id)}
                           onRemove={() => removeZone(site.id, zone.id)}
                           onGenerate={() => generateRisks('Zone', zone.id, zone.name, { type: 'zone', siteId: site.id, zoneId: zone.id })}
+                          onOpenLibrary={() => openLibrary('Zone', zone.id, zone.name, { type: 'zone', siteId: site.id, zoneId: zone.id })}
                           isGenerating={generatingFor === zone.id}
                           riskCount={countRisks({ type: 'zone', siteId: site.id, zoneId: zone.id })}
                           depth={1}
@@ -410,6 +467,7 @@ export default function HierarchicalEditorStep({
                               onAdd={() => addActivity(site.id, zone.id, unit.id)}
                               onRemove={() => removeUnit(site.id, zone.id, unit.id)}
                               onGenerate={() => generateRisks('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
+                              onOpenLibrary={() => openLibrary('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
                               isGenerating={generatingFor === unit.id}
                               riskCount={countRisks({ type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
                               depth={2}
@@ -425,6 +483,7 @@ export default function HierarchicalEditorStep({
                                 hasChildren={false}
                                 onRemove={() => removeActivity(site.id, zone.id, unit.id, activity.id)}
                                 onGenerate={() => generateRisks('Activité', activity.id, activity.name, { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
+                                onOpenLibrary={() => openLibrary('Activité', activity.id, activity.name, { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
                                 isGenerating={generatingFor === activity.id}
                                 riskCount={countRisks({ type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
                                 depth={3}
@@ -576,6 +635,16 @@ export default function HierarchicalEditorStep({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {librarySelector && (
+        <RiskLibrarySelector
+          isOpen={librarySelector.isOpen}
+          onClose={() => setLibrarySelector(null)}
+          onSelectRisks={handleLibraryRisksSelected}
+          hierarchyLevel={librarySelector.level}
+          elementName={librarySelector.elementName}
+        />
+      )}
     </div>
   );
 }
