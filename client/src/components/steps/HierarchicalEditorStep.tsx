@@ -516,13 +516,13 @@ export default function HierarchicalEditorStep({
       </div>
 
       <Dialog open={!!pendingRisks} onOpenChange={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />Validation des risques - {pendingRisks?.level}: {pendingRisks?.elementName}</DialogTitle>
             <DialogDescription>Sélectionnez les risques à ajouter au tableau DUERP ({selectedPendingRisks.size}/{pendingRisks?.risks.length || 0})</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
-            <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto min-h-0 pr-2" style={{ maxHeight: 'calc(85vh - 160px)' }}>
+            <div className="space-y-2 pb-2">
               {pendingRisks?.risks.map((risk) => (
                 <div key={risk.id} className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedPendingRisks.has(risk.id) ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`} onClick={() => { const newSet = new Set(selectedPendingRisks); if (newSet.has(risk.id)) newSet.delete(risk.id); else newSet.add(risk.id); setSelectedPendingRisks(newSet); }}>
                   <div className="flex items-start gap-3">
@@ -540,8 +540,8 @@ export default function HierarchicalEditorStep({
                 </div>
               ))}
             </div>
-          </ScrollArea>
-          <DialogFooter className="border-t pt-4">
+          </div>
+          <DialogFooter className="border-t pt-4 flex-shrink-0">
             <Button variant="outline" onClick={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}><X className="h-4 w-4 mr-2" />Annuler</Button>
             <Button onClick={validateSelectedRisks} disabled={selectedPendingRisks.size === 0}><Check className="h-4 w-4 mr-2" />Valider ({selectedPendingRisks.size})</Button>
           </DialogFooter>
