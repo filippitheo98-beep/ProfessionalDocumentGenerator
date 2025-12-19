@@ -14,6 +14,7 @@ import Archives from "@/pages/archives";
 import Collaborators from "@/pages/collaborators";
 import Reports from "@/pages/reports";
 import Revisions from "@/pages/revisions";
+import RiskLibraryManagement from "@/pages/RiskLibraryManagement";
 import { ThemeProvider } from "./components/ThemeProvider";
 
 function Router() {
@@ -44,6 +45,7 @@ function Router() {
           <Route path="/collaborators" component={Collaborators} />
           <Route path="/reports" component={Reports} />
           <Route path="/revisions" component={Revisions} />
+          <Route path="/risk-library" component={RiskLibraryManagement} />
         </>
       )}
       <Route component={NotFound} />

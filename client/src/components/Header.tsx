@@ -1,4 +1,4 @@
-import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield, Archive } from 'lucide-react';
+import { Bell, Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield, Archive, Library } from 'lucide-react';
 import { RevisionNotifications } from './RevisionNotifications';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -93,6 +93,15 @@ export function Header() {
             >
               <Shield className="h-4 w-4 mr-2" />
               Révisions
+            </Button>
+            <Button
+              variant={location === '/risk-library' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/risk-library')}
+              className="transition-all"
+            >
+              <Library className="h-4 w-4 mr-2" />
+              Bibliothèque
             </Button>
           </nav>
         </div>

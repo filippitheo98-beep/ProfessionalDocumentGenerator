@@ -1258,6 +1258,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Créer un nouveau risque dans la bibliothèque (authentification requise)
+  app.post('/api/risk-library/risks', async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    try {
+      const { family, sector, hierarchyLevel, situation, description, defaultGravity, defaultFrequency, defaultControl, measures, source, inrsCode, keywords } = req.body;
+      
+      // Validation des champs obligatoires
+      if (!family || !sector || !hierarchyLevel || !situation || !description || !defaultGravity || !defaultFrequency || !defaultControl || !measures) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+      
+      // Validation des enums
+      const validGravity = ['Faible', 'Moyenne', 'Grave', 'Très Grave'];
+      const validFrequency = ['Annuelle', 'Mensuelle', 'Hebdomadaire', 'Journalière'];
+      const validControl = ['Très élevée', 'Élevée', 'Moyenne', 'Absente'];
+      const validLevels = ['Site', 'Zone', 'Unité', 'Activité'];
+      
+      if (!validGravity.includes(defaultGravity)) {
+        return res.status(400).json({ message: 'Invalid gravity value' });
+      }
+      if (!validFrequency.includes(defaultFrequency)) {
+        return res.status(400).json({ message: 'Invalid frequency value' });
+      }
+      if (!validControl.includes(defaultControl)) {
+        return res.status(400).json({ message: 'Invalid control value' });
+      }
+      if (!validLevels.includes(hierarchyLevel)) {
+        return res.status(400).json({ message: 'Invalid hierarchy level' });
+      }
+      
+      const [newRisk] = await db.insert(riskLibrary).values({
+        family,
+        sector,
+        hierarchyLevel,
+        situation,
+        description,
+        defaultGravity,
+        defaultFrequency,
+        defaultControl,
+        measures,
+        source: source || 'Manuel',
+        inrsCode: inrsCode || null,
+        keywords: keywords || null,
+        isActive: true,
+      }).returning();
+      
+      res.status(201).json(newRisk);
+    } catch (error) {
+      console.error('Error creating risk:', error);
+      res.status(500).json({ message: 'Failed to create risk' });
+    }
+  });
+
+  // Mettre à jour un risque existant (authentification requise)
+  app.put('/api/risk-library/risks/:id', async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    try {
+      const id = parseInt(req.params.id);
+      const { family, sector, hierarchyLevel, situation, description, defaultGravity, defaultFrequency, defaultControl, measures, source, inrsCode, keywords, isActive } = req.body;
+      
+      // Build update object with only provided fields
+      const updateData: Record<string, any> = {};
+      if (family !== undefined) updateData.family = family;
+      if (sector !== undefined) updateData.sector = sector;
+      if (hierarchyLevel !== undefined) updateData.hierarchyLevel = hierarchyLevel;
+      if (situation !== undefined) updateData.situation = situation;
+      if (description !== undefined) updateData.description = description;
+      if (defaultGravity !== undefined) updateData.defaultGravity = defaultGravity;
+      if (defaultFrequency !== undefined) updateData.defaultFrequency = defaultFrequency;
+      if (defaultControl !== undefined) updateData.defaultControl = defaultControl;
+      if (measures !== undefined) updateData.measures = measures;
+      if (source !== undefined) updateData.source = source;
+      if (inrsCode !== undefined) updateData.inrsCode = inrsCode;
+      if (keywords !== undefined) updateData.keywords = keywords;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      // Validation des enums si fournis
+      const validGravity = ['Faible', 'Moyenne', 'Grave', 'Très Grave'];
+      const validFrequency = ['Annuelle', 'Mensuelle', 'Hebdomadaire', 'Journalière'];
+      const validControl = ['Très élevée', 'Élevée', 'Moyenne', 'Absente'];
+      const validLevels = ['Site', 'Zone', 'Unité', 'Activité'];
+      
+      if (updateData.defaultGravity && !validGravity.includes(updateData.defaultGravity)) {
+        return res.status(400).json({ message: 'Invalid gravity value' });
+      }
+      if (updateData.defaultFrequency && !validFrequency.includes(updateData.defaultFrequency)) {
+        return res.status(400).json({ message: 'Invalid frequency value' });
+      }
+      if (updateData.defaultControl && !validControl.includes(updateData.defaultControl)) {
+        return res.status(400).json({ message: 'Invalid control value' });
+      }
+      if (updateData.hierarchyLevel && !validLevels.includes(updateData.hierarchyLevel)) {
+        return res.status(400).json({ message: 'Invalid hierarchy level' });
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: 'No fields to update' });
+      }
+      
+      const [updatedRisk] = await db.update(riskLibrary)
+        .set(updateData)
+        .where(eq(riskLibrary.id, id))
+        .returning();
+      
+      if (!updatedRisk) {
+        return res.status(404).json({ message: 'Risk not found' });
+      }
+      
+      res.json(updatedRisk);
+    } catch (error) {
+      console.error('Error updating risk:', error);
+      res.status(500).json({ message: 'Failed to update risk' });
+    }
+  });
+
+  // Supprimer un risque (authentification requise)
+  app.delete('/api/risk-library/risks/:id', async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [deletedRisk] = await db.delete(riskLibrary)
+        .where(eq(riskLibrary.id, id))
+        .returning();
+      
+      if (!deletedRisk) {
+        return res.status(404).json({ message: 'Risk not found' });
+      }
+      
+      res.json({ message: 'Risk deleted successfully', id });
+    } catch (error) {
+      console.error('Error deleting risk:', error);
+      res.status(500).json({ message: 'Failed to delete risk' });
+    }
+  });
+
   // Récupérer les risques suggérés pour un contexte donné
   app.post('/api/risk-library/suggest', async (req, res) => {
     try {
