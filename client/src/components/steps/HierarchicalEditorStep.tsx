@@ -1,14 +1,13 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -24,14 +23,9 @@ import {
   Sparkles,
   Check,
   X,
-  AlertTriangle,
   Loader2,
-  GripVertical,
   Eye,
-  RefreshCw,
-  Table,
-  Edit3,
-  RotateCcw
+  Table
 } from "lucide-react";
 import type { 
   Site, 
@@ -39,8 +33,7 @@ import type {
   WorkUnit, 
   Activity, 
   Risk,
-  SitePriority,
-  PreventionMeasure
+  SitePriority
 } from "@shared/schema";
 
 interface HierarchicalEditorStepProps {
@@ -91,7 +84,6 @@ export default function HierarchicalEditorStep({
   const [expandedZones, setExpandedZones] = useState<Set<string>>(new Set());
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'structure' | 'risks'>('structure');
   const [pendingRisks, setPendingRisks] = useState<{
     risks: Risk[];
     elementId: string;
@@ -317,8 +309,7 @@ export default function HierarchicalEditorStep({
     level: 'Site' | 'Zone' | 'Unité' | 'Activité',
     elementId: string,
     elementName: string,
-    path: { siteId?: string; zoneId?: string; unitId?: string },
-    appendToExisting: boolean = false
+    path: { siteId?: string; zoneId?: string; unitId?: string }
   ) => {
     if (!elementName.trim()) {
       toast({
@@ -435,7 +426,6 @@ export default function HierarchicalEditorStep({
 
     setPendingRisks(null);
     setSelectedPendingRisks(new Set());
-    setActiveTab('risks');
   };
 
   const removeValidatedRisk = (riskWithPath: ValidatedRiskWithPath) => {
@@ -492,294 +482,6 @@ export default function HierarchicalEditorStep({
     return parts.join(' > ');
   };
 
-  const renderSiteContent = (site: Site, siteIndex: number) => (
-    <Card key={site.id} className="border-2">
-      <Collapsible
-        open={expandedSites.has(site.id)}
-        onOpenChange={() => toggleExpanded(site.id, 'site')}
-      >
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {expandedSites.has(site.id) ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                <MapPin className="h-4 w-4 text-blue-600" />
-                <div>
-                  <span className="font-medium">{site.name || 'Nouveau site'}</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <Badge className={`text-xs ${PRIORITY_COLORS[site.priority]}`}>
-                      {site.priority}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {countTotalRisks(site)} risque(s)
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    generateRisksForElement('Site', site.id, site.name, { siteId: site.id });
-                  }}
-                  disabled={generatingFor === site.id || !site.name}
-                  data-testid={`btn-generate-site-risks-${siteIndex}`}
-                >
-                  {generatingFor === site.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeSite(site.id);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent>
-          <CardContent className="space-y-4 pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium">Nom du site *</label>
-                <Input
-                  placeholder="Ex: Siège social..."
-                  value={site.name}
-                  onChange={(e) => updateSite(site.id, { name: e.target.value })}
-                  className="h-8 text-sm"
-                  data-testid={`input-site-name-${siteIndex}`}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium">Priorité</label>
-                <Select
-                  value={site.priority}
-                  onValueChange={(value: SitePriority) => updateSite(site.id, { priority: value })}
-                >
-                  <SelectTrigger className="h-8 text-sm" data-testid={`select-site-priority-${siteIndex}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SITE_PRIORITIES.map(p => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="ml-4 border-l-2 border-muted pl-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Zones</span>
-                <Button variant="outline" size="sm" onClick={() => addZone(site.id)}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Zone
-                </Button>
-              </div>
-
-              {(site.zones || []).map((zone, zoneIndex) => (
-                <Card key={zone.id} className="border">
-                  <Collapsible
-                    open={expandedZones.has(zone.id)}
-                    onOpenChange={() => toggleExpanded(zone.id, 'zone')}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {expandedZones.has(zone.id) ? (
-                              <ChevronDown className="h-3 w-3" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3" />
-                            )}
-                            <Layers className="h-3 w-3 text-green-600" />
-                            <span className="text-sm font-medium">{zone.name || 'Nouvelle zone'}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                generateRisksForElement('Zone', zone.id, zone.name, { siteId: site.id, zoneId: zone.id });
-                              }}
-                              disabled={generatingFor === zone.id || !zone.name}
-                            >
-                              {generatingFor === zone.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-3 w-3" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeZone(site.id, zone.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </CollapsibleTrigger>
-                    
-                    <CollapsibleContent>
-                      <CardContent className="space-y-3 pt-0">
-                        <Input
-                          placeholder="Nom de la zone..."
-                          value={zone.name}
-                          onChange={(e) => updateZone(site.id, zone.id, { name: e.target.value })}
-                          className="h-8 text-sm"
-                        />
-
-                        <div className="ml-4 border-l-2 border-muted pl-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-muted-foreground">Unités de travail</span>
-                            <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => addWorkUnit(site.id, zone.id)}>
-                              <Plus className="h-2 w-2 mr-1" />
-                              Unité
-                            </Button>
-                          </div>
-
-                          {(zone.workUnits || []).map((unit, unitIndex) => (
-                            <Card key={unit.id} className="border">
-                              <Collapsible
-                                open={expandedUnits.has(unit.id)}
-                                onOpenChange={() => toggleExpanded(unit.id, 'unit')}
-                              >
-                                <CollapsibleTrigger asChild>
-                                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-1.5">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-2">
-                                        {expandedUnits.has(unit.id) ? (
-                                          <ChevronDown className="h-3 w-3" />
-                                        ) : (
-                                          <ChevronRight className="h-3 w-3" />
-                                        )}
-                                        <Users className="h-3 w-3 text-purple-600" />
-                                        <span className="text-xs font-medium">{unit.name || 'Nouvelle unité'}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-5 w-5 p-0"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            generateRisksForElement('Unité', unit.id, unit.name, { siteId: site.id, zoneId: zone.id, unitId: unit.id });
-                                          }}
-                                          disabled={generatingFor === unit.id || !unit.name}
-                                        >
-                                          {generatingFor === unit.id ? (
-                                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                          ) : (
-                                            <Sparkles className="h-2.5 w-2.5" />
-                                          )}
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-5 w-5 p-0"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeWorkUnit(site.id, zone.id, unit.id);
-                                          }}
-                                        >
-                                          <Trash2 className="h-2.5 w-2.5 text-destructive" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </CardHeader>
-                                </CollapsibleTrigger>
-                                
-                                <CollapsibleContent>
-                                  <CardContent className="space-y-2 pt-0 px-2">
-                                    <Input
-                                      placeholder="Nom de l'unité..."
-                                      value={unit.name}
-                                      onChange={(e) => updateWorkUnit(site.id, zone.id, unit.id, { name: e.target.value })}
-                                      className="h-7 text-xs"
-                                    />
-
-                                    <div className="ml-3 border-l border-muted pl-3 space-y-1">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs text-muted-foreground">Activités</span>
-                                        <Button variant="ghost" size="sm" className="h-5 text-xs" onClick={() => addActivity(site.id, zone.id, unit.id)}>
-                                          <Plus className="h-2 w-2" />
-                                        </Button>
-                                      </div>
-
-                                      {(unit.activities || []).map((activity, actIndex) => (
-                                        <div key={activity.id} className="flex items-center gap-2 p-1 rounded hover:bg-muted/50">
-                                          <ActivityIcon className="h-3 w-3 text-orange-500" />
-                                          <Input
-                                            placeholder="Activité..."
-                                            value={activity.name}
-                                            onChange={(e) => updateActivity(site.id, zone.id, unit.id, activity.id, { name: e.target.value })}
-                                            className="h-6 text-xs flex-1"
-                                          />
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-5 w-5 p-0"
-                                            onClick={() => generateRisksForElement('Activité', activity.id, activity.name, { siteId: site.id, zoneId: zone.id, unitId: unit.id })}
-                                            disabled={generatingFor === activity.id || !activity.name}
-                                          >
-                                            {generatingFor === activity.id ? (
-                                              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                            ) : (
-                                              <Sparkles className="h-2.5 w-2.5" />
-                                            )}
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-5 w-5 p-0"
-                                            onClick={() => removeActivity(site.id, zone.id, unit.id, activity.id)}
-                                          >
-                                            <Trash2 className="h-2.5 w-2.5 text-destructive" />
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </CardContent>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            </Card>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -789,7 +491,7 @@ export default function HierarchicalEditorStep({
             Éditeur DUERP Hiérarchique
           </h2>
           <p className="text-sm text-muted-foreground">
-            Créez votre structure, générez des risques avec l'IA, et validez-les dans le tableau.
+            Créez votre structure à gauche, les risques validés s'ajoutent au tableau à droite.
           </p>
         </div>
         <Badge variant="secondary" className="text-sm">
@@ -797,285 +499,295 @@ export default function HierarchicalEditorStep({
         </Badge>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'structure' | 'risks')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="structure" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Structure & Génération
-          </TabsTrigger>
-          <TabsTrigger value="risks" className="flex items-center gap-2">
-            <Table className="h-4 w-4" />
-            Tableau des risques ({allValidatedRisks.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="structure" className="space-y-4">
-          {sites.length === 0 ? (
-            <Card>
-              <CardContent className="py-8">
-                <div className="text-center">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-4">
-                    Commencez par ajouter un site (établissement, agence, chantier...)
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="h-[600px] flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Structure de l'entreprise
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full px-4 pb-4">
+              {sites.length === 0 ? (
+                <div className="text-center py-8">
+                  <MapPin className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Commencez par ajouter un site
                   </p>
-                  <Button onClick={addSite}>
+                  <Button onClick={addSite} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Ajouter un site
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {sites.map((site, siteIndex) => renderSiteContent(site, siteIndex))}
-              <Button variant="outline" onClick={addSite} className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un site
-              </Button>
-            </div>
-          )}
-        </TabsContent>
+              ) : (
+                <div className="space-y-3">
+                  {sites.map((site, siteIndex) => (
+                    <Card key={site.id} className="border">
+                      <Collapsible
+                        open={expandedSites.has(site.id)}
+                        onOpenChange={() => toggleExpanded(site.id, 'site')}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-2 px-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {expandedSites.has(site.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                <MapPin className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium">{site.name || 'Nouveau site'}</span>
+                                <Badge className={`text-[10px] ${PRIORITY_COLORS[site.priority]}`}>{site.priority}</Badge>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">{countTotalRisks(site)}</span>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); generateRisksForElement('Site', site.id, site.name, { siteId: site.id }); }} disabled={generatingFor === site.id || !site.name}>
+                                  {generatingFor === site.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); removeSite(site.id); }}>
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        
+                        <CollapsibleContent>
+                          <CardContent className="space-y-3 pt-0 px-3 pb-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input placeholder="Nom du site..." value={site.name} onChange={(e) => updateSite(site.id, { name: e.target.value })} className="h-7 text-xs" />
+                              <Select value={site.priority} onValueChange={(value: SitePriority) => updateSite(site.id, { priority: value })}>
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>{SITE_PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
 
-        <TabsContent value="risks" className="space-y-4">
-          {allValidatedRisks.length === 0 ? (
-            <Card>
-              <CardContent className="py-8">
-                <div className="text-center">
-                  <Table className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-2">
-                    Aucun risque validé pour l'instant
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Utilisez les boutons <Sparkles className="h-3 w-3 inline" /> dans l'onglet Structure pour générer et valider des risques.
-                  </p>
-                  <Button variant="outline" onClick={() => setActiveTab('structure')}>
-                    <Building2 className="h-4 w-4 mr-2" />
-                    Aller à la structure
+                            <div className="ml-3 border-l-2 border-blue-200 pl-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-muted-foreground">Zones</span>
+                                <Button variant="ghost" size="sm" className="h-5 text-xs" onClick={() => addZone(site.id)}><Plus className="h-3 w-3" /></Button>
+                              </div>
+
+                              {(site.zones || []).map((zone) => (
+                                <div key={zone.id} className="bg-muted/30 rounded p-2 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Layers className="h-3 w-3 text-green-600" />
+                                    <Input placeholder="Zone..." value={zone.name} onChange={(e) => updateZone(site.id, zone.id, { name: e.target.value })} className="h-6 text-xs flex-1" />
+                                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => generateRisksForElement('Zone', zone.id, zone.name, { siteId: site.id, zoneId: zone.id })} disabled={generatingFor === zone.id || !zone.name}>
+                                      {generatingFor === zone.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => removeZone(site.id, zone.id)}><Trash2 className="h-2.5 w-2.5 text-destructive" /></Button>
+                                  </div>
+
+                                  <div className="ml-3 border-l border-green-200 pl-2 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] text-muted-foreground">Unités</span>
+                                      <Button variant="ghost" size="sm" className="h-4 text-[10px] px-1" onClick={() => addWorkUnit(site.id, zone.id)}><Plus className="h-2 w-2" /></Button>
+                                    </div>
+
+                                    {(zone.workUnits || []).map((unit) => (
+                                      <div key={unit.id} className="bg-background rounded p-1.5 space-y-1">
+                                        <div className="flex items-center gap-1">
+                                          <Users className="h-2.5 w-2.5 text-purple-600" />
+                                          <Input placeholder="Unité..." value={unit.name} onChange={(e) => updateWorkUnit(site.id, zone.id, unit.id, { name: e.target.value })} className="h-5 text-[10px] flex-1" />
+                                          <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => generateRisksForElement('Unité', unit.id, unit.name, { siteId: site.id, zoneId: zone.id, unitId: unit.id })} disabled={generatingFor === unit.id || !unit.name}>
+                                            {generatingFor === unit.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Sparkles className="h-2 w-2" />}
+                                          </Button>
+                                          <Button variant="ghost" size="sm" className="h-4 w-4 p-0" onClick={() => removeWorkUnit(site.id, zone.id, unit.id)}><Trash2 className="h-2 w-2 text-destructive" /></Button>
+                                        </div>
+
+                                        <div className="ml-2 border-l border-purple-200 pl-1.5 space-y-0.5">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[9px] text-muted-foreground">Activités</span>
+                                            <Button variant="ghost" size="sm" className="h-3 px-0.5" onClick={() => addActivity(site.id, zone.id, unit.id)}><Plus className="h-2 w-2" /></Button>
+                                          </div>
+                                          {(unit.activities || []).map((activity) => (
+                                            <div key={activity.id} className="flex items-center gap-1">
+                                              <ActivityIcon className="h-2 w-2 text-orange-500" />
+                                              <Input placeholder="Activité..." value={activity.name} onChange={(e) => updateActivity(site.id, zone.id, unit.id, activity.id, { name: e.target.value })} className="h-4 text-[9px] flex-1" />
+                                              <Button variant="ghost" size="sm" className="h-3 w-3 p-0" onClick={() => generateRisksForElement('Activité', activity.id, activity.name, { siteId: site.id, zoneId: zone.id, unitId: unit.id })} disabled={generatingFor === activity.id || !activity.name}>
+                                                {generatingFor === activity.id ? <Loader2 className="h-2 w-2 animate-spin" /> : <Sparkles className="h-2 w-2" />}
+                                              </Button>
+                                              <Button variant="ghost" size="sm" className="h-3 w-3 p-0" onClick={() => removeActivity(site.id, zone.id, unit.id, activity.id)}><Trash2 className="h-2 w-2 text-destructive" /></Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </Card>
+                  ))}
+                  <Button variant="outline" onClick={addSite} className="w-full" size="sm">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter un site
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Tableau DUERP - Risques validés</span>
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab('structure')}>
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Générer plus
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px]">
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground border-b pb-2 sticky top-0 bg-background">
-                      <div className="col-span-3">Localisation</div>
-                      <div className="col-span-2">Famille</div>
-                      <div className="col-span-3">Danger</div>
-                      <div className="col-span-1">Priorité</div>
-                      <div className="col-span-2">Mesures</div>
-                      <div className="col-span-1">Actions</div>
-                    </div>
-                    
-                    {allValidatedRisks.map((riskWithPath, index) => (
-                      <div 
-                        key={riskWithPath.risk.id} 
-                        className="grid grid-cols-12 gap-2 text-xs py-2 border-b hover:bg-muted/50 items-center"
-                      >
-                        <div className="col-span-3">
-                          <div className="font-medium">{getHierarchyPath(riskWithPath)}</div>
-                          <Badge variant="outline" className="text-[10px] mt-1">{riskWithPath.level}</Badge>
-                        </div>
-                        <div className="col-span-2">
-                          <Badge variant="secondary" className="text-[10px]">
-                            {riskWithPath.risk.family || riskWithPath.risk.type || 'Non classifié'}
-                          </Badge>
-                        </div>
-                        <div className="col-span-3 line-clamp-2">
-                          {riskWithPath.risk.danger}
-                        </div>
-                        <div className="col-span-1">
-                          <Badge className={`text-[10px] ${RISK_PRIORITY_COLORS[riskWithPath.risk.priority || ''] || 'bg-gray-500'}`}>
-                            {riskWithPath.risk.priority?.replace('Priorité ', 'P') || 'N/A'}
-                          </Badge>
-                        </div>
-                        <div className="col-span-2 line-clamp-2 text-muted-foreground">
-                          {riskWithPath.risk.measures || '-'}
-                        </div>
-                        <div className="col-span-1 flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => setReviewingRisk(riskWithPath)}
-                            title="Voir détails"
-                          >
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => removeValidatedRisk(riskWithPath)}
-                            title="Retirer"
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
-      {pendingRisks && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Validation des risques - {pendingRisks.level}: {pendingRisks.elementName}
-              </CardTitle>
-              <CardDescription>
-                L'IA a identifié {pendingRisks.risks.length} risques. Sélectionnez ceux à ajouter au tableau DUERP.
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="p-0">
-              <ScrollArea className="max-h-[50vh] p-4">
-                <div className="space-y-2">
-                  {pendingRisks.risks.map((risk) => (
-                    <div 
-                      key={risk.id}
-                      className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                        selectedPendingRisks.has(risk.id) 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-muted hover:border-muted-foreground/30'
-                      }`}
-                      onClick={() => togglePendingRisk(risk.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox 
-                          checked={selectedPendingRisks.has(risk.id)}
-                          onCheckedChange={() => togglePendingRisk(risk.id)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
-                              {risk.family || risk.type}
-                            </Badge>
-                            <Badge 
-                              className={`text-xs ${RISK_PRIORITY_COLORS[risk.priority || ''] || 'bg-gray-500'}`}
-                            >
-                              {risk.priority}
-                            </Badge>
-                          </div>
-                          <p className="text-sm font-medium">{risk.danger}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <strong>Mesures :</strong> {risk.measures}
-                          </p>
-                        </div>
+        <Card className="h-[600px] flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Table className="h-4 w-4" />
+              Tableau des risques validés
+              <Badge variant="secondary" className="ml-auto">{allValidatedRisks.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            {allValidatedRisks.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-4">
+                  <Table className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    Les risques validés apparaîtront ici
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cliquez sur <Sparkles className="h-3 w-3 inline" /> pour générer
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ScrollArea className="h-full">
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-12 gap-1 text-[10px] font-medium text-muted-foreground border-b pb-1 mb-2 sticky top-0 bg-background pt-1">
+                    <div className="col-span-3">Localisation</div>
+                    <div className="col-span-2">Famille</div>
+                    <div className="col-span-4">Danger</div>
+                    <div className="col-span-2">Priorité</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  
+                  {allValidatedRisks.map((riskWithPath) => (
+                    <div key={riskWithPath.risk.id} className="grid grid-cols-12 gap-1 text-[10px] py-1.5 border-b hover:bg-muted/50 items-center">
+                      <div className="col-span-3 truncate" title={getHierarchyPath(riskWithPath)}>{getHierarchyPath(riskWithPath)}</div>
+                      <div className="col-span-2"><Badge variant="outline" className="text-[8px] px-1">{riskWithPath.risk.family || riskWithPath.risk.type || '-'}</Badge></div>
+                      <div className="col-span-4 truncate" title={riskWithPath.risk.danger}>{riskWithPath.risk.danger}</div>
+                      <div className="col-span-2"><Badge className={`text-[8px] px-1 ${RISK_PRIORITY_COLORS[riskWithPath.risk.priority || ''] || 'bg-gray-500'}`}>{riskWithPath.risk.priority?.replace('Priorité ', 'P').replace(' (Forte)', '').replace(' (Moyenne)', '').replace(' (Modéré)', '').replace(' (Faible)', '') || '-'}</Badge></div>
+                      <div className="col-span-1 flex gap-0.5">
+                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setReviewingRisk(riskWithPath)}><Eye className="h-2.5 w-2.5" /></Button>
+                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => removeValidatedRisk(riskWithPath)}><Trash2 className="h-2.5 w-2.5 text-destructive" /></Button>
                       </div>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
-            </CardContent>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-            <div className="p-4 border-t bg-muted/30 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                {selectedPendingRisks.size} risque(s) sélectionné(s) sur {pendingRisks.risks.length}
-              </p>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
-                  <X className="h-4 w-4 mr-2" />
-                  Annuler
-                </Button>
-                <Button onClick={validateSelectedRisks} disabled={selectedPendingRisks.size === 0}>
-                  <Check className="h-4 w-4 mr-2" />
-                  Valider ({selectedPendingRisks.size})
-                </Button>
-              </div>
+      <Dialog open={!!pendingRisks} onOpenChange={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Validation des risques - {pendingRisks?.level}: {pendingRisks?.elementName}
+            </DialogTitle>
+            <DialogDescription>
+              L'IA a identifié {pendingRisks?.risks.length || 0} risques. Sélectionnez ceux à ajouter au tableau DUERP.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
+            <div className="space-y-2">
+              {pendingRisks?.risks.map((risk) => (
+                <div 
+                  key={risk.id}
+                  className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                    selectedPendingRisks.has(risk.id) 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-muted hover:border-muted-foreground/30'
+                  }`}
+                  onClick={() => togglePendingRisk(risk.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      checked={selectedPendingRisks.has(risk.id)}
+                      onCheckedChange={() => togglePendingRisk(risk.id)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge variant="outline" className="text-xs">{risk.family || risk.type}</Badge>
+                        <Badge className={`text-xs ${RISK_PRIORITY_COLORS[risk.priority || ''] || 'bg-gray-500'}`}>{risk.priority}</Badge>
+                      </div>
+                      <p className="text-sm font-medium">{risk.danger}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2"><strong>Mesures :</strong> {risk.measures}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </Card>
-        </div>
-      )}
+          </ScrollArea>
 
-      {reviewingRisk && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Détails du risque
-              </CardTitle>
-              <CardDescription>
-                {getHierarchyPath(reviewingRisk)}
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-4 pt-4">
-              <div>
-                <label className="text-sm font-medium">Famille de risque</label>
-                <p className="text-sm">{reviewingRisk.risk.family || reviewingRisk.risk.type || 'Non classifié'}</p>
+          <DialogFooter className="flex items-center justify-between border-t pt-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedPendingRisks.size} / {pendingRisks?.risks.length || 0} sélectionné(s)
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
+                <X className="h-4 w-4 mr-2" />Annuler
+              </Button>
+              <Button onClick={validateSelectedRisks} disabled={selectedPendingRisks.size === 0}>
+                <Check className="h-4 w-4 mr-2" />Valider ({selectedPendingRisks.size})
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reviewingRisk} onOpenChange={() => setReviewingRisk(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Détails du risque
+            </DialogTitle>
+            <DialogDescription>{reviewingRisk && getHierarchyPath(reviewingRisk)}</DialogDescription>
+          </DialogHeader>
+          
+          {reviewingRisk && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Famille</label>
+                  <p className="text-sm">{reviewingRisk.risk.family || reviewingRisk.risk.type || 'Non classifié'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Priorité</label>
+                  <Badge className={RISK_PRIORITY_COLORS[reviewingRisk.risk.priority || ''] || 'bg-gray-500'}>{reviewingRisk.risk.priority}</Badge>
+                </div>
               </div>
               <div>
-                <label className="text-sm font-medium">Danger / Dommage</label>
+                <label className="text-xs font-medium text-muted-foreground">Danger / Dommage</label>
                 <p className="text-sm">{reviewingRisk.risk.danger}</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Gravité</label>
-                  <p className="text-sm">{reviewingRisk.risk.gravity} ({reviewingRisk.risk.gravityValue})</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Fréquence</label>
-                  <p className="text-sm">{reviewingRisk.risk.frequency} ({reviewingRisk.risk.frequencyValue})</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Maîtrise</label>
-                  <p className="text-sm">{reviewingRisk.risk.control} ({reviewingRisk.risk.controlValue})</p>
-                </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="text-xs font-medium text-muted-foreground">Gravité</label><p className="text-sm">{reviewingRisk.risk.gravity} ({reviewingRisk.risk.gravityValue})</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">Fréquence</label><p className="text-sm">{reviewingRisk.risk.frequency} ({reviewingRisk.risk.frequencyValue})</p></div>
+                <div><label className="text-xs font-medium text-muted-foreground">Maîtrise</label><p className="text-sm">{reviewingRisk.risk.control} ({reviewingRisk.risk.controlValue})</p></div>
               </div>
               <div>
-                <label className="text-sm font-medium">Score de risque</label>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold">{reviewingRisk.risk.riskScore?.toFixed(2)}</span>
-                  <Badge className={RISK_PRIORITY_COLORS[reviewingRisk.risk.priority || ''] || 'bg-gray-500'}>
-                    {reviewingRisk.risk.priority}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Mesures de prévention</label>
+                <label className="text-xs font-medium text-muted-foreground">Mesures de prévention</label>
                 <p className="text-sm">{reviewingRisk.risk.measures}</p>
               </div>
-            </CardContent>
-
-            <div className="p-4 border-t flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setReviewingRisk(null)}>
-                Fermer
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={() => { 
-                  removeValidatedRisk(reviewingRisk); 
-                  setReviewingRisk(null); 
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Retirer du DUERP
-              </Button>
             </div>
-          </Card>
-        </div>
-      )}
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewingRisk(null)}>Fermer</Button>
+            <Button variant="destructive" onClick={() => { if (reviewingRisk) { removeValidatedRisk(reviewingRisk); setReviewingRisk(null); } }}>
+              <Trash2 className="h-4 w-4 mr-2" />Retirer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
