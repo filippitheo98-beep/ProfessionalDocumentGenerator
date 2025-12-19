@@ -2,11 +2,91 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, type Risk } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, type Risk, type Site, type WorkZone, type WorkUnit, type Activity } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql } from "drizzle-orm";
+
+// Helper function to extract risks from hierarchical structure with full metadata
+interface HierarchicalRisk extends Risk {
+  siteName?: string;
+  zoneName?: string;
+  workUnitName?: string;
+  activityName?: string;
+  hierarchyPath?: string;
+}
+
+function extractHierarchicalRisks(sites: Site[]): HierarchicalRisk[] {
+  const allRisks: HierarchicalRisk[] = [];
+
+  for (const site of sites) {
+    // Site-level risks
+    for (const risk of (site.risks || []).filter(r => r.isValidated)) {
+      allRisks.push({
+        ...risk,
+        siteName: site.name,
+        zoneName: '-',
+        workUnitName: '-',
+        activityName: '-',
+        hierarchyPath: site.name,
+        danger: `[${site.name}] ${risk.danger}`,
+        source: site.name
+      });
+    }
+
+    // Zone-level risks
+    for (const zone of site.zones || []) {
+      for (const risk of (zone.risks || []).filter(r => r.isValidated)) {
+        allRisks.push({
+          ...risk,
+          siteName: site.name,
+          zoneName: zone.name,
+          workUnitName: '-',
+          activityName: '-',
+          hierarchyPath: `${site.name} > ${zone.name}`,
+          danger: `[${site.name} > ${zone.name}] ${risk.danger}`,
+          source: `${site.name} > ${zone.name}`
+        });
+      }
+
+      // WorkUnit-level risks
+      for (const unit of zone.workUnits || []) {
+        for (const risk of (unit.risks || []).filter(r => r.isValidated)) {
+          allRisks.push({
+            ...risk,
+            siteName: site.name,
+            zoneName: zone.name,
+            workUnitName: unit.name,
+            activityName: '-',
+            hierarchyPath: `${site.name} > ${zone.name} > ${unit.name}`,
+            danger: `[${site.name} > ${zone.name} > ${unit.name}] ${risk.danger}`,
+            source: `${site.name} > ${zone.name} > ${unit.name}`
+          });
+        }
+
+        // Activity-level risks
+        for (const activity of unit.activities || []) {
+          for (const risk of (activity.risks || []).filter(r => r.isValidated)) {
+            allRisks.push({
+              ...risk,
+              siteName: site.name,
+              zoneName: zone.name,
+              workUnitName: unit.name,
+              activityName: activity.name,
+              hierarchyPath: `${site.name} > ${zone.name} > ${unit.name} > ${activity.name}`,
+              danger: `[${site.name} > ${zone.name} > ${unit.name} > ${activity.name}] ${risk.danger}`,
+              source: `${site.name} > ${zone.name} > ${unit.name} > ${activity.name}`
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Sort by hierarchy path for organized export
+  return allRisks.sort((a, b) => (a.hierarchyPath || '').localeCompare(b.hierarchyPath || ''));
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -611,6 +691,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error exporting to Word:', error);
       res.status(500).json({ message: 'Failed to export to Word' });
+    }
+  });
+
+  // Export hierarchical Excel
+  app.post('/api/export/excel-hierarchical', async (req, res) => {
+    try {
+      const { sites, companyName, companyActivity } = req.body;
+      
+      if (!sites || !Array.isArray(sites)) {
+        return res.status(400).json({ message: 'Sites data is required' });
+      }
+
+      // Extract all risks from hierarchical structure
+      const flattenedRisks = extractHierarchicalRisks(sites);
+      
+      const excelBuffer = await generateExcelFile(flattenedRisks, companyName);
+      const fileName = `DUERP_${companyName || 'Export'}_Hierarchique_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(excelBuffer);
+      
+    } catch (error) {
+      console.error('Error exporting hierarchical Excel:', error);
+      res.status(500).json({ message: 'Failed to export hierarchical Excel' });
+    }
+  });
+
+  // Export hierarchical Word
+  app.post('/api/export/word-hierarchical', async (req, res) => {
+    try {
+      const { sites, companyName, companyActivity, preventionMeasures } = req.body;
+      
+      if (!sites || !Array.isArray(sites)) {
+        return res.status(400).json({ message: 'Sites data is required' });
+      }
+
+      // Extract all risks from hierarchical structure
+      const flattenedRisks = extractHierarchicalRisks(sites);
+      
+      const wordBuffer = await generateWordFile(
+        flattenedRisks, 
+        companyName, 
+        companyActivity, 
+        {},
+        [],
+        [],
+        preventionMeasures || []
+      );
+      const fileName = `DUERP_${companyName || 'Export'}_Hierarchique_${new Date().toISOString().split('T')[0]}.docx`;
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(wordBuffer);
+      
+    } catch (error) {
+      console.error('Error exporting hierarchical Word:', error);
+      res.status(500).json({ message: 'Failed to export hierarchical Word' });
     }
   });
 

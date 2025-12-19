@@ -10,6 +10,7 @@ import CompanyInfoStep from '@/components/steps/CompanyInfoStep';
 import LocationsWorkstationsStep from '@/components/steps/LocationsWorkstationsStep';
 import HierarchicalEditorStep from '@/components/steps/HierarchicalEditorStep';
 import RiskGenerationStep from '@/components/steps/RiskGenerationStep';
+import HierarchicalRiskSummaryStep from '@/components/steps/HierarchicalRiskSummaryStep';
 import PreventionMeasuresStep from '@/components/steps/PreventionMeasuresStep';
 import AnalyticsStep from '@/components/steps/AnalyticsStep';
 import type { 
@@ -660,21 +661,32 @@ export default function NewDuerpGenerator() {
             )}
 
             {currentStep === 3 && (
-              <RiskGenerationStep
-                locations={locations}
-                workStations={workStations}
-                finalRisks={finalRisks}
-                preventionMeasures={preventionMeasures}
-                companyActivity={company?.activity || ''}
-                companyName={company?.name}
-                onGenerateRisks={() => generateRisksMutation.mutate()}
-                onRegenerateRisks={() => generateRisksMutation.mutate()}
-                onAddSelectiveRisks={(selectedLocations, selectedWorkStations) => 
-                  addSelectiveRisksMutation.mutate({ selectedLocations, selectedWorkStations })
-                }
-                isGenerating={isGeneratingRisks}
-                onSave={handleSaveProgress}
-              />
+              useHierarchicalMode ? (
+                <HierarchicalRiskSummaryStep
+                  sites={sites}
+                  companyName={company?.name || 'Entreprise'}
+                  companyActivity={company?.activity || ''}
+                  preventionMeasures={preventionMeasures}
+                  onSave={handleSaveProgress}
+                  isSaving={saveDuerpMutation.isPending}
+                />
+              ) : (
+                <RiskGenerationStep
+                  locations={locations}
+                  workStations={workStations}
+                  finalRisks={finalRisks}
+                  preventionMeasures={preventionMeasures}
+                  companyActivity={company?.activity || ''}
+                  companyName={company?.name}
+                  onGenerateRisks={() => generateRisksMutation.mutate()}
+                  onRegenerateRisks={() => generateRisksMutation.mutate()}
+                  onAddSelectiveRisks={(selectedLocations, selectedWorkStations) => 
+                    addSelectiveRisksMutation.mutate({ selectedLocations, selectedWorkStations })
+                  }
+                  isGenerating={isGeneratingRisks}
+                  onSave={handleSaveProgress}
+                />
+              )
             )}
 
             {currentStep === 4 && (

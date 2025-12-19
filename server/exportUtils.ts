@@ -12,21 +12,29 @@ declare module 'jspdf' {
 }
 
 export async function generateExcelFile(risks: any[], companyName: string): Promise<Buffer> {
-  // Prepare data for Excel with comprehensive information
-  const excelData = risks.map((risk: any, index: number) => ({
-    'Source': risk.source || 'Non spécifié',
-    'Type de risque': risk.type || 'Non spécifié',
-    'Danger/Dommage': risk.danger || 'Non spécifié',
-    'Gravité': risk.gravity || 'Non spécifié',
-    'Valeur Gravité': risk.gravityValue || '',
-    'Fréquence': risk.frequency || 'Non spécifié',
-    'Valeur Fréquence': risk.frequencyValue || '',
-    'Maîtrise': risk.control || 'Non spécifié',
-    'Valeur Maîtrise': risk.controlValue || '',
-    'Score de risque': risk.riskScore?.toFixed(2) || '0',
-    'Priorité': risk.priority || 'Non définie',
-    'Mesures de prévention': risk.measures || 'À définir'
-  }));
+  // Prepare data for Excel with comprehensive information including hierarchy
+  const excelData = risks.map((risk: any, index: number) => {
+    // Parse hierarchy from danger field if present
+    const hierarchyMatch = risk.danger?.match(/^\[([^\]]+)\]\s*(.*)$/);
+    const hierarchy = hierarchyMatch ? hierarchyMatch[1] : '';
+    const cleanDanger = hierarchyMatch ? hierarchyMatch[2] : risk.danger;
+    
+    return {
+      'Site/Zone/Unité': hierarchy || risk.siteName || risk.source || 'Non spécifié',
+      'Famille de risque': risk.family || 'Non classifié',
+      'Type de risque': risk.type || 'Non spécifié',
+      'Danger/Dommage': cleanDanger || 'Non spécifié',
+      'Gravité': risk.gravity || 'Non spécifié',
+      'Valeur G': risk.gravityValue || '',
+      'Fréquence': risk.frequency || 'Non spécifié',
+      'Valeur F': risk.frequencyValue || '',
+      'Maîtrise': risk.control || 'Non spécifié',
+      'Valeur M': risk.controlValue || '',
+      'Score': risk.riskScore?.toFixed(2) || '0',
+      'Priorité': risk.priority || 'Non définie',
+      'Mesures de prévention': risk.measures || 'À définir'
+    };
+  });
 
   // Create workbook and worksheet
   const workbook = XLSX.utils.book_new();
@@ -34,16 +42,17 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   
   // Set column widths for better readability
   const columnWidths = [
-    { wch: 20 }, // Source
-    { wch: 20 }, // Type de risque
+    { wch: 30 }, // Site/Zone/Unité
+    { wch: 18 }, // Famille de risque
+    { wch: 18 }, // Type de risque
     { wch: 40 }, // Danger/Dommage
-    { wch: 15 }, // Gravité
-    { wch: 8 },  // Valeur Gravité
-    { wch: 15 }, // Fréquence
-    { wch: 8 },  // Valeur Fréquence
-    { wch: 15 }, // Maîtrise
-    { wch: 8 },  // Valeur Maîtrise
-    { wch: 12 }, // Score de risque
+    { wch: 12 }, // Gravité
+    { wch: 6 },  // Valeur G
+    { wch: 12 }, // Fréquence
+    { wch: 6 },  // Valeur F
+    { wch: 12 }, // Maîtrise
+    { wch: 6 },  // Valeur M
+    { wch: 8 },  // Score
     { wch: 20 }, // Priorité
     { wch: 50 }  // Mesures de prévention
   ];
