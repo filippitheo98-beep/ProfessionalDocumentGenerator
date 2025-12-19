@@ -88,7 +88,7 @@ export const uploadedDocuments = pgTable("uploaded_documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
-// Risk templates/catalog
+// Risk templates/catalog (legacy)
 export const riskTemplates = pgTable("risk_templates", {
   id: serial("id").primaryKey(),
   category: varchar("category", { length: 100 }).notNull(),
@@ -102,6 +102,61 @@ export const riskTemplates = pgTable("risk_templates", {
   measures: text("measures").notNull(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
+// BIBLIOTHÈQUE DE RISQUES INRS/ARS
+// ============================================
+
+// Catalogue complet des risques professionnels basé sur INRS/ARS
+export const riskLibrary = pgTable("risk_library", {
+  id: serial("id").primaryKey(),
+  
+  // Classification
+  family: varchar("family", { length: 100 }).notNull(), // Famille de risque (Mécanique, Chimique, etc.)
+  sector: varchar("sector", { length: 100 }).notNull(), // Secteur d'activité (BTP, Industrie, etc.)
+  hierarchyLevel: varchar("hierarchy_level", { length: 50 }).notNull(), // Site, Zone, Unité, Activité
+  
+  // Description du risque
+  situation: text("situation").notNull(), // Situation d'exposition (courte)
+  description: text("description").notNull(), // Description détaillée du danger
+  
+  // Évaluation par défaut
+  defaultGravity: varchar("default_gravity", { length: 20 }).notNull(), // Faible, Moyenne, Grave, Très Grave
+  defaultFrequency: varchar("default_frequency", { length: 20 }).notNull(), // Annuelle, Mensuelle, Hebdomadaire, Journalière
+  defaultControl: varchar("default_control", { length: 20 }).notNull(), // Très élevée, Élevée, Moyenne, Absente
+  
+  // Prévention
+  measures: text("measures").notNull(), // Mesures de prévention INRS
+  
+  // Métadonnées
+  source: varchar("source", { length: 100 }).default("INRS"), // INRS, ARS, Inspection du travail
+  inrsCode: varchar("inrs_code", { length: 50 }), // Code INRS si applicable
+  keywords: text("keywords"), // Mots-clés pour recherche
+  
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Liste des secteurs d'activité
+export const sectors = pgTable("sectors", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 20 }).notNull().unique(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  parentCode: varchar("parent_code", { length: 20 }), // Pour hiérarchie NAF
+  isActive: boolean("is_active").default(true),
+});
+
+// Liste des familles de risques
+export const riskFamilies = pgTable("risk_families", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 50 }), // Nom de l'icône lucide
+  color: varchar("color", { length: 20 }), // Couleur pour l'UI
+  isActive: boolean("is_active").default(true),
 });
 
 // Comments and collaboration
@@ -219,6 +274,22 @@ export type RiskTemplate = typeof riskTemplates.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type UploadedDocument = typeof uploadedDocuments.$inferSelect;
 export type InsertUploadedDocument = z.infer<typeof insertUploadedDocumentSchema>;
+
+// Types pour la bibliothèque de risques
+export type RiskLibraryEntry = typeof riskLibrary.$inferSelect;
+export type Sector = typeof sectors.$inferSelect;
+export type RiskFamilyEntry = typeof riskFamilies.$inferSelect;
+
+export const insertRiskLibrarySchema = createInsertSchema(riskLibrary).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertSectorSchema = createInsertSchema(sectors).omit({ id: true });
+export const insertRiskFamilySchema = createInsertSchema(riskFamilies).omit({ id: true });
+
+export type InsertRiskLibrary = z.infer<typeof insertRiskLibrarySchema>;
+export type InsertSector = z.infer<typeof insertSectorSchema>;
+export type InsertRiskFamily = z.infer<typeof insertRiskFamilySchema>;
 
 // ============================================
 // NOUVELLE HIÉRARCHIE DUERP
