@@ -8,6 +8,7 @@ import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import StepperDuerp from '@/components/StepperDuerp';
 import CompanyInfoStep from '@/components/steps/CompanyInfoStep';
 import LocationsWorkstationsStep from '@/components/steps/LocationsWorkstationsStep';
+import HierarchicalEditorStep from '@/components/steps/HierarchicalEditorStep';
 import RiskGenerationStep from '@/components/steps/RiskGenerationStep';
 import PreventionMeasuresStep from '@/components/steps/PreventionMeasuresStep';
 import AnalyticsStep from '@/components/steps/AnalyticsStep';
@@ -16,7 +17,8 @@ import type {
   Location, 
   WorkStation, 
   Risk,
-  PreventionMeasure
+  PreventionMeasure,
+  Site
 } from '@shared/schema';
 import { SelectiveUpdateModal } from '@/components/SelectiveUpdateModal';
 
@@ -32,11 +34,13 @@ export default function NewDuerpGenerator() {
   const [company, setCompany] = useState<Company | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
   const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
   const [isGeneratingRisks, setIsGeneratingRisks] = useState(false);
   const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
+  const [useHierarchicalMode, setUseHierarchicalMode] = useState(true);
   
   // Gestion du document (création/modification)
   const urlParams = new URLSearchParams(window.location.search);
@@ -45,14 +49,28 @@ export default function NewDuerpGenerator() {
   const documentId = editDocumentId || viewDocumentId;
   const isViewMode = !!viewDocumentId;
 
+  // Types pour les résultats de requêtes
+  interface DuerpDocument {
+    id: number;
+    companyId: number;
+    title: string;
+    version?: string;
+    status?: string;
+    sites?: Site[];
+    locations?: Location[];
+    workStations?: WorkStation[];
+    finalRisks?: Risk[];
+    preventionMeasures?: PreventionMeasure[];
+  }
+
   // Chargement du document existant
-  const { data: existingDocument, isLoading: isLoadingDocument } = useQuery({
+  const { data: existingDocument, isLoading: isLoadingDocument } = useQuery<DuerpDocument | null>({
     queryKey: ['/api/duerp/document', documentId],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!documentId,
   });
 
-  const { data: existingCompany, isLoading: isLoadingCompany } = useQuery({
+  const { data: existingCompany, isLoading: isLoadingCompany } = useQuery<Company | null>({
     queryKey: ['/api/companies', existingDocument?.companyId],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!existingDocument?.companyId,
@@ -69,10 +87,10 @@ export default function NewDuerpGenerator() {
       
       // Marquer les étapes complétées
       const completed = [1]; // Étape 1 toujours complétée si on a une société
-      if (existingDocument.locations?.length > 0 || existingDocument.workStations?.length > 0) {
+      if ((existingDocument.locations?.length ?? 0) > 0 || (existingDocument.workStations?.length ?? 0) > 0) {
         completed.push(2);
       }
-      if (existingDocument.finalRisks?.length > 0) {
+      if ((existingDocument.finalRisks?.length ?? 0) > 0) {
         completed.push(3, 4);
       }
       setCompletedSteps(completed);
@@ -613,21 +631,32 @@ export default function NewDuerpGenerator() {
             )}
 
             {currentStep === 2 && (
-              <LocationsWorkstationsStep
-                locations={locations}
-                workStations={workStations}
-                preventionMeasures={preventionMeasures}
-                onUpdateLocations={handleLocationsUpdate}
-                onUpdateWorkStations={handleWorkStationsUpdate}
-                onUpdatePreventionMeasures={handlePreventionMeasuresUpdate}
-                onAddPreventionMeasure={handleAddPreventionMeasure}
-                onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
-                onRemovePreventionMeasure={handleRemovePreventionMeasure}
-                onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
-                onAnalyzePhotos={handleAnalyzePhotos}
-                onSave={handleSaveProgress}
-                companyActivity={company?.activity || ''}
-              />
+              useHierarchicalMode ? (
+                <HierarchicalEditorStep
+                  companyId={company?.id || 0}
+                  companyActivity={company?.activity || ''}
+                  companyDescription={company?.description || ''}
+                  sites={sites}
+                  onUpdateSites={setSites}
+                  onSave={handleSaveProgress}
+                />
+              ) : (
+                <LocationsWorkstationsStep
+                  locations={locations}
+                  workStations={workStations}
+                  preventionMeasures={preventionMeasures}
+                  onUpdateLocations={handleLocationsUpdate}
+                  onUpdateWorkStations={handleWorkStationsUpdate}
+                  onUpdatePreventionMeasures={handlePreventionMeasuresUpdate}
+                  onAddPreventionMeasure={handleAddPreventionMeasure}
+                  onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
+                  onRemovePreventionMeasure={handleRemovePreventionMeasure}
+                  onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
+                  onAnalyzePhotos={handleAnalyzePhotos}
+                  onSave={handleSaveProgress}
+                  companyActivity={company?.activity || ''}
+                />
+              )
             )}
 
             {currentStep === 3 && (
