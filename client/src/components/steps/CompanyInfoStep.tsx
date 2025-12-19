@@ -477,14 +477,9 @@ export default function CompanyInfoStep({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Textarea 
-                    placeholder={`Décrivez votre entreprise en détail pour aider l'IA à identifier les risques pertinents :
+          <div className="space-y-2">
+            <Textarea 
+              placeholder={`Décrivez votre entreprise en détail pour aider l'IA à identifier les risques pertinents :
 
 • Quelles sont les principales activités de votre entreprise ?
 • Quels types d'équipements ou machines utilisez-vous ?
@@ -496,22 +491,19 @@ export default function CompanyInfoStep({
 • Quelles mesures de prévention sont déjà en place ?
 
 Exemple : "Notre entreprise de menuiserie emploie 15 personnes réparties sur 3 ateliers. Nous utilisons des machines-outils (scies circulaires, dégauchisseuses, toupies), manipulons des colles et vernis, et travaillons parfois en hauteur pour des installations. Nous avons des EPI de base mais souhaitons renforcer notre prévention..."`}
-                    className="min-h-[300px] text-base leading-relaxed"
-                    data-testid="textarea-description"
-                    {...field}
-                  />
-                </FormControl>
-                <div className="flex items-start gap-2 mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <strong>Astuce :</strong> Au lieu de remplir tous les champs un par un, vous pouvez simplement décrire votre entreprise ici. 
-                    L'IA utilisera cette description pour générer des risques adaptés à votre situation réelle.
-                  </p>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              className="min-h-[300px] text-base leading-relaxed"
+              data-testid="textarea-description"
+              value={form.watch('description') || ''}
+              onChange={(e) => form.setValue('description', e.target.value)}
+            />
+            <div className="flex items-start gap-2 mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <strong>Astuce :</strong> Au lieu de remplir tous les champs un par un, vous pouvez simplement décrire votre entreprise ici. 
+                L'IA utilisera cette description pour générer des risques adaptés à votre situation réelle.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
