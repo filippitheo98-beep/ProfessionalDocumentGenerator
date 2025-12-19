@@ -123,19 +123,19 @@ export default function HierarchicalEditorStep({
   const allRisks = useMemo((): TableRisk[] => {
     const risks: TableRisk[] = [];
     for (const site of sites) {
-      for (const risk of (site.risks || []).filter(r => r.isValidated)) {
+      for (const risk of (site.risks || [])) {
         risks.push({ risk, siteName: site.name, path: { type: 'site', siteId: site.id }, level: 'Site' });
       }
       for (const zone of site.zones || []) {
-        for (const risk of (zone.risks || []).filter(r => r.isValidated)) {
+        for (const risk of (zone.risks || [])) {
           risks.push({ risk, siteName: site.name, zoneName: zone.name, path: { type: 'zone', siteId: site.id, zoneId: zone.id }, level: 'Zone' });
         }
         for (const unit of zone.workUnits || []) {
-          for (const risk of (unit.risks || []).filter(r => r.isValidated)) {
+          for (const risk of (unit.risks || [])) {
             risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, path: { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id }, level: 'Unité' });
           }
           for (const activity of unit.activities || []) {
-            for (const risk of (activity.risks || []).filter(r => r.isValidated)) {
+            for (const risk of (activity.risks || [])) {
               risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, activityName: activity.name, path: { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id }, level: 'Activité' });
             }
           }
@@ -298,6 +298,16 @@ export default function HierarchicalEditorStep({
     else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.zoneId!, path.unitId, { risks: removeFromArray(unit.risks || []) }); }
     else if (level === 'Activité' && path.activityId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); const activity = unit?.activities.find(a => a.id === path.activityId); if (activity) updateActivity(path.siteId!, path.zoneId!, path.unitId!, path.activityId, { risks: removeFromArray(activity.risks || []) }); }
     toast({ title: "Risque retiré" });
+  };
+
+  const validateSingleRisk = (tableRisk: TableRisk) => {
+    const { risk, path, level } = tableRisk;
+    const validateInArray = (risks: Risk[]) => risks.map(r => r.id === risk.id ? { ...r, isValidated: true } : r);
+    if (level === 'Site') { const site = sites.find(s => s.id === path.siteId); if (site) updateSite(path.siteId!, { risks: validateInArray(site.risks || []) }); }
+    else if (level === 'Zone' && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); if (zone) updateZone(path.siteId!, path.zoneId, { risks: validateInArray(zone.risks || []) }); }
+    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.zoneId!, path.unitId, { risks: validateInArray(unit.risks || []) }); }
+    else if (level === 'Activité' && path.activityId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); const activity = unit?.activities.find(a => a.id === path.activityId); if (activity) updateActivity(path.siteId!, path.zoneId!, path.unitId!, path.activityId, { risks: validateInArray(activity.risks || []) }); }
+    toast({ title: "Risque validé" });
   };
 
   const openLibrary = (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: TreeSelection) => {
@@ -545,10 +555,13 @@ export default function HierarchicalEditorStep({
                     </tr>
                   ) : (
                     filteredRisks.map((r) => (
-                      <tr key={r.risk.id} className={`${RISK_ROW_COLORS[r.risk.priority || ''] || ''} hover:bg-muted/50 transition-colors`}>
+                      <tr key={r.risk.id} className={`${r.risk.isValidated ? RISK_ROW_COLORS[r.risk.priority || ''] || '' : 'bg-amber-50 dark:bg-amber-950/30 border-l-2 border-l-amber-400'} hover:bg-muted/50 transition-colors`}>
                         <td className="p-2 border-b">
                           <div className="text-xs font-medium">{r.zoneName && `${r.zoneName}`}{r.unitName && ` > ${r.unitName}`}{r.activityName && ` > ${r.activityName}`}</div>
-                          <Badge variant="outline" className="text-[8px] mt-0.5">{r.level}</Badge>
+                          <div className="flex gap-1 mt-0.5">
+                            <Badge variant="outline" className="text-[8px]">{r.level}</Badge>
+                            {!r.risk.isValidated && <Badge variant="outline" className="text-[8px] border-amber-400 text-amber-600 dark:text-amber-400">En attente</Badge>}
+                          </div>
                         </td>
                         <td className="p-2 border-b"><Badge variant="secondary" className="text-[9px]">{r.risk.family || r.risk.type || '-'}</Badge></td>
                         <td className="p-2 border-b"><div className="line-clamp-2">{r.risk.danger}</div></td>
@@ -560,6 +573,9 @@ export default function HierarchicalEditorStep({
                         <td className="p-2 border-b text-center"><Badge className={`text-[8px] ${PRIORITY_BADGE_COLORS[r.risk.priority || ''] || 'bg-gray-500'}`}>{r.risk.priority?.replace('Priorité ', 'P').replace(' (Forte)', '').replace(' (Moyenne)', '').replace(' (Modéré)', '').replace(' (Faible)', '') || '-'}</Badge></td>
                         <td className="p-2 border-b text-center">
                           <div className="flex justify-center gap-0.5">
+                            {!r.risk.isValidated && (
+                              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-green-600 hover:text-green-700" onClick={() => validateSingleRisk(r)} title="Valider ce risque"><Check className="h-3 w-3" /></Button>
+                            )}
                             <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setReviewingRisk(r)}><Eye className="h-3 w-3" /></Button>
                             <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => removeRisk(r)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                           </div>
