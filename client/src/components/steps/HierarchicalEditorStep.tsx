@@ -7,7 +7,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -18,15 +17,15 @@ import {
   Activity as ActivityIcon,
   Plus, 
   Trash2, 
+  ChevronDown, 
   ChevronRight,
   Sparkles,
   Check,
   X,
   Loader2,
   Eye,
-  Home,
-  Edit3,
-  RefreshCw
+  FolderTree,
+  Table
 } from "lucide-react";
 import type { 
   Site, 
@@ -62,7 +61,8 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
   'Priorité 4 (Faible)': 'bg-green-500 text-white',
 };
 
-interface BreadcrumbPath {
+interface TreeSelection {
+  type: 'all' | 'site' | 'zone' | 'unit' | 'activity';
   siteId?: string;
   zoneId?: string;
   unitId?: string;
@@ -75,7 +75,7 @@ interface TableRisk {
   zoneName?: string;
   unitName?: string;
   activityName?: string;
-  path: BreadcrumbPath;
+  path: TreeSelection;
   level: 'Site' | 'Zone' | 'Unité' | 'Activité';
 }
 
@@ -88,42 +88,46 @@ export default function HierarchicalEditorStep({
   onSave
 }: HierarchicalEditorStepProps) {
   const { toast } = useToast();
-  const [currentPath, setCurrentPath] = useState<BreadcrumbPath>({});
+  const [selection, setSelection] = useState<TreeSelection>({ type: 'all' });
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [editingNode, setEditingNode] = useState<string | null>(null);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [pendingRisks, setPendingRisks] = useState<{
     risks: Risk[];
     elementId: string;
     elementName: string;
     level: string;
-    path: BreadcrumbPath;
+    path: TreeSelection;
   } | null>(null);
   const [selectedPendingRisks, setSelectedPendingRisks] = useState<Set<string>>(new Set());
   const [reviewingRisk, setReviewingRisk] = useState<TableRisk | null>(null);
 
-  const currentSite = currentPath.siteId ? sites.find(s => s.id === currentPath.siteId) : undefined;
-  const currentZone = currentSite && currentPath.zoneId ? currentSite.zones.find(z => z.id === currentPath.zoneId) : undefined;
-  const currentUnit = currentZone && currentPath.unitId ? currentZone.workUnits.find(u => u.id === currentPath.unitId) : undefined;
-  const currentActivity = currentUnit && currentPath.activityId ? currentUnit.activities.find(a => a.id === currentPath.activityId) : undefined;
+  const toggleNode = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  };
 
   const allRisks = useMemo((): TableRisk[] => {
     const risks: TableRisk[] = [];
-    
     for (const site of sites) {
       for (const risk of (site.risks || []).filter(r => r.isValidated)) {
-        risks.push({ risk, siteName: site.name, path: { siteId: site.id }, level: 'Site' });
+        risks.push({ risk, siteName: site.name, path: { type: 'site', siteId: site.id }, level: 'Site' });
       }
       for (const zone of site.zones || []) {
         for (const risk of (zone.risks || []).filter(r => r.isValidated)) {
-          risks.push({ risk, siteName: site.name, zoneName: zone.name, path: { siteId: site.id, zoneId: zone.id }, level: 'Zone' });
+          risks.push({ risk, siteName: site.name, zoneName: zone.name, path: { type: 'zone', siteId: site.id, zoneId: zone.id }, level: 'Zone' });
         }
         for (const unit of zone.workUnits || []) {
           for (const risk of (unit.risks || []).filter(r => r.isValidated)) {
-            risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, path: { siteId: site.id, zoneId: zone.id, unitId: unit.id }, level: 'Unité' });
+            risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, path: { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id }, level: 'Unité' });
           }
           for (const activity of unit.activities || []) {
             for (const risk of (activity.risks || []).filter(r => r.isValidated)) {
-              risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, activityName: activity.name, path: { siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id }, level: 'Activité' });
+              risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, activityName: activity.name, path: { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id }, level: 'Activité' });
             }
           }
         }
@@ -133,14 +137,26 @@ export default function HierarchicalEditorStep({
   }, [sites]);
 
   const filteredRisks = useMemo(() => {
-    if (!currentPath.siteId) return allRisks;
+    if (selection.type === 'all') return allRisks;
     return allRisks.filter(r => {
-      if (currentPath.activityId) return r.path.activityId === currentPath.activityId;
-      if (currentPath.unitId) return r.path.unitId === currentPath.unitId;
-      if (currentPath.zoneId) return r.path.zoneId === currentPath.zoneId;
-      return r.path.siteId === currentPath.siteId;
+      if (selection.type === 'activity') return r.path.activityId === selection.activityId;
+      if (selection.type === 'unit') return r.path.unitId === selection.unitId;
+      if (selection.type === 'zone') return r.path.zoneId === selection.zoneId;
+      return r.path.siteId === selection.siteId;
     });
-  }, [allRisks, currentPath]);
+  }, [allRisks, selection]);
+
+  const getSelectionLabel = () => {
+    if (selection.type === 'all') return 'Tous les sites';
+    const site = sites.find(s => s.id === selection.siteId);
+    if (selection.type === 'site') return site?.name || '';
+    const zone = site?.zones.find(z => z.id === selection.zoneId);
+    if (selection.type === 'zone') return `${site?.name} > ${zone?.name}`;
+    const unit = zone?.workUnits.find(u => u.id === selection.unitId);
+    if (selection.type === 'unit') return `${site?.name} > ${zone?.name} > ${unit?.name}`;
+    const activity = unit?.activities.find(a => a.id === selection.activityId);
+    return `${site?.name} > ${zone?.name} > ${unit?.name} > ${activity?.name}`;
+  };
 
   const updateSite = (siteId: string, updates: Partial<Site>) => {
     onUpdateSites(sites.map(s => s.id === siteId ? { ...s, ...updates } : s));
@@ -148,43 +164,46 @@ export default function HierarchicalEditorStep({
 
   const updateZone = (siteId: string, zoneId: string, updates: Partial<WorkZone>) => {
     const site = sites.find(s => s.id === siteId);
-    if (!site) return;
-    updateSite(siteId, { zones: site.zones.map(z => z.id === zoneId ? { ...z, ...updates } : z) });
+    if (site) updateSite(siteId, { zones: site.zones.map(z => z.id === zoneId ? { ...z, ...updates } : z) });
   };
 
-  const updateWorkUnit = (siteId: string, zoneId: string, unitId: string, updates: Partial<WorkUnit>) => {
+  const updateUnit = (siteId: string, zoneId: string, unitId: string, updates: Partial<WorkUnit>) => {
     const site = sites.find(s => s.id === siteId);
     const zone = site?.zones.find(z => z.id === zoneId);
-    if (!zone) return;
-    updateZone(siteId, zoneId, { workUnits: zone.workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u) });
+    if (zone) updateZone(siteId, zoneId, { workUnits: zone.workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u) });
   };
 
-  const updateActivity = (siteId: string, zoneId: string, unitId: string, activityId: string, updates: Partial<Activity>) => {
+  const updateActivity = (siteId: string, zoneId: string, unitId: string, actId: string, updates: Partial<Activity>) => {
     const site = sites.find(s => s.id === siteId);
     const zone = site?.zones.find(z => z.id === zoneId);
     const unit = zone?.workUnits.find(u => u.id === unitId);
-    if (!unit) return;
-    updateWorkUnit(siteId, zoneId, unitId, { activities: unit.activities.map(a => a.id === activityId ? { ...a, ...updates } : a) });
+    if (unit) updateUnit(siteId, zoneId, unitId, { activities: unit.activities.map(a => a.id === actId ? { ...a, ...updates } : a) });
   };
 
   const addSite = () => {
-    const newSite: Site = { id: crypto.randomUUID(), name: 'Nouveau site', priority: 'Principal', companyId, zones: [], risks: [], preventionMeasures: [], order: sites.length };
-    onUpdateSites([...sites, newSite]);
+    const id = crypto.randomUUID();
+    onUpdateSites([...sites, { id, name: 'Nouveau site', priority: 'Principal', companyId, zones: [], risks: [], preventionMeasures: [], order: sites.length }]);
+    setExpandedNodes(prev => new Set(Array.from(prev).concat(id)));
+    setEditingNode(id);
   };
 
   const addZone = (siteId: string) => {
     const site = sites.find(s => s.id === siteId);
     if (!site) return;
-    const newZone: WorkZone = { id: crypto.randomUUID(), name: 'Nouvelle zone', siteId, workUnits: [], risks: [], preventionMeasures: [], order: site.zones.length };
-    updateSite(siteId, { zones: [...site.zones, newZone] });
+    const id = crypto.randomUUID();
+    updateSite(siteId, { zones: [...site.zones, { id, name: 'Nouvelle zone', siteId, workUnits: [], risks: [], preventionMeasures: [], order: site.zones.length }] });
+    setExpandedNodes(prev => new Set(Array.from(prev).concat([siteId, id])));
+    setEditingNode(id);
   };
 
-  const addWorkUnit = (siteId: string, zoneId: string) => {
+  const addUnit = (siteId: string, zoneId: string) => {
     const site = sites.find(s => s.id === siteId);
     const zone = site?.zones.find(z => z.id === zoneId);
     if (!zone) return;
-    const newUnit: WorkUnit = { id: crypto.randomUUID(), name: 'Nouvelle unité', zoneId, activities: [], risks: [], preventionMeasures: [], order: zone.workUnits.length };
-    updateZone(siteId, zoneId, { workUnits: [...zone.workUnits, newUnit] });
+    const id = crypto.randomUUID();
+    updateZone(siteId, zoneId, { workUnits: [...zone.workUnits, { id, name: 'Nouvelle unité', zoneId, activities: [], risks: [], preventionMeasures: [], order: zone.workUnits.length }] });
+    setExpandedNodes(prev => new Set(Array.from(prev).concat([zoneId, id])));
+    setEditingNode(id);
   };
 
   const addActivity = (siteId: string, zoneId: string, unitId: string) => {
@@ -192,16 +211,28 @@ export default function HierarchicalEditorStep({
     const zone = site?.zones.find(z => z.id === zoneId);
     const unit = zone?.workUnits.find(u => u.id === unitId);
     if (!unit) return;
-    const newActivity: Activity = { id: crypto.randomUUID(), name: 'Nouvelle activité', workUnitId: unitId, risks: [], preventionMeasures: [], order: unit.activities.length };
-    updateWorkUnit(siteId, zoneId, unitId, { activities: [...unit.activities, newActivity] });
+    const id = crypto.randomUUID();
+    updateUnit(siteId, zoneId, unitId, { activities: [...unit.activities, { id, name: 'Nouvelle activité', workUnitId: unitId, risks: [], preventionMeasures: [], order: unit.activities.length }] });
+    setExpandedNodes(prev => new Set(Array.from(prev).concat(unitId)));
+    setEditingNode(id);
   };
 
-  const removeSite = (siteId: string) => { onUpdateSites(sites.filter(s => s.id !== siteId)); if (currentPath.siteId === siteId) setCurrentPath({}); };
-  const removeZone = (siteId: string, zoneId: string) => { const site = sites.find(s => s.id === siteId); if (site) updateSite(siteId, { zones: site.zones.filter(z => z.id !== zoneId) }); if (currentPath.zoneId === zoneId) setCurrentPath({ siteId }); };
-  const removeUnit = (siteId: string, zoneId: string, unitId: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); if (zone) updateZone(siteId, zoneId, { workUnits: zone.workUnits.filter(u => u.id !== unitId) }); if (currentPath.unitId === unitId) setCurrentPath({ siteId, zoneId }); };
-  const removeActivity = (siteId: string, zoneId: string, unitId: string, activityId: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); const unit = zone?.workUnits.find(u => u.id === unitId); if (unit) updateWorkUnit(siteId, zoneId, unitId, { activities: unit.activities.filter(a => a.id !== activityId) }); if (currentPath.activityId === activityId) setCurrentPath({ siteId, zoneId, unitId }); };
+  const removeSite = (id: string) => { onUpdateSites(sites.filter(s => s.id !== id)); if (selection.siteId === id) setSelection({ type: 'all' }); };
+  const removeZone = (siteId: string, id: string) => { const site = sites.find(s => s.id === siteId); if (site) updateSite(siteId, { zones: site.zones.filter(z => z.id !== id) }); if (selection.zoneId === id) setSelection({ type: 'site', siteId }); };
+  const removeUnit = (siteId: string, zoneId: string, id: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); if (zone) updateZone(siteId, zoneId, { workUnits: zone.workUnits.filter(u => u.id !== id) }); if (selection.unitId === id) setSelection({ type: 'zone', siteId, zoneId }); };
+  const removeActivity = (siteId: string, zoneId: string, unitId: string, id: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); const unit = zone?.workUnits.find(u => u.id === unitId); if (unit) updateUnit(siteId, zoneId, unitId, { activities: unit.activities.filter(a => a.id !== id) }); if (selection.activityId === id) setSelection({ type: 'unit', siteId, zoneId, unitId }); };
 
-  const generateRisks = async (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: BreadcrumbPath) => {
+  const countRisks = (path: TreeSelection): number => {
+    return allRisks.filter(r => {
+      if (path.type === 'activity') return r.path.activityId === path.activityId;
+      if (path.type === 'unit') return r.path.unitId === path.unitId;
+      if (path.type === 'zone') return r.path.zoneId === path.zoneId;
+      if (path.type === 'site') return r.path.siteId === path.siteId;
+      return true;
+    }).length;
+  };
+
+  const generateRisks = async (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: TreeSelection) => {
     if (!elementName.trim()) { toast({ title: "Nom requis", variant: "destructive" }); return; }
     setGeneratingFor(elementId);
     try {
@@ -242,7 +273,7 @@ export default function HierarchicalEditorStep({
 
     if (level === 'Site') updateSite(elementId, { risks: mergedRisks });
     else if (level === 'Zone' && path.siteId) updateZone(path.siteId, elementId, { risks: mergedRisks });
-    else if (level === 'Unité' && path.siteId && path.zoneId) updateWorkUnit(path.siteId, path.zoneId, elementId, { risks: mergedRisks });
+    else if (level === 'Unité' && path.siteId && path.zoneId) updateUnit(path.siteId, path.zoneId, elementId, { risks: mergedRisks });
     else if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) updateActivity(path.siteId, path.zoneId, path.unitId, elementId, { risks: mergedRisks });
 
     toast({ title: `${validatedRisks.length} risque(s) ajouté(s)` });
@@ -255,18 +286,51 @@ export default function HierarchicalEditorStep({
     const removeFromArray = (risks: Risk[]) => risks.filter(r => r.id !== risk.id);
     if (level === 'Site') { const site = sites.find(s => s.id === path.siteId); if (site) updateSite(path.siteId!, { risks: removeFromArray(site.risks || []) }); }
     else if (level === 'Zone' && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); if (zone) updateZone(path.siteId!, path.zoneId, { risks: removeFromArray(zone.risks || []) }); }
-    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateWorkUnit(path.siteId!, path.zoneId!, path.unitId, { risks: removeFromArray(unit.risks || []) }); }
+    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.zoneId!, path.unitId, { risks: removeFromArray(unit.risks || []) }); }
     else if (level === 'Activité' && path.activityId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); const activity = unit?.activities.find(a => a.id === path.activityId); if (activity) updateActivity(path.siteId!, path.zoneId!, path.unitId!, path.activityId, { risks: removeFromArray(activity.risks || []) }); }
     toast({ title: "Risque retiré" });
   };
 
-  const getLocationLabel = (r: TableRisk) => {
-    const parts = [];
-    if (r.zoneName) parts.push(r.zoneName);
-    if (r.unitName) parts.push(r.unitName);
-    if (r.activityName) parts.push(r.activityName);
-    return parts.length > 0 ? parts.join(' > ') : r.siteName;
-  };
+  const TreeNode = ({ icon: Icon, iconColor, label, nodeId, isSelected, onSelect, onToggle, isExpanded, hasChildren, onAdd, onRemove, onGenerate, isGenerating, riskCount, depth = 0 }: {
+    icon: any; iconColor: string; label: string; nodeId: string; isSelected: boolean; onSelect: () => void; onToggle: () => void; isExpanded: boolean; hasChildren: boolean; onAdd?: () => void; onRemove: () => void; onGenerate: () => void; isGenerating: boolean; riskCount: number; depth?: number;
+  }) => (
+    <div className={`group flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`} style={{ paddingLeft: `${depth * 12 + 8}px` }}>
+      {hasChildren ? (
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="p-0.5 hover:bg-muted rounded">
+          {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        </button>
+      ) : <span className="w-4" />}
+      <Icon className={`h-3.5 w-3.5 ${iconColor} flex-shrink-0`} />
+      {editingNode === nodeId ? (
+        <Input autoFocus value={label} onChange={(e) => {
+          const site = sites.find(s => s.id === nodeId);
+          if (site) { updateSite(nodeId, { name: e.target.value }); return; }
+          for (const s of sites) {
+            const zone = s.zones.find(z => z.id === nodeId);
+            if (zone) { updateZone(s.id, nodeId, { name: e.target.value }); return; }
+            for (const z of s.zones) {
+              const unit = z.workUnits.find(u => u.id === nodeId);
+              if (unit) { updateUnit(s.id, z.id, nodeId, { name: e.target.value }); return; }
+              for (const u of z.workUnits) {
+                const act = u.activities.find(a => a.id === nodeId);
+                if (act) { updateActivity(s.id, z.id, u.id, nodeId, { name: e.target.value }); return; }
+              }
+            }
+          }
+        }} onBlur={() => setEditingNode(null)} onKeyDown={(e) => e.key === 'Enter' && setEditingNode(null)} className="h-5 text-xs flex-1 min-w-0" />
+      ) : (
+        <span className="text-xs flex-1 truncate" onClick={onSelect} onDoubleClick={() => setEditingNode(nodeId)}>{label}</span>
+      )}
+      {riskCount > 0 && <Badge variant="secondary" className="text-[9px] h-4 px-1">{riskCount}</Badge>}
+      <div className="hidden group-hover:flex items-center gap-0.5">
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onGenerate(); }} disabled={isGenerating}>
+          {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+        </Button>
+        {onAdd && <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onAdd(); }}><Plus className="h-3 w-3" /></Button>}
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onRemove(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -274,229 +338,182 @@ export default function HierarchicalEditorStep({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Évaluation des Risques Professionnels</h2>
-            <p className="text-blue-100 text-sm mt-1">Tableau d'évaluation conforme INRS</p>
+            <p className="text-blue-100 text-sm mt-1">Document Unique - Tableau conforme INRS</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-white/20 text-white">{allRisks.length} risque(s)</Badge>
-            <Button variant="secondary" size="sm" onClick={() => setShowStructureEditor(true)}>
-              <Edit3 className="h-4 w-4 mr-1" />
-              Gérer la structure
-            </Button>
-          </div>
+          <Badge variant="secondary" className="bg-white/20 text-white text-sm">{allRisks.length} risque(s) évalué(s)</Badge>
         </div>
       </div>
 
-      <Card className="border-2">
-        <CardHeader className="py-2 px-4 bg-muted/50">
-          <div className="flex items-center gap-2 text-sm">
-            <Button variant="ghost" size="sm" className={`h-7 px-2 ${!currentPath.siteId ? 'bg-blue-100 text-blue-800' : ''}`} onClick={() => setCurrentPath({})}>
-              <Home className="h-3 w-3 mr-1" />
-              Tous les sites
-            </Button>
-            {currentSite && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Button variant="ghost" size="sm" className={`h-7 px-2 ${currentPath.siteId && !currentPath.zoneId ? 'bg-blue-100 text-blue-800' : ''}`} onClick={() => setCurrentPath({ siteId: currentPath.siteId })}>
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {currentSite.name}
-                </Button>
-              </>
-            )}
-            {currentZone && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Button variant="ghost" size="sm" className={`h-7 px-2 ${currentPath.zoneId && !currentPath.unitId ? 'bg-green-100 text-green-800' : ''}`} onClick={() => setCurrentPath({ siteId: currentPath.siteId, zoneId: currentPath.zoneId })}>
-                  <Layers className="h-3 w-3 mr-1" />
-                  {currentZone.name}
-                </Button>
-              </>
-            )}
-            {currentUnit && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Button variant="ghost" size="sm" className={`h-7 px-2 ${currentPath.unitId && !currentPath.activityId ? 'bg-purple-100 text-purple-800' : ''}`} onClick={() => setCurrentPath({ siteId: currentPath.siteId, zoneId: currentPath.zoneId, unitId: currentPath.unitId })}>
-                  <Users className="h-3 w-3 mr-1" />
-                  {currentUnit.name}
-                </Button>
-              </>
-            )}
-            {currentActivity && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Button variant="ghost" size="sm" className="h-7 px-2 bg-orange-100 text-orange-800">
-                  <ActivityIcon className="h-3 w-3 mr-1" />
-                  {currentActivity.name}
-                </Button>
-              </>
-            )}
-          </div>
-        </CardHeader>
+      <div className="grid grid-cols-12 gap-4 h-[600px]">
+        <Card className="col-span-3 flex flex-col">
+          <CardHeader className="py-2 px-3 border-b flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FolderTree className="h-4 w-4" />
+                Arborescence
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={addSite}>
+                <Plus className="h-3 w-3 mr-1" />Site
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full">
+              <div className="p-2 space-y-0.5">
+                <div className={`flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer hover:bg-muted/50 ${selection.type === 'all' ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`} onClick={() => setSelection({ type: 'all' })}>
+                  <Building2 className="h-4 w-4 text-slate-600" />
+                  <span className="text-xs font-medium">Tous les sites</span>
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1 ml-auto">{allRisks.length}</Badge>
+                </div>
 
-        <div className="flex border-b">
-          {!currentPath.siteId && sites.map(site => (
-            <Button key={site.id} variant="ghost" size="sm" className="rounded-none border-r h-8 text-xs" onClick={() => setCurrentPath({ siteId: site.id })}>
-              <MapPin className="h-3 w-3 mr-1 text-blue-600" />{site.name} ({(site.risks || []).filter(r => r.isValidated).length + site.zones.reduce((acc, z) => acc + (z.risks || []).filter(r => r.isValidated).length + z.workUnits.reduce((acc2, u) => acc2 + (u.risks || []).filter(r => r.isValidated).length + u.activities.reduce((acc3, a) => acc3 + (a.risks || []).filter(r => r.isValidated).length, 0), 0), 0)})
-            </Button>
-          ))}
-          {currentPath.siteId && !currentPath.zoneId && currentSite?.zones.map(zone => (
-            <Button key={zone.id} variant="ghost" size="sm" className="rounded-none border-r h-8 text-xs" onClick={() => setCurrentPath({ ...currentPath, zoneId: zone.id })}>
-              <Layers className="h-3 w-3 mr-1 text-green-600" />{zone.name}
-            </Button>
-          ))}
-          {currentPath.zoneId && !currentPath.unitId && currentZone?.workUnits.map(unit => (
-            <Button key={unit.id} variant="ghost" size="sm" className="rounded-none border-r h-8 text-xs" onClick={() => setCurrentPath({ ...currentPath, unitId: unit.id })}>
-              <Users className="h-3 w-3 mr-1 text-purple-600" />{unit.name}
-            </Button>
-          ))}
-          {currentPath.unitId && !currentPath.activityId && currentUnit?.activities.map(activity => (
-            <Button key={activity.id} variant="ghost" size="sm" className="rounded-none border-r h-8 text-xs" onClick={() => setCurrentPath({ ...currentPath, activityId: activity.id })}>
-              <ActivityIcon className="h-3 w-3 mr-1 text-orange-500" />{activity.name}
-            </Button>
-          ))}
-          <Button variant="ghost" size="sm" className="rounded-none h-8 text-xs text-primary ml-auto" onClick={() => {
-            const level = currentPath.activityId ? 'Activité' : currentPath.unitId ? 'Unité' : currentPath.zoneId ? 'Zone' : currentPath.siteId ? 'Site' : null;
-            const element = currentActivity || currentUnit || currentZone || currentSite;
-            if (level && element) generateRisks(level as any, element.id, element.name, currentPath);
-            else toast({ title: "Sélectionnez un élément", variant: "destructive" });
-          }} disabled={!!generatingFor}>
-            {generatingFor ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-            Générer risques IA
-          </Button>
-        </div>
-
-        <CardContent className="p-0">
-          <ScrollArea className="h-[500px]">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
-                <tr>
-                  <th className="text-left p-2 font-semibold border-b w-[120px]">Zone / Unité / Activité</th>
-                  <th className="text-left p-2 font-semibold border-b w-[100px]">Famille de risque</th>
-                  <th className="text-left p-2 font-semibold border-b">Situation d'exposition et description</th>
-                  <th className="text-center p-2 font-semibold border-b w-[40px]">G</th>
-                  <th className="text-center p-2 font-semibold border-b w-[40px]">F</th>
-                  <th className="text-center p-2 font-semibold border-b w-[40px]">M</th>
-                  <th className="text-center p-2 font-semibold border-b w-[50px]">Score</th>
-                  <th className="text-left p-2 font-semibold border-b">Mesures de prévention</th>
-                  <th className="text-center p-2 font-semibold border-b w-[80px]">Priorité</th>
-                  <th className="text-center p-2 font-semibold border-b w-[60px]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRisks.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="text-center py-12 text-muted-foreground">
-                      <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>Aucun risque évalué pour cette sélection</p>
-                      <p className="text-xs mt-1">Cliquez sur "Générer risques IA" pour commencer</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRisks.map((r, idx) => (
-                    <tr key={r.risk.id} className={`${RISK_ROW_COLORS[r.risk.priority || ''] || ''} hover:bg-muted/50 transition-colors`}>
-                      <td className="p-2 border-b">
-                        <div className="font-medium">{getLocationLabel(r)}</div>
-                        <Badge variant="outline" className="text-[9px] mt-0.5">{r.level}</Badge>
-                      </td>
-                      <td className="p-2 border-b">
-                        <Badge variant="secondary" className="text-[10px]">{r.risk.family || r.risk.type || '-'}</Badge>
-                      </td>
-                      <td className="p-2 border-b">
-                        <div className="line-clamp-2">{r.risk.danger}</div>
-                      </td>
-                      <td className="p-2 border-b text-center font-mono font-bold">{r.risk.gravityValue || '-'}</td>
-                      <td className="p-2 border-b text-center font-mono font-bold">{r.risk.frequencyValue || '-'}</td>
-                      <td className="p-2 border-b text-center font-mono font-bold">{r.risk.controlValue || '-'}</td>
-                      <td className="p-2 border-b text-center">
-                        <span className="font-mono font-bold text-sm">{r.risk.riskScore?.toFixed(1) || '-'}</span>
-                      </td>
-                      <td className="p-2 border-b">
-                        <div className="line-clamp-2 text-muted-foreground">{r.risk.measures || '-'}</div>
-                      </td>
-                      <td className="p-2 border-b text-center">
-                        <Badge className={`text-[9px] ${PRIORITY_BADGE_COLORS[r.risk.priority || ''] || 'bg-gray-500'}`}>
-                          {r.risk.priority?.replace('Priorité ', 'P').replace(' (Forte)', '').replace(' (Moyenne)', '').replace(' (Modéré)', '').replace(' (Faible)', '') || '-'}
-                        </Badge>
-                      </td>
-                      <td className="p-2 border-b text-center">
-                        <div className="flex justify-center gap-1">
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setReviewingRisk(r)}><Eye className="h-3 w-3" /></Button>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => removeRisk(r)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      <Dialog open={showStructureEditor} onOpenChange={setShowStructureEditor}>
-        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Gérer la structure de l'entreprise</DialogTitle>
-            <DialogDescription>Ajoutez et organisez vos sites, zones, unités de travail et activités</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
-            <div className="space-y-3">
-              {sites.map(site => (
-                <Card key={site.id} className="border">
-                  <CardHeader className="py-2 px-3">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-blue-600" />
-                      <Input value={site.name} onChange={(e) => updateSite(site.id, { name: e.target.value })} className="h-7 text-sm flex-1" />
-                      <Select value={site.priority} onValueChange={(v: SitePriority) => updateSite(site.id, { priority: v })}>
-                        <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>{SITE_PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Button variant="ghost" size="sm" className="h-7" onClick={() => addZone(site.id)}><Plus className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="sm" className="h-7" onClick={() => removeSite(site.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 px-3 pb-3">
-                    <div className="ml-4 border-l-2 border-blue-200 pl-3 space-y-2">
-                      {site.zones.map(zone => (
-                        <div key={zone.id} className="bg-muted/30 rounded p-2 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Layers className="h-3 w-3 text-green-600" />
-                            <Input value={zone.name} onChange={(e) => updateZone(site.id, zone.id, { name: e.target.value })} className="h-6 text-xs flex-1" />
-                            <Button variant="ghost" size="sm" className="h-6" onClick={() => addWorkUnit(site.id, zone.id)}><Plus className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="sm" className="h-6" onClick={() => removeZone(site.id, zone.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                          </div>
-                          <div className="ml-3 border-l border-green-200 pl-2 space-y-1">
-                            {zone.workUnits.map(unit => (
-                              <div key={unit.id} className="bg-background rounded p-1.5 space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3 text-purple-600" />
-                                  <Input value={unit.name} onChange={(e) => updateWorkUnit(site.id, zone.id, unit.id, { name: e.target.value })} className="h-5 text-[10px] flex-1" />
-                                  <Button variant="ghost" size="sm" className="h-5" onClick={() => addActivity(site.id, zone.id, unit.id)}><Plus className="h-2 w-2" /></Button>
-                                  <Button variant="ghost" size="sm" className="h-5" onClick={() => removeUnit(site.id, zone.id, unit.id)}><Trash2 className="h-2 w-2 text-destructive" /></Button>
-                                </div>
-                                <div className="ml-2 border-l border-purple-200 pl-1.5 space-y-0.5">
-                                  {unit.activities.map(activity => (
-                                    <div key={activity.id} className="flex items-center gap-1">
-                                      <ActivityIcon className="h-2 w-2 text-orange-500" />
-                                      <Input value={activity.name} onChange={(e) => updateActivity(site.id, zone.id, unit.id, activity.id, { name: e.target.value })} className="h-4 text-[9px] flex-1" />
-                                      <Button variant="ghost" size="sm" className="h-4" onClick={() => removeActivity(site.id, zone.id, unit.id, activity.id)}><Trash2 className="h-2 w-2 text-destructive" /></Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                {sites.map(site => (
+                  <div key={site.id}>
+                    <TreeNode
+                      icon={MapPin} iconColor="text-blue-600" label={site.name} nodeId={site.id}
+                      isSelected={selection.type === 'site' && selection.siteId === site.id}
+                      onSelect={() => setSelection({ type: 'site', siteId: site.id })}
+                      onToggle={() => toggleNode(site.id)}
+                      isExpanded={expandedNodes.has(site.id)}
+                      hasChildren={site.zones.length > 0}
+                      onAdd={() => addZone(site.id)}
+                      onRemove={() => removeSite(site.id)}
+                      onGenerate={() => generateRisks('Site', site.id, site.name, { type: 'site', siteId: site.id })}
+                      isGenerating={generatingFor === site.id}
+                      riskCount={countRisks({ type: 'site', siteId: site.id })}
+                      depth={0}
+                    />
+                    {expandedNodes.has(site.id) && site.zones.map(zone => (
+                      <div key={zone.id}>
+                        <TreeNode
+                          icon={Layers} iconColor="text-green-600" label={zone.name} nodeId={zone.id}
+                          isSelected={selection.type === 'zone' && selection.zoneId === zone.id}
+                          onSelect={() => setSelection({ type: 'zone', siteId: site.id, zoneId: zone.id })}
+                          onToggle={() => toggleNode(zone.id)}
+                          isExpanded={expandedNodes.has(zone.id)}
+                          hasChildren={zone.workUnits.length > 0}
+                          onAdd={() => addUnit(site.id, zone.id)}
+                          onRemove={() => removeZone(site.id, zone.id)}
+                          onGenerate={() => generateRisks('Zone', zone.id, zone.name, { type: 'zone', siteId: site.id, zoneId: zone.id })}
+                          isGenerating={generatingFor === zone.id}
+                          riskCount={countRisks({ type: 'zone', siteId: site.id, zoneId: zone.id })}
+                          depth={1}
+                        />
+                        {expandedNodes.has(zone.id) && zone.workUnits.map(unit => (
+                          <div key={unit.id}>
+                            <TreeNode
+                              icon={Users} iconColor="text-purple-600" label={unit.name} nodeId={unit.id}
+                              isSelected={selection.type === 'unit' && selection.unitId === unit.id}
+                              onSelect={() => setSelection({ type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
+                              onToggle={() => toggleNode(unit.id)}
+                              isExpanded={expandedNodes.has(unit.id)}
+                              hasChildren={unit.activities.length > 0}
+                              onAdd={() => addActivity(site.id, zone.id, unit.id)}
+                              onRemove={() => removeUnit(site.id, zone.id, unit.id)}
+                              onGenerate={() => generateRisks('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
+                              isGenerating={generatingFor === unit.id}
+                              riskCount={countRisks({ type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
+                              depth={2}
+                            />
+                            {expandedNodes.has(unit.id) && unit.activities.map(activity => (
+                              <TreeNode
+                                key={activity.id}
+                                icon={ActivityIcon} iconColor="text-orange-500" label={activity.name} nodeId={activity.id}
+                                isSelected={selection.type === 'activity' && selection.activityId === activity.id}
+                                onSelect={() => setSelection({ type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
+                                onToggle={() => {}}
+                                isExpanded={false}
+                                hasChildren={false}
+                                onRemove={() => removeActivity(site.id, zone.id, unit.id, activity.id)}
+                                onGenerate={() => generateRisks('Activité', activity.id, activity.name, { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
+                                isGenerating={generatingFor === activity.id}
+                                riskCount={countRisks({ type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
+                                depth={3}
+                              />
                             ))}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              <Button variant="outline" onClick={addSite} className="w-full"><Plus className="h-4 w-4 mr-2" />Ajouter un site</Button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                {sites.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-xs">Cliquez sur "+ Site" pour commencer</p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-9 flex flex-col">
+          <CardHeader className="py-2 px-4 border-b flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Table className="h-4 w-4" />
+                {getSelectionLabel()}
+              </CardTitle>
+              <Badge variant="secondary">{filteredRisks.length} risque(s)</Badge>
             </div>
-          </ScrollArea>
-          <DialogFooter><Button onClick={() => setShowStructureEditor(false)}>Fermer</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left p-2 font-semibold border-b w-[140px]">Localisation</th>
+                    <th className="text-left p-2 font-semibold border-b w-[100px]">Famille de risque</th>
+                    <th className="text-left p-2 font-semibold border-b">Situation d'exposition</th>
+                    <th className="text-center p-2 font-semibold border-b w-[35px]">G</th>
+                    <th className="text-center p-2 font-semibold border-b w-[35px]">F</th>
+                    <th className="text-center p-2 font-semibold border-b w-[35px]">M</th>
+                    <th className="text-center p-2 font-semibold border-b w-[45px]">Score</th>
+                    <th className="text-left p-2 font-semibold border-b w-[200px]">Mesures de prévention</th>
+                    <th className="text-center p-2 font-semibold border-b w-[70px]">Priorité</th>
+                    <th className="text-center p-2 font-semibold border-b w-[50px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRisks.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="text-center py-16 text-muted-foreground">
+                        <Sparkles className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">Aucun risque évalué</p>
+                        <p className="text-xs mt-1">Survolez un élément dans l'arborescence et cliquez sur <Sparkles className="h-3 w-3 inline" /></p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRisks.map((r) => (
+                      <tr key={r.risk.id} className={`${RISK_ROW_COLORS[r.risk.priority || ''] || ''} hover:bg-muted/50 transition-colors`}>
+                        <td className="p-2 border-b">
+                          <div className="text-xs font-medium">{r.zoneName && `${r.zoneName}`}{r.unitName && ` > ${r.unitName}`}{r.activityName && ` > ${r.activityName}`}</div>
+                          <Badge variant="outline" className="text-[8px] mt-0.5">{r.level}</Badge>
+                        </td>
+                        <td className="p-2 border-b"><Badge variant="secondary" className="text-[9px]">{r.risk.family || r.risk.type || '-'}</Badge></td>
+                        <td className="p-2 border-b"><div className="line-clamp-2">{r.risk.danger}</div></td>
+                        <td className="p-2 border-b text-center font-mono font-bold">{r.risk.gravityValue || '-'}</td>
+                        <td className="p-2 border-b text-center font-mono font-bold">{r.risk.frequencyValue || '-'}</td>
+                        <td className="p-2 border-b text-center font-mono font-bold">{r.risk.controlValue || '-'}</td>
+                        <td className="p-2 border-b text-center"><span className="font-mono font-bold">{r.risk.riskScore?.toFixed(1) || '-'}</span></td>
+                        <td className="p-2 border-b"><div className="line-clamp-2 text-muted-foreground">{r.risk.measures || '-'}</div></td>
+                        <td className="p-2 border-b text-center"><Badge className={`text-[8px] ${PRIORITY_BADGE_COLORS[r.risk.priority || ''] || 'bg-gray-500'}`}>{r.risk.priority?.replace('Priorité ', 'P').replace(' (Forte)', '').replace(' (Moyenne)', '').replace(' (Modéré)', '').replace(' (Faible)', '') || '-'}</Badge></td>
+                        <td className="p-2 border-b text-center">
+                          <div className="flex justify-center gap-0.5">
+                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => setReviewingRisk(r)}><Eye className="h-3 w-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => removeRisk(r)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
 
       <Dialog open={!!pendingRisks} onOpenChange={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
         <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
@@ -504,7 +521,7 @@ export default function HierarchicalEditorStep({
             <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />Validation des risques - {pendingRisks?.level}: {pendingRisks?.elementName}</DialogTitle>
             <DialogDescription>Sélectionnez les risques à ajouter au tableau DUERP ({selectedPendingRisks.size}/{pendingRisks?.risks.length || 0})</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 max-h-[60vh] pr-4">
             <div className="space-y-2">
               {pendingRisks?.risks.map((risk) => (
                 <div key={risk.id} className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedPendingRisks.has(risk.id) ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`} onClick={() => { const newSet = new Set(selectedPendingRisks); if (newSet.has(risk.id)) newSet.delete(risk.id); else newSet.add(risk.id); setSelectedPendingRisks(newSet); }}>
