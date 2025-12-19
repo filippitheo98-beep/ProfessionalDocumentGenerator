@@ -350,11 +350,24 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
   ): Promise<Risk[]> {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
-    const levelDescriptions: Record<string, string> = {
-      'Site': 'un site/établissement (siège social, usine, agence, chantier)',
-      'Zone': 'une zone de travail (atelier, bureau, entrepôt, espace de stockage)',
-      'Unité': 'une unité de travail/poste (poste de soudure, accueil, poste informatique)',
-      'Activité': 'une activité de travail spécifique (soudage, découpe, manutention, travail sur écran)'
+    // Règles de filtrage par niveau selon le prompt professionnel DUERP
+    const levelRules: Record<string, { allowed: string; forbidden: string }> = {
+      'Site': {
+        allowed: 'Incendie/Explosion, Circulation interne/externe, Environnement de travail général, Organisation globale, Sécurité des locaux',
+        forbidden: 'Gestes individuels, Postures, Utilisation d\'outils spécifiques'
+      },
+      'Zone': {
+        allowed: 'Ergonomique (poste, aménagement), Ambiance de travail (bruit, éclairage, température), Chutes de plain-pied, Circulation locale',
+        forbidden: 'Gestes métier précis, Utilisation détaillée d\'équipements'
+      },
+      'Unité': {
+        allowed: 'Manutentions, Postures de travail, Utilisation d\'équipements, Produits et substances, Organisation du travail local',
+        forbidden: 'Aucune restriction spécifique'
+      },
+      'Activité': {
+        allowed: 'Gestes répétitifs, Utilisation d\'outils ou machines, Risques spécifiques à la tâche, Contraintes physiques ou mentales liées à l\'activité',
+        forbidden: 'Aucune restriction spécifique'
+      }
     };
 
     const familyList = [
@@ -363,25 +376,59 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
-    const prompt = `En tant qu'expert DUERP français (Document Unique d'Évaluation des Risques Professionnels), analysez ${levelDescriptions[level]} nommé "${elementName}" dans une entreprise de "${companyActivity}".
+    const prompt = `Tu interviens comme moteur de génération de risques pour une application de création de Document Unique.
 
-${elementDescription ? `Description: ${elementDescription}` : ''}
-${context ? `\nContexte additionnel:\n${context}` : ''}
+🧱 CONTEXTE DE GÉNÉRATION
 
-Identifiez les risques professionnels spécifiques à ce niveau hiérarchique. Pour chaque risque :
+Type d'élément : ${level}
+Nom de l'élément : ${elementName}
+Secteur d'activité de la société : ${companyActivity}
+Environnement de travail : ${elementDescription || 'Non précisé'}
+${context ? `\nInformations complémentaires:\n${context}` : ''}
 
-1. **family**: Classez par famille de risque (${familyList.join(', ')})
-2. **type**: Type précis du risque
-3. **danger**: Description claire du danger réglementaire
-4. **gravity**: "Faible", "Moyenne", "Grave", ou "Très Grave"
-5. **frequency**: "Annuelle", "Mensuelle", "Hebdomadaire", ou "Journalière"
-6. **control**: "Très élevée", "Élevée", "Moyenne", ou "Absente"
-7. **measures**: Mesures de prévention conformes à la réglementation française
+🎯 OBJECTIF
 
-IMPORTANT:
-- Restez pertinent au niveau "${level}" spécifiquement
-- Classez les risques par famille pour une présentation DUERP professionnelle
-- Rédigez de manière exploitable par l'Inspection du travail
+Générer une liste de risques professionnels pertinents pour cet élément précis, sans doublons inutiles, sans risques hors contexte, et sans imposer de choix à l'utilisateur.
+
+🚦 RÈGLES DE GÉNÉRATION OBLIGATOIRES
+
+1️⃣ FILTRAGE STRICT SELON LE NIVEAU "${level}"
+
+RISQUES AUTORISÉS pour ce niveau : ${levelRules[level].allowed}
+RISQUES INTERDITS pour ce niveau : ${levelRules[level].forbidden}
+
+2️⃣ STRUCTURE OBLIGATOIRE DE CHAQUE RISQUE
+
+{
+  "family": "Famille de risque (parmi: ${familyList.join(', ')})",
+  "danger": "Situation d'exposition rédigée clairement et professionnellement",
+  "gravity": "Faible | Moyenne | Grave | Très Grave",
+  "frequency": "Annuelle | Mensuelle | Hebdomadaire | Journalière",
+  "control": "Très élevée | Élevée | Moyenne | Absente",
+  "measures": "Mesures de prévention génériques, sans pédagogie"
+}
+
+3️⃣ QUALITÉ RÉDACTIONNELLE
+
+- Langage professionnel DUERP
+- Phrases exploitables telles quelles dans un tableau INRS
+- Pas de généralités vagues
+- Pas de formulation conditionnelle inutile
+- Pas d'explication réglementaire
+
+4️⃣ QUANTITÉ ATTENDUE
+
+- Entre 3 et 6 risques MAXIMUM
+- Uniquement des risques réellement crédibles
+- Ne jamais forcer à atteindre un nombre
+
+🚫 INTERDICTIONS FORMELLES
+
+- Ne pas expliquer pourquoi le risque existe
+- Ne pas donner de références réglementaires
+- Ne pas hiérarchiser à la place de l'utilisateur
+- Ne pas proposer de risques hors niveau
+- Ne jamais générer un DUERP complet
 
 Répondez en JSON valide: { "risks": [...] }`;
 
