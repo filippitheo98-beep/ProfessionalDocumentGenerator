@@ -341,6 +341,103 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     }
   }
 
+  async generateHierarchicalRisks(
+    level: 'Site' | 'Zone' | 'Unité' | 'Activité',
+    elementName: string,
+    elementDescription: string,
+    companyActivity: string,
+    context: string
+  ): Promise<Risk[]> {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    
+    const levelDescriptions: Record<string, string> = {
+      'Site': 'un site/établissement (siège social, usine, agence, chantier)',
+      'Zone': 'une zone de travail (atelier, bureau, entrepôt, espace de stockage)',
+      'Unité': 'une unité de travail/poste (poste de soudure, accueil, poste informatique)',
+      'Activité': 'une activité de travail spécifique (soudage, découpe, manutention, travail sur écran)'
+    };
+
+    const familyList = [
+      'Mécanique', 'Physique', 'Chimique', 'Biologique', 'Radiologique',
+      'Incendie-Explosion', 'Électrique', 'Ergonomique', 'Psychosocial',
+      'Routier', 'Environnemental', 'Organisationnel'
+    ];
+    
+    const prompt = `En tant qu'expert DUERP français (Document Unique d'Évaluation des Risques Professionnels), analysez ${levelDescriptions[level]} nommé "${elementName}" dans une entreprise de "${companyActivity}".
+
+${elementDescription ? `Description: ${elementDescription}` : ''}
+${context ? `\nContexte additionnel:\n${context}` : ''}
+
+Identifiez les risques professionnels spécifiques à ce niveau hiérarchique. Pour chaque risque :
+
+1. **family**: Classez par famille de risque (${familyList.join(', ')})
+2. **type**: Type précis du risque
+3. **danger**: Description claire du danger réglementaire
+4. **gravity**: "Faible", "Moyenne", "Grave", ou "Très Grave"
+5. **frequency**: "Annuelle", "Mensuelle", "Hebdomadaire", ou "Journalière"
+6. **control**: "Très élevée", "Élevée", "Moyenne", ou "Absente"
+7. **measures**: Mesures de prévention conformes à la réglementation française
+
+IMPORTANT:
+- Restez pertinent au niveau "${level}" spécifiquement
+- Classez les risques par famille pour une présentation DUERP professionnelle
+- Rédigez de manière exploitable par l'Inspection du travail
+
+Répondez en JSON valide: { "risks": [...] }`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 3000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
+      
+      return result.risks.map((risk: any) => {
+        const gravity = risk.gravity || 'Moyenne';
+        const frequency = risk.frequency || 'Mensuelle';
+        const control = risk.control || 'Moyenne';
+        
+        const gravityValue = gravity === 'Faible' ? 1 : gravity === 'Moyenne' ? 4 : gravity === 'Grave' ? 20 : 100;
+        const frequencyValue = frequency === 'Annuelle' ? 1 : frequency === 'Mensuelle' ? 4 : frequency === 'Hebdomadaire' ? 10 : 50;
+        const controlValue = control === 'Très élevée' ? 0.05 : control === 'Élevée' ? 0.2 : control === 'Moyenne' ? 0.5 : 1;
+        
+        const riskScore = gravityValue * frequencyValue * controlValue;
+        const priority = riskScore >= 500 ? 'Priorité 1 (Forte)' : riskScore >= 100 ? 'Priorité 2 (Moyenne)' : riskScore >= 10 ? 'Priorité 3 (Modéré)' : 'Priorité 4 (Faible)';
+        
+        return {
+          id: crypto.randomUUID(),
+          type: risk.type || 'Risque général',
+          family: risk.family || 'Autre',
+          danger: risk.danger || 'Danger non spécifié',
+          gravity: gravity as 'Faible' | 'Moyenne' | 'Grave' | 'Très Grave',
+          gravityValue: gravityValue as 1 | 4 | 20 | 100,
+          frequency: frequency as 'Annuelle' | 'Mensuelle' | 'Hebdomadaire' | 'Journalière',
+          frequencyValue: frequencyValue as 1 | 4 | 10 | 50,
+          control: control as 'Très élevée' | 'Élevée' | 'Moyenne' | 'Absente',
+          controlValue: controlValue as 0.05 | 0.2 | 0.5 | 1,
+          riskScore,
+          priority: priority as 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)',
+          measures: risk.measures || 'Mesures de prévention à définir',
+          originLevel: level,
+          isValidated: false,
+          isAIGenerated: true,
+          isInherited: false,
+          userModified: false
+        };
+      });
+    } catch (error) {
+      console.error('Error generating hierarchical risks:', error);
+      return [];
+    }
+  }
+
   private generateFallbackRisks(workUnitName: string, locationName: string, companyActivity: string): Risk[] {
     // Professional risk generation based on work unit type and activity
     const riskDatabase = this.getRiskDatabase();

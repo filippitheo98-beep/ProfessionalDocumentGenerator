@@ -256,6 +256,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate hierarchical risks for specific level (Site, Zone, Unité, Activité)
+  app.post("/api/generate-hierarchical-risks", async (req, res) => {
+    try {
+      const { level, elementName, elementDescription, companyActivity, companyDescription, companyId, siteName, zoneName, workUnitName, inheritedRisks, uploadedDocumentsContext } = req.body;
+      
+      if (!level || !elementName || !companyActivity) {
+        return res.status(400).json({ message: "Level, element name, and company activity are required" });
+      }
+
+      // Build hierarchical context for AI
+      let context = companyDescription || '';
+      
+      // Add hierarchical path context
+      let hierarchyContext = `\nNiveau hiérarchique: ${level}`;
+      if (siteName) hierarchyContext += `\nSite: ${siteName}`;
+      if (zoneName) hierarchyContext += `\nZone: ${zoneName}`;
+      if (workUnitName) hierarchyContext += `\nUnité de travail: ${workUnitName}`;
+      
+      context += hierarchyContext;
+      
+      // Add inherited risks context
+      if (inheritedRisks && inheritedRisks.length > 0) {
+        context += `\n\n=== RISQUES HÉRITÉS DU NIVEAU SUPÉRIEUR ===`;
+        inheritedRisks.forEach((risk: { type: string; danger: string }) => {
+          context += `\n- ${risk.type}: ${risk.danger}`;
+        });
+      }
+      
+      // Add uploaded documents context
+      if (companyId) {
+        const uploadedDocs = await storage.getUploadedDocuments(companyId);
+        if (uploadedDocs.length > 0) {
+          const docsContext = uploadedDocs.map(doc => {
+            let docCtx = `\n\n--- Document: ${doc.fileName} ---`;
+            if (doc.extractedText) docCtx += `\n${doc.extractedText}`;
+            return docCtx;
+          }).join('');
+          context += `\n\n=== DOCUMENTS DE RÉFÉRENCE ===${docsContext}`;
+        }
+      }
+      
+      if (uploadedDocumentsContext) {
+        context += `\n\n${uploadedDocumentsContext}`;
+      }
+
+      const risks = await storage.generateHierarchicalRisks(
+        level,
+        elementName,
+        elementDescription || '',
+        companyActivity,
+        context
+      );
+      
+      res.json({ risks });
+    } catch (error) {
+      console.error("Error generating hierarchical risks:", error);
+      res.status(500).json({ 
+        message: "Erreur lors de la génération des risques" 
+      });
+    }
+  });
+
   // Generate prevention recommendations
   app.post("/api/generate-prevention-recommendations", async (req, res) => {
     try {
