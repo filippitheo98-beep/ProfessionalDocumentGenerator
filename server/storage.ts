@@ -376,59 +376,65 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
-    const prompt = `Tu interviens comme moteur de génération de risques pour une application de création de Document Unique.
+    const prompt = `Tu interviens pour générer des SITUATIONS DE RISQUES PROFESSIONNELLES pour une application DUERP.
 
-🧱 CONTEXTE DE GÉNÉRATION
+🧱 CONTEXTE
 
-Type d'élément : ${level}
+Niveau : ${level}
 Nom de l'élément : ${elementName}
-Secteur d'activité de la société : ${companyActivity}
+Secteur d'activité : ${companyActivity}
 Environnement de travail : ${elementDescription || 'Non précisé'}
 ${context ? `\nInformations complémentaires:\n${context}` : ''}
 
-🎯 OBJECTIF
+🎯 OBJECTIF IMPÉRATIF
 
-Générer une liste de risques professionnels pertinents pour cet élément précis, sans doublons inutiles, sans risques hors contexte, et sans imposer de choix à l'utilisateur.
+👉 Générer PLUSIEURS SITUATIONS DE RISQUE DISTINCTES PAR FAMILLE DE RISQUE, lorsque pertinent.
 
-🚦 RÈGLES DE GÉNÉRATION OBLIGATOIRES
+Une famille de risque peut comporter 2 à 5 situations différentes.
+Chaque situation doit être indépendante, exploitable dans un tableau DUERP.
 
-1️⃣ FILTRAGE STRICT SELON LE NIVEAU "${level}"
+📌 RÈGLES ESSENTIELLES
 
-RISQUES AUTORISÉS pour ce niveau : ${levelRules[level].allowed}
-RISQUES INTERDITS pour ce niveau : ${levelRules[level].forbidden}
+1️⃣ FAMILLE ≠ RISQUE
+- La famille de risque est un regroupement
+- Le risque réel est la SITUATION D'EXPOSITION
 
-2️⃣ STRUCTURE OBLIGATOIRE DE CHAQUE RISQUE
+Exemple attendu :
+- Famille: Ergonomique → Situation 1: Travail prolongé sur écran
+- Famille: Ergonomique → Situation 2: Postures statiques prolongées  
+- Famille: Ergonomique → Situation 3: Mobilier inadapté
 
+2️⃣ FILTRAGE PAR NIVEAU "${level}"
+AUTORISÉ : ${levelRules[level].allowed}
+INTERDIT : ${levelRules[level].forbidden}
+
+3️⃣ STRUCTURE OBLIGATOIRE de chaque situation :
 {
-  "family": "Famille de risque (parmi: ${familyList.join(', ')})",
-  "danger": "Situation d'exposition rédigée clairement et professionnellement",
+  "family": "Famille (parmi: ${familyList.join(', ')})",
+  "situation": "Situation d'exposition (courte et précise)",
+  "danger": "Description de la situation de danger",
   "gravity": "Faible | Moyenne | Grave | Très Grave",
   "frequency": "Annuelle | Mensuelle | Hebdomadaire | Journalière",
   "control": "Très élevée | Élevée | Moyenne | Absente",
-  "measures": "Mesures de prévention génériques, sans pédagogie"
+  "measures": "Mesures de prévention (génériques, non pédagogiques)"
 }
 
-3️⃣ QUALITÉ RÉDACTIONNELLE
-
-- Langage professionnel DUERP
-- Phrases exploitables telles quelles dans un tableau INRS
-- Pas de généralités vagues
-- Pas de formulation conditionnelle inutile
-- Pas d'explication réglementaire
-
 4️⃣ QUANTITÉ ATTENDUE
+- Entre 5 et 12 situations de risque AU TOTAL
+- Réparties sur PLUSIEURS familles
+- Ne jamais forcer une famille non pertinente
 
-- Entre 3 et 6 risques MAXIMUM
-- Uniquement des risques réellement crédibles
-- Ne jamais forcer à atteindre un nombre
+5️⃣ QUALITÉ ATTENDUE
+- Langage strictement DUERP
+- Exploitable tel quel dans un tableau INRS/EvRP
+- Pas de doublons
+- Pas de généralités vagues
+- Pas d'explications réglementaires
 
-🚫 INTERDICTIONS FORMELLES
-
-- Ne pas expliquer pourquoi le risque existe
-- Ne pas donner de références réglementaires
-- Ne pas hiérarchiser à la place de l'utilisateur
-- Ne pas proposer de risques hors niveau
-- Ne jamais générer un DUERP complet
+🎯 RÉSULTAT ATTENDU
+Le résultat doit être directement transposable dans un tableau DUERP avec :
+- Plusieurs lignes pour une même famille de risque
+- Une logique identique à un tableau EvRP professionnel
 
 Répondez en JSON valide: { "risks": [...] }`;
 
@@ -458,11 +464,16 @@ Répondez en JSON valide: { "risks": [...] }`;
         const riskScore = gravityValue * frequencyValue * controlValue;
         const priority = riskScore >= 500 ? 'Priorité 1 (Forte)' : riskScore >= 100 ? 'Priorité 2 (Moyenne)' : riskScore >= 10 ? 'Priorité 3 (Modéré)' : 'Priorité 4 (Faible)';
         
+        // Utiliser "situation" si présent, sinon "danger" pour rétrocompatibilité
+        const situationText = risk.situation || risk.type || 'Situation non spécifiée';
+        const dangerText = risk.danger || situationText;
+        
         return {
           id: crypto.randomUUID(),
-          type: risk.type || 'Risque général',
+          type: situationText,
           family: risk.family || 'Autre',
-          danger: risk.danger || 'Danger non spécifié',
+          situation: situationText,
+          danger: dangerText,
           gravity: gravity as 'Faible' | 'Moyenne' | 'Grave' | 'Très Grave',
           gravityValue: gravityValue as 1 | 4 | 20 | 100,
           frequency: frequency as 'Annuelle' | 'Mensuelle' | 'Hebdomadaire' | 'Journalière',
