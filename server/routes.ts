@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, type Risk, type Site, type WorkZone, type WorkUnit, type Activity } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
 import { db } from "./db";
@@ -11,9 +11,7 @@ import { eq, desc, count, lt, ne, sql, ilike, or, and } from "drizzle-orm";
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
   siteName?: string;
-  zoneName?: string;
   workUnitName?: string;
-  activityName?: string;
   hierarchyPath?: string;
 }
 
@@ -21,70 +19,31 @@ function extractHierarchicalRisks(sites: Site[]): HierarchicalRisk[] {
   const allRisks: HierarchicalRisk[] = [];
 
   for (const site of sites) {
-    // Site-level risks
-    for (const risk of (site.risks || []).filter(r => r.isValidated)) {
+    for (const risk of (site.risks || []).filter((r: Risk) => r.isValidated)) {
       allRisks.push({
         ...risk,
         siteName: site.name,
-        zoneName: '-',
         workUnitName: '-',
-        activityName: '-',
         hierarchyPath: site.name,
         danger: `[${site.name}] ${risk.danger}`,
         source: site.name
       });
     }
 
-    // Zone-level risks
-    for (const zone of site.zones || []) {
-      for (const risk of (zone.risks || []).filter(r => r.isValidated)) {
+    for (const unit of site.workUnits || []) {
+      for (const risk of (unit.risks || []).filter((r: Risk) => r.isValidated)) {
         allRisks.push({
           ...risk,
           siteName: site.name,
-          zoneName: zone.name,
-          workUnitName: '-',
-          activityName: '-',
-          hierarchyPath: `${site.name} > ${zone.name}`,
-          danger: `[${site.name} > ${zone.name}] ${risk.danger}`,
-          source: `${site.name} > ${zone.name}`
+          workUnitName: unit.name,
+          hierarchyPath: `${site.name} > ${unit.name}`,
+          danger: `[${site.name} > ${unit.name}] ${risk.danger}`,
+          source: `${site.name} > ${unit.name}`
         });
-      }
-
-      // WorkUnit-level risks
-      for (const unit of zone.workUnits || []) {
-        for (const risk of (unit.risks || []).filter(r => r.isValidated)) {
-          allRisks.push({
-            ...risk,
-            siteName: site.name,
-            zoneName: zone.name,
-            workUnitName: unit.name,
-            activityName: '-',
-            hierarchyPath: `${site.name} > ${zone.name} > ${unit.name}`,
-            danger: `[${site.name} > ${zone.name} > ${unit.name}] ${risk.danger}`,
-            source: `${site.name} > ${zone.name} > ${unit.name}`
-          });
-        }
-
-        // Activity-level risks
-        for (const activity of unit.activities || []) {
-          for (const risk of (activity.risks || []).filter(r => r.isValidated)) {
-            allRisks.push({
-              ...risk,
-              siteName: site.name,
-              zoneName: zone.name,
-              workUnitName: unit.name,
-              activityName: activity.name,
-              hierarchyPath: `${site.name} > ${zone.name} > ${unit.name} > ${activity.name}`,
-              danger: `[${site.name} > ${zone.name} > ${unit.name} > ${activity.name}] ${risk.danger}`,
-              source: `${site.name} > ${zone.name} > ${unit.name} > ${activity.name}`
-            });
-          }
-        }
       }
     }
   }
 
-  // Sort by hierarchy path for organized export
   return allRisks.sort((a, b) => (a.hierarchyPath || '').localeCompare(b.hierarchyPath || ''));
 }
 
@@ -339,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate hierarchical risks for specific level (Site, Zone, Unité, Activité)
   app.post("/api/generate-hierarchical-risks", async (req, res) => {
     try {
-      const { level, elementName, elementDescription, companyActivity, companyDescription, companyId, siteName, zoneName, workUnitName, inheritedRisks, uploadedDocumentsContext } = req.body;
+      const { level, elementName, elementDescription, companyActivity, companyDescription, companyId, siteName, workstationNames, inheritedRisks, uploadedDocumentsContext } = req.body;
       
       if (!level || !elementName || !companyActivity) {
         return res.status(400).json({ message: "Level, element name, and company activity are required" });
@@ -351,8 +310,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add hierarchical path context
       let hierarchyContext = `\nNiveau hiérarchique: ${level}`;
       if (siteName) hierarchyContext += `\nSite: ${siteName}`;
-      if (zoneName) hierarchyContext += `\nZone: ${zoneName}`;
-      if (workUnitName) hierarchyContext += `\nUnité de travail: ${workUnitName}`;
+      if (level === 'Unité') {
+        hierarchyContext += `\nUnité de travail: ${elementName}`;
+        if (workstationNames && workstationNames.length > 0) {
+          hierarchyContext += `\nPostes de travail inclus: ${workstationNames.join(', ')}`;
+        }
+      }
       
       context += hierarchyContext;
       
@@ -395,6 +358,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: "Erreur lors de la génération des risques" 
       });
+    }
+  });
+
+  // Group workstations into work units using AI
+  app.post("/api/group-workstations", async (req, res) => {
+    try {
+      const { workstations, companyActivity, companyDescription, siteName } = req.body;
+      
+      if (!workstations || workstations.length === 0 || !companyActivity) {
+        return res.status(400).json({ message: "Workstations and company activity are required" });
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const prompt = `Tu es un expert en santé et sécurité au travail. Tu dois regrouper intelligemment des postes de travail en unités de travail cohérentes pour un DUERP.
+
+Contexte:
+- Activité de l'entreprise: ${companyActivity}
+${companyDescription ? `- Description: ${companyDescription}` : ''}
+${siteName ? `- Site: ${siteName}` : ''}
+
+Postes de travail à regrouper:
+${workstations.map((ws: string, i: number) => `${i + 1}. ${ws}`).join('\n')}
+
+Règles de regroupement:
+1. Regrouper les postes qui partagent des risques similaires ou un environnement de travail commun
+2. Chaque unité de travail doit avoir un nom clair et descriptif
+3. Un poste peut appartenir à une seule unité
+4. Si un poste est très spécifique, il peut constituer sa propre unité
+5. Créer entre 2 et ${Math.max(3, Math.ceil(workstations.length / 2))} unités de travail
+
+Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations": ["poste1", "poste2"] }] }`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP. JSON uniquement." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.5,
+        max_tokens: 2000
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"groups": []}');
+      res.json(result);
+    } catch (error) {
+      console.error("Error grouping workstations:", error);
+      res.status(500).json({ message: "Erreur lors du regroupement des postes" });
     }
   });
 

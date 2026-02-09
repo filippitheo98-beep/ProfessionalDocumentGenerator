@@ -1,12 +1,10 @@
-import type { Site, WorkZone, WorkUnit, Activity, Risk } from '@shared/schema';
+import type { Site, WorkUnit, Risk } from '@shared/schema';
 
 export interface FlattenedRisk extends Risk {
   siteName: string;
-  zoneName: string;
   workUnitName: string;
-  activityName: string;
   hierarchyPath: string;
-  originLevel: 'Site' | 'Zone' | 'Unité' | 'Activité';
+  originLevel: 'Site' | 'Unité';
 }
 
 export function extractAllRisks(sites: Site[]): FlattenedRisk[] {
@@ -17,62 +15,28 @@ export function extractAllRisks(sites: Site[]): FlattenedRisk[] {
       allRisks.push({
         ...risk,
         siteName: site.name,
-        zoneName: '-',
         workUnitName: '-',
-        activityName: '-',
         hierarchyPath: site.name,
         originLevel: 'Site'
       });
     }
 
-    for (const zone of site.zones) {
-      for (const risk of zone.risks.filter(r => r.isValidated)) {
+    for (const unit of site.workUnits) {
+      for (const risk of unit.risks.filter(r => r.isValidated)) {
         allRisks.push({
           ...risk,
           siteName: site.name,
-          zoneName: zone.name,
-          workUnitName: '-',
-          activityName: '-',
-          hierarchyPath: `${site.name} > ${zone.name}`,
-          originLevel: 'Zone'
+          workUnitName: unit.name,
+          hierarchyPath: `${site.name} > ${unit.name}`,
+          originLevel: 'Unité'
         });
-      }
-
-      for (const unit of zone.workUnits) {
-        for (const risk of unit.risks.filter(r => r.isValidated)) {
-          allRisks.push({
-            ...risk,
-            siteName: site.name,
-            zoneName: zone.name,
-            workUnitName: unit.name,
-            activityName: '-',
-            hierarchyPath: `${site.name} > ${zone.name} > ${unit.name}`,
-            originLevel: 'Unité'
-          });
-        }
-
-        for (const activity of unit.activities) {
-          for (const risk of activity.risks.filter(r => r.isValidated)) {
-            allRisks.push({
-              ...risk,
-              siteName: site.name,
-              zoneName: zone.name,
-              workUnitName: unit.name,
-              activityName: activity.name,
-              hierarchyPath: `${site.name} > ${zone.name} > ${unit.name} > ${activity.name}`,
-              originLevel: 'Activité'
-            });
-          }
-        }
       }
     }
   }
 
   return allRisks.sort((a, b) => {
     if (a.siteName !== b.siteName) return a.siteName.localeCompare(b.siteName);
-    if (a.zoneName !== b.zoneName) return a.zoneName.localeCompare(b.zoneName);
-    if (a.workUnitName !== b.workUnitName) return a.workUnitName.localeCompare(b.workUnitName);
-    return a.activityName.localeCompare(b.activityName);
+    return a.workUnitName.localeCompare(b.workUnitName);
   });
 }
 

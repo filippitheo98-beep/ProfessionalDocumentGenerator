@@ -48,7 +48,7 @@ interface Sector { id: number; code: string; name: string; }
 const GRAVITY_OPTIONS = ['Faible', 'Moyenne', 'Grave', 'Très Grave'];
 const FREQUENCY_OPTIONS = ['Annuelle', 'Mensuelle', 'Hebdomadaire', 'Journalière'];
 const CONTROL_OPTIONS = ['Très élevée', 'Élevée', 'Moyenne', 'Absente'];
-const HIERARCHY_OPTIONS = ['Site', 'Zone', 'Unité', 'Activité'];
+const HIERARCHY_OPTIONS = ['Site', 'Unité'];
 
 const FAMILY_COLORS: Record<string, string> = {
   'Mécanique': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -69,7 +69,7 @@ const FAMILY_COLORS: Record<string, string> = {
 const emptyRisk: Omit<LibraryRisk, 'id' | 'isActive'> = {
   family: '',
   sector: 'TOUS',
-  hierarchyLevel: 'Zone',
+  hierarchyLevel: 'Unité',
   situation: '',
   description: '',
   defaultGravity: 'Moyenne',

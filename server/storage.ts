@@ -342,7 +342,7 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
   }
 
   async generateHierarchicalRisks(
-    level: 'Site' | 'Zone' | 'Unité' | 'Activité',
+    level: 'Site' | 'Unité',
     elementName: string,
     elementDescription: string,
     companyActivity: string,
@@ -350,22 +350,13 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
   ): Promise<Risk[]> {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
-    // Règles de filtrage par niveau selon le prompt professionnel DUERP
     const levelRules: Record<string, { allowed: string; forbidden: string }> = {
       'Site': {
         allowed: 'Incendie/Explosion, Circulation interne/externe, Environnement de travail général, Organisation globale, Sécurité des locaux',
         forbidden: 'Gestes individuels, Postures, Utilisation d\'outils spécifiques'
       },
-      'Zone': {
-        allowed: 'Ergonomique (poste, aménagement), Ambiance de travail (bruit, éclairage, température), Chutes de plain-pied, Circulation locale',
-        forbidden: 'Gestes métier précis, Utilisation détaillée d\'équipements'
-      },
       'Unité': {
-        allowed: 'Manutentions, Postures de travail, Utilisation d\'équipements, Produits et substances, Organisation du travail local',
-        forbidden: 'Aucune restriction spécifique'
-      },
-      'Activité': {
-        allowed: 'Gestes répétitifs, Utilisation d\'outils ou machines, Risques spécifiques à la tâche, Contraintes physiques ou mentales liées à l\'activité',
+        allowed: 'Manutentions, Postures de travail, Utilisation d\'équipements, Produits et substances, Organisation du travail, Gestes répétitifs, Ergonomie, Ambiance de travail, Risques spécifiques aux postes de travail inclus',
         forbidden: 'Aucune restriction spécifique'
       }
     };

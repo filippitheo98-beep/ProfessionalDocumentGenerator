@@ -13,9 +13,7 @@ import {
   Info,
   CheckCircle,
   Building2,
-  Layers,
-  Users,
-  Activity as ActivityIcon
+  Users
 } from "lucide-react";
 import type { Site } from "@shared/schema";
 import { extractAllRisks, getRiskStatistics, type FlattenedRisk } from "@/lib/hierarchicalUtils";
@@ -36,9 +34,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 const LEVEL_ICONS = {
   'Site': Building2,
-  'Zone': Layers,
   'Unité': Users,
-  'Activité': ActivityIcon,
 };
 
 const PRIORITY_ICONS = {
@@ -76,15 +72,14 @@ export default function HierarchicalRiskTable({
   }, [allRisks, filterPriority, filterFamily, filterSite]);
 
   const groupedRisks = useMemo(() => {
-    const grouped: Record<string, Record<string, Record<string, FlattenedRisk[]>>> = {};
+    const grouped: Record<string, Record<string, FlattenedRisk[]>> = {};
     
     for (const risk of filteredRisks) {
       if (!grouped[risk.siteName]) grouped[risk.siteName] = {};
-      if (!grouped[risk.siteName][risk.zoneName]) grouped[risk.siteName][risk.zoneName] = {};
-      if (!grouped[risk.siteName][risk.zoneName][risk.workUnitName]) {
-        grouped[risk.siteName][risk.zoneName][risk.workUnitName] = [];
+      if (!grouped[risk.siteName][risk.workUnitName]) {
+        grouped[risk.siteName][risk.workUnitName] = [];
       }
-      grouped[risk.siteName][risk.zoneName][risk.workUnitName].push(risk);
+      grouped[risk.siteName][risk.workUnitName].push(risk);
     }
     
     return grouped;
@@ -105,7 +100,7 @@ export default function HierarchicalRiskTable({
         <CardContent className="text-center py-12">
           <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-muted-foreground">
-            Utilisez l'éditeur de structure pour ajouter des sites, zones et unités de travail, 
+            Utilisez l'éditeur de structure pour ajouter des sites et unités de travail,
             puis générez les risques avec l'IA et validez-les.
           </p>
         </CardContent>
@@ -124,7 +119,7 @@ export default function HierarchicalRiskTable({
                 Tableau DUERP - {companyName}
               </CardTitle>
               <CardDescription>
-                {stats.total} risques validés • Dernière mise à jour: {new Date().toLocaleDateString('fr-FR')}
+                {stats.total} risques validés
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -220,7 +215,7 @@ export default function HierarchicalRiskTable({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[200px]">Localisation</TableHead>
+                  <TableHead className="w-[200px]">Unité de travail</TableHead>
                   <TableHead className="w-[120px]">Famille</TableHead>
                   <TableHead className="w-[150px]">Type de risque</TableHead>
                   <TableHead>Danger identifié</TableHead>
@@ -232,74 +227,59 @@ export default function HierarchicalRiskTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(groupedRisks).map(([siteName, zones]) => (
-                  Object.entries(zones).map(([zoneName, units]) => (
-                    Object.entries(units).map(([unitName, risks]) => (
-                      risks.map((risk, idx) => {
-                        const LevelIcon = LEVEL_ICONS[risk.originLevel];
-                        const PriorityIcon = PRIORITY_ICONS[risk.priority as keyof typeof PRIORITY_ICONS] || Info;
-                        
-                        return (
-                          <TableRow key={risk.id} className="hover:bg-muted/30">
-                            <TableCell className="align-top">
-                              <div className="text-xs space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <Building2 className="h-3 w-3 text-blue-500" />
-                                  <span className="font-medium">{siteName}</span>
-                                </div>
-                                {zoneName !== '-' && (
-                                  <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Layers className="h-3 w-3 text-green-500" />
-                                    <span>{zoneName}</span>
-                                  </div>
-                                )}
-                                {unitName !== '-' && (
-                                  <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Users className="h-3 w-3 text-purple-500" />
-                                    <span>{unitName}</span>
-                                  </div>
-                                )}
-                                {risk.activityName !== '-' && (
-                                  <div className="flex items-center gap-1 text-muted-foreground">
-                                    <ActivityIcon className="h-3 w-3 text-orange-500" />
-                                    <span>{risk.activityName}</span>
-                                  </div>
-                                )}
+                {Object.entries(groupedRisks).map(([siteName, units]) => (
+                  Object.entries(units).map(([unitName, risks]) => (
+                    risks.map((risk) => {
+                      const PriorityIcon = PRIORITY_ICONS[risk.priority as keyof typeof PRIORITY_ICONS] || Info;
+                      
+                      return (
+                        <TableRow key={risk.id} className="hover:bg-muted/30">
+                          <TableCell className="align-top">
+                            <div className="text-xs space-y-1">
+                              <div className="flex items-center gap-1">
+                                <Building2 className="h-3 w-3 text-blue-500" />
+                                <span className="font-medium">{siteName}</span>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {risk.family || 'Autre'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium text-sm">
-                              {risk.type}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {risk.danger}
-                            </TableCell>
-                            <TableCell className="text-center text-xs">
-                              {risk.gravityValue || risk.gravity}
-                            </TableCell>
-                            <TableCell className="text-center text-xs">
-                              {risk.frequencyValue || risk.frequency}
-                            </TableCell>
-                            <TableCell className="text-center text-xs">
-                              {risk.controlValue || risk.control}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={`text-xs ${PRIORITY_COLORS[risk.priority || 'Priorité 4 (Faible)']}`}>
-                                <PriorityIcon className="h-3 w-3 mr-1" />
-                                {(risk.priority || 'P4').split(' ')[0] + ' ' + (risk.priority || '').match(/\d/)?.[0]}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-[300px]">
-                              {risk.measures}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ))
+                              {unitName !== '-' && (
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Users className="h-3 w-3 text-purple-500" />
+                                  <span>{unitName}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {risk.family || 'Autre'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {risk.type}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {risk.danger}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {risk.gravityValue || risk.gravity}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {risk.frequencyValue || risk.frequency}
+                          </TableCell>
+                          <TableCell className="text-center text-xs">
+                            {risk.controlValue || risk.control}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-xs ${PRIORITY_COLORS[risk.priority || 'Priorité 4 (Faible)']}`}>
+                              <PriorityIcon className="h-3 w-3 mr-1" />
+                              {(risk.priority || 'P4').split(' ')[0] + ' ' + (risk.priority || '').match(/\d/)?.[0]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[300px]">
+                            {risk.measures}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ))
                 ))}
               </TableBody>

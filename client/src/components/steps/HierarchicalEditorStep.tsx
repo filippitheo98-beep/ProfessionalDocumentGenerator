@@ -4,18 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import RiskLibrarySelector from "@/components/RiskLibrarySelector";
 import { 
   Building2, 
   MapPin, 
-  Layers, 
   Users, 
-  Activity as ActivityIcon,
+  Briefcase,
   Plus, 
   Trash2, 
   ChevronDown, 
@@ -27,13 +26,13 @@ import {
   Eye,
   FolderTree,
   Table,
-  Library
+  Library,
+  Wand2
 } from "lucide-react";
 import type { 
   Site, 
-  WorkZone, 
   WorkUnit, 
-  Activity, 
+  Workstation,
   Risk,
   SitePriority
 } from "@shared/schema";
@@ -64,21 +63,17 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
 };
 
 interface TreeSelection {
-  type: 'all' | 'site' | 'zone' | 'unit' | 'activity';
+  type: 'all' | 'site' | 'unit';
   siteId?: string;
-  zoneId?: string;
   unitId?: string;
-  activityId?: string;
 }
 
 interface TableRisk {
   risk: Risk;
   siteName: string;
-  zoneName?: string;
   unitName?: string;
-  activityName?: string;
   path: TreeSelection;
-  level: 'Site' | 'Zone' | 'Unité' | 'Activité';
+  level: 'Site' | 'Unité';
 }
 
 export default function HierarchicalEditorStep({
@@ -105,11 +100,13 @@ export default function HierarchicalEditorStep({
   const [reviewingRisk, setReviewingRisk] = useState<TableRisk | null>(null);
   const [librarySelector, setLibrarySelector] = useState<{
     isOpen: boolean;
-    level: 'Site' | 'Zone' | 'Unité' | 'Activité';
+    level: 'Site' | 'Unité';
     elementId: string;
     elementName: string;
     path: TreeSelection;
   } | null>(null);
+  const [newWorkstationName, setNewWorkstationName] = useState<Record<string, string>>({});
+  const [groupingFor, setGroupingFor] = useState<string | null>(null);
 
   const toggleNode = (nodeId: string) => {
     setExpandedNodes(prev => {
@@ -126,19 +123,9 @@ export default function HierarchicalEditorStep({
       for (const risk of (site.risks || [])) {
         risks.push({ risk, siteName: site.name, path: { type: 'site', siteId: site.id }, level: 'Site' });
       }
-      for (const zone of site.zones || []) {
-        for (const risk of (zone.risks || [])) {
-          risks.push({ risk, siteName: site.name, zoneName: zone.name, path: { type: 'zone', siteId: site.id, zoneId: zone.id }, level: 'Zone' });
-        }
-        for (const unit of zone.workUnits || []) {
-          for (const risk of (unit.risks || [])) {
-            risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, path: { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id }, level: 'Unité' });
-          }
-          for (const activity of unit.activities || []) {
-            for (const risk of (activity.risks || [])) {
-              risks.push({ risk, siteName: site.name, zoneName: zone.name, unitName: unit.name, activityName: activity.name, path: { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id }, level: 'Activité' });
-            }
-          }
+      for (const unit of site.workUnits || []) {
+        for (const risk of (unit.risks || [])) {
+          risks.push({ risk, siteName: site.name, unitName: unit.name, path: { type: 'unit', siteId: site.id, unitId: unit.id }, level: 'Unité' });
         }
       }
     }
@@ -148,9 +135,7 @@ export default function HierarchicalEditorStep({
   const filteredRisks = useMemo(() => {
     if (selection.type === 'all') return allRisks;
     return allRisks.filter(r => {
-      if (selection.type === 'activity') return r.path.activityId === selection.activityId;
       if (selection.type === 'unit') return r.path.unitId === selection.unitId;
-      if (selection.type === 'zone') return r.path.zoneId === selection.zoneId;
       return r.path.siteId === selection.siteId;
     });
   }, [allRisks, selection]);
@@ -159,97 +144,75 @@ export default function HierarchicalEditorStep({
     if (selection.type === 'all') return 'Tous les sites';
     const site = sites.find(s => s.id === selection.siteId);
     if (selection.type === 'site') return site?.name || '';
-    const zone = site?.zones.find(z => z.id === selection.zoneId);
-    if (selection.type === 'zone') return `${site?.name} > ${zone?.name}`;
-    const unit = zone?.workUnits.find(u => u.id === selection.unitId);
-    if (selection.type === 'unit') return `${site?.name} > ${zone?.name} > ${unit?.name}`;
-    const activity = unit?.activities.find(a => a.id === selection.activityId);
-    return `${site?.name} > ${zone?.name} > ${unit?.name} > ${activity?.name}`;
+    const unit = site?.workUnits.find(u => u.id === selection.unitId);
+    return `${site?.name} > ${unit?.name}`;
   };
 
   const updateSite = (siteId: string, updates: Partial<Site>) => {
     onUpdateSites(sites.map(s => s.id === siteId ? { ...s, ...updates } : s));
   };
 
-  const updateZone = (siteId: string, zoneId: string, updates: Partial<WorkZone>) => {
+  const updateUnit = (siteId: string, unitId: string, updates: Partial<WorkUnit>) => {
     const site = sites.find(s => s.id === siteId);
-    if (site) updateSite(siteId, { zones: site.zones.map(z => z.id === zoneId ? { ...z, ...updates } : z) });
-  };
-
-  const updateUnit = (siteId: string, zoneId: string, unitId: string, updates: Partial<WorkUnit>) => {
-    const site = sites.find(s => s.id === siteId);
-    const zone = site?.zones.find(z => z.id === zoneId);
-    if (zone) updateZone(siteId, zoneId, { workUnits: zone.workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u) });
-  };
-
-  const updateActivity = (siteId: string, zoneId: string, unitId: string, actId: string, updates: Partial<Activity>) => {
-    const site = sites.find(s => s.id === siteId);
-    const zone = site?.zones.find(z => z.id === zoneId);
-    const unit = zone?.workUnits.find(u => u.id === unitId);
-    if (unit) updateUnit(siteId, zoneId, unitId, { activities: unit.activities.map(a => a.id === actId ? { ...a, ...updates } : a) });
+    if (site) updateSite(siteId, { workUnits: site.workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u) });
   };
 
   const addSite = () => {
     const id = crypto.randomUUID();
-    onUpdateSites([...sites, { id, name: 'Nouveau site', priority: 'Principal', companyId, zones: [], risks: [], preventionMeasures: [], order: sites.length }]);
+    onUpdateSites([...sites, { id, name: 'Nouveau site', priority: 'Principal', companyId, workUnits: [], risks: [], preventionMeasures: [], order: sites.length }]);
     setExpandedNodes(prev => new Set(Array.from(prev).concat(id)));
     setEditingNode(id);
   };
 
-  const addZone = (siteId: string) => {
+  const addWorkUnit = (siteId: string, name?: string) => {
     const site = sites.find(s => s.id === siteId);
     if (!site) return;
     const id = crypto.randomUUID();
-    updateSite(siteId, { zones: [...site.zones, { id, name: 'Nouvelle zone', siteId, workUnits: [], risks: [], preventionMeasures: [], order: site.zones.length }] });
+    updateSite(siteId, { workUnits: [...site.workUnits, { id, name: name || 'Nouvelle unité', siteId, workstations: [], risks: [], preventionMeasures: [], order: site.workUnits.length }] });
     setExpandedNodes(prev => new Set(Array.from(prev).concat([siteId, id])));
-    setEditingNode(id);
+    if (!name) setEditingNode(id);
+    return id;
   };
 
-  const addUnit = (siteId: string, zoneId: string) => {
+  const addWorkstation = (siteId: string, unitId: string) => {
+    const key = `${siteId}-${unitId}`;
+    const name = newWorkstationName[key]?.trim();
+    if (!name) return;
     const site = sites.find(s => s.id === siteId);
-    const zone = site?.zones.find(z => z.id === zoneId);
-    if (!zone) return;
-    const id = crypto.randomUUID();
-    updateZone(siteId, zoneId, { workUnits: [...zone.workUnits, { id, name: 'Nouvelle unité', zoneId, activities: [], risks: [], preventionMeasures: [], order: zone.workUnits.length }] });
-    setExpandedNodes(prev => new Set(Array.from(prev).concat([zoneId, id])));
-    setEditingNode(id);
-  };
-
-  const addActivity = (siteId: string, zoneId: string, unitId: string) => {
-    const site = sites.find(s => s.id === siteId);
-    const zone = site?.zones.find(z => z.id === zoneId);
-    const unit = zone?.workUnits.find(u => u.id === unitId);
+    const unit = site?.workUnits.find(u => u.id === unitId);
     if (!unit) return;
     const id = crypto.randomUUID();
-    updateUnit(siteId, zoneId, unitId, { activities: [...unit.activities, { id, name: 'Nouvelle activité', workUnitId: unitId, risks: [], preventionMeasures: [], order: unit.activities.length }] });
-    setExpandedNodes(prev => new Set(Array.from(prev).concat(unitId)));
-    setEditingNode(id);
+    updateUnit(siteId, unitId, { workstations: [...unit.workstations, { id, name, order: unit.workstations.length }] });
+    setNewWorkstationName(prev => ({ ...prev, [key]: '' }));
+  };
+
+  const removeWorkstation = (siteId: string, unitId: string, wsId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    const unit = site?.workUnits.find(u => u.id === unitId);
+    if (unit) updateUnit(siteId, unitId, { workstations: unit.workstations.filter(w => w.id !== wsId) });
   };
 
   const removeSite = (id: string) => { onUpdateSites(sites.filter(s => s.id !== id)); if (selection.siteId === id) setSelection({ type: 'all' }); };
-  const removeZone = (siteId: string, id: string) => { const site = sites.find(s => s.id === siteId); if (site) updateSite(siteId, { zones: site.zones.filter(z => z.id !== id) }); if (selection.zoneId === id) setSelection({ type: 'site', siteId }); };
-  const removeUnit = (siteId: string, zoneId: string, id: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); if (zone) updateZone(siteId, zoneId, { workUnits: zone.workUnits.filter(u => u.id !== id) }); if (selection.unitId === id) setSelection({ type: 'zone', siteId, zoneId }); };
-  const removeActivity = (siteId: string, zoneId: string, unitId: string, id: string) => { const site = sites.find(s => s.id === siteId); const zone = site?.zones.find(z => z.id === zoneId); const unit = zone?.workUnits.find(u => u.id === unitId); if (unit) updateUnit(siteId, zoneId, unitId, { activities: unit.activities.filter(a => a.id !== id) }); if (selection.activityId === id) setSelection({ type: 'unit', siteId, zoneId, unitId }); };
+  const removeUnit = (siteId: string, id: string) => { const site = sites.find(s => s.id === siteId); if (site) updateSite(siteId, { workUnits: site.workUnits.filter(u => u.id !== id) }); if (selection.unitId === id) setSelection({ type: 'site', siteId }); };
 
   const countRisks = (path: TreeSelection): number => {
     return allRisks.filter(r => {
-      if (path.type === 'activity') return r.path.activityId === path.activityId;
       if (path.type === 'unit') return r.path.unitId === path.unitId;
-      if (path.type === 'zone') return r.path.zoneId === path.zoneId;
       if (path.type === 'site') return r.path.siteId === path.siteId;
       return true;
     }).length;
   };
 
-  const generateRisks = async (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: TreeSelection) => {
+  const generateRisks = async (level: 'Site' | 'Unité', elementId: string, elementName: string, path: TreeSelection) => {
     if (!elementName.trim()) { toast({ title: "Nom requis", variant: "destructive" }); return; }
     setGeneratingFor(elementId);
     try {
       const site = path.siteId ? sites.find(s => s.id === path.siteId) : undefined;
-      const zone = site && path.zoneId ? site.zones.find(z => z.id === path.zoneId) : undefined;
+      const unit = site?.workUnits.find(u => u.id === elementId);
+      const workstationNames = unit?.workstations?.map(w => w.name) || [];
       const response = await apiRequest('/api/generate-hierarchical-risks', {
         method: 'POST',
-        body: JSON.stringify({ level, elementName, companyActivity, companyDescription, companyId, siteName: site?.name, zoneName: zone?.name, workUnitName: path.unitId ? zone?.workUnits.find(u => u.id === path.unitId)?.name : undefined }),
+        body: JSON.stringify({ level, elementName, companyActivity, companyDescription, companyId, siteName: site?.name, workstationNames }),
       });
       if (response.risks?.length > 0) {
         setPendingRisks({ risks: response.risks, elementId, elementName, level, path });
@@ -264,6 +227,59 @@ export default function HierarchicalEditorStep({
     }
   };
 
+  const groupWorkstationsWithAI = async (siteId: string) => {
+    const site = sites.find(s => s.id === siteId);
+    if (!site) return;
+    
+    const allWorkstations: string[] = [];
+    for (const unit of site.workUnits) {
+      for (const ws of unit.workstations) {
+        allWorkstations.push(ws.name);
+      }
+    }
+    
+    if (allWorkstations.length === 0) {
+      toast({ title: "Ajoutez d'abord des postes de travail", variant: "destructive" });
+      return;
+    }
+
+    setGroupingFor(siteId);
+    try {
+      const response = await apiRequest('/api/group-workstations', {
+        method: 'POST',
+        body: JSON.stringify({ workstations: allWorkstations, companyActivity, companyDescription, siteName: site.name }),
+      });
+
+      if (response.groups?.length > 0) {
+        const newUnits: WorkUnit[] = response.groups.map((group: { name: string; workstations: string[] }, idx: number) => ({
+          id: crypto.randomUUID(),
+          name: group.name,
+          siteId,
+          workstations: group.workstations.map((wsName: string, wsIdx: number) => ({
+            id: crypto.randomUUID(),
+            name: wsName,
+            order: wsIdx
+          })),
+          risks: [],
+          preventionMeasures: [],
+          order: idx,
+        }));
+        updateSite(siteId, { workUnits: newUnits });
+        setExpandedNodes(prev => {
+          const next = new Set(prev);
+          next.add(siteId);
+          newUnits.forEach((u: WorkUnit) => next.add(u.id));
+          return next;
+        });
+        toast({ title: `${newUnits.length} unité(s) de travail créée(s)`, description: `${allWorkstations.length} postes regroupés intelligemment` });
+      }
+    } catch (error) {
+      toast({ title: "Erreur lors du regroupement", variant: "destructive" });
+    } finally {
+      setGroupingFor(null);
+    }
+  };
+
   const validateSelectedRisks = () => {
     if (!pendingRisks) return;
     const { level, path, elementId } = pendingRisks;
@@ -271,9 +287,7 @@ export default function HierarchicalEditorStep({
 
     const getCurrentRisks = (): Risk[] => {
       if (level === 'Site') return sites.find(s => s.id === elementId)?.risks || [];
-      if (level === 'Zone' && path.siteId) { const site = sites.find(s => s.id === path.siteId); return site?.zones.find(z => z.id === elementId)?.risks || []; }
-      if (level === 'Unité' && path.siteId && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); return zone?.workUnits.find(u => u.id === elementId)?.risks || []; }
-      if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); return unit?.activities.find(a => a.id === elementId)?.risks || []; }
+      if (level === 'Unité' && path.siteId) { const site = sites.find(s => s.id === path.siteId); return site?.workUnits.find(u => u.id === elementId)?.risks || []; }
       return [];
     };
 
@@ -281,9 +295,7 @@ export default function HierarchicalEditorStep({
     const mergedRisks = [...existingRisks, ...validatedRisks];
 
     if (level === 'Site') updateSite(elementId, { risks: mergedRisks });
-    else if (level === 'Zone' && path.siteId) updateZone(path.siteId, elementId, { risks: mergedRisks });
-    else if (level === 'Unité' && path.siteId && path.zoneId) updateUnit(path.siteId, path.zoneId, elementId, { risks: mergedRisks });
-    else if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) updateActivity(path.siteId, path.zoneId, path.unitId, elementId, { risks: mergedRisks });
+    else if (level === 'Unité' && path.siteId) updateUnit(path.siteId, elementId, { risks: mergedRisks });
 
     toast({ title: `${validatedRisks.length} risque(s) ajouté(s)` });
     setPendingRisks(null);
@@ -294,9 +306,7 @@ export default function HierarchicalEditorStep({
     const { risk, path, level } = tableRisk;
     const removeFromArray = (risks: Risk[]) => risks.filter(r => r.id !== risk.id);
     if (level === 'Site') { const site = sites.find(s => s.id === path.siteId); if (site) updateSite(path.siteId!, { risks: removeFromArray(site.risks || []) }); }
-    else if (level === 'Zone' && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); if (zone) updateZone(path.siteId!, path.zoneId, { risks: removeFromArray(zone.risks || []) }); }
-    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.zoneId!, path.unitId, { risks: removeFromArray(unit.risks || []) }); }
-    else if (level === 'Activité' && path.activityId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); const activity = unit?.activities.find(a => a.id === path.activityId); if (activity) updateActivity(path.siteId!, path.zoneId!, path.unitId!, path.activityId, { risks: removeFromArray(activity.risks || []) }); }
+    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const unit = site?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.unitId, { risks: removeFromArray(unit.risks || []) }); }
     toast({ title: "Risque retiré" });
   };
 
@@ -304,13 +314,11 @@ export default function HierarchicalEditorStep({
     const { risk, path, level } = tableRisk;
     const validateInArray = (risks: Risk[]) => risks.map(r => r.id === risk.id ? { ...r, isValidated: true } : r);
     if (level === 'Site') { const site = sites.find(s => s.id === path.siteId); if (site) updateSite(path.siteId!, { risks: validateInArray(site.risks || []) }); }
-    else if (level === 'Zone' && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); if (zone) updateZone(path.siteId!, path.zoneId, { risks: validateInArray(zone.risks || []) }); }
-    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.zoneId!, path.unitId, { risks: validateInArray(unit.risks || []) }); }
-    else if (level === 'Activité' && path.activityId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); const activity = unit?.activities.find(a => a.id === path.activityId); if (activity) updateActivity(path.siteId!, path.zoneId!, path.unitId!, path.activityId, { risks: validateInArray(activity.risks || []) }); }
+    else if (level === 'Unité' && path.unitId) { const site = sites.find(s => s.id === path.siteId); const unit = site?.workUnits.find(u => u.id === path.unitId); if (unit) updateUnit(path.siteId!, path.unitId, { risks: validateInArray(unit.risks || []) }); }
     toast({ title: "Risque validé" });
   };
 
-  const openLibrary = (level: 'Site' | 'Zone' | 'Unité' | 'Activité', elementId: string, elementName: string, path: TreeSelection) => {
+  const openLibrary = (level: 'Site' | 'Unité', elementId: string, elementName: string, path: TreeSelection) => {
     setLibrarySelector({ isOpen: true, level, elementId, elementName, path });
   };
 
@@ -320,15 +328,11 @@ export default function HierarchicalEditorStep({
     
     const getCurrentRisks = (): Risk[] => {
       if (level === 'Site') return sites.find(s => s.id === elementId)?.risks || [];
-      if (level === 'Zone' && path.siteId) { const site = sites.find(s => s.id === path.siteId); return site?.zones.find(z => z.id === elementId)?.risks || []; }
-      if (level === 'Unité' && path.siteId && path.zoneId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); return zone?.workUnits.find(u => u.id === elementId)?.risks || []; }
-      if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) { const site = sites.find(s => s.id === path.siteId); const zone = site?.zones.find(z => z.id === path.zoneId); const unit = zone?.workUnits.find(u => u.id === path.unitId); return unit?.activities.find(a => a.id === elementId)?.risks || []; }
+      if (level === 'Unité' && path.siteId) { const site = sites.find(s => s.id === path.siteId); return site?.workUnits.find(u => u.id === elementId)?.risks || []; }
       return [];
     };
     
     const existingRisks = getCurrentRisks();
-    
-    // Deduplicate: check for existing catalog IDs and danger matches
     const existingCatalogIds = new Set(existingRisks.map((r: any) => r.catalogId).filter(Boolean));
     const existingDangers = new Set(existingRisks.map(r => r.danger.toLowerCase().trim()));
     
@@ -342,9 +346,7 @@ export default function HierarchicalEditorStep({
     const mergedRisks = [...existingRisks, ...newRisks];
     
     if (level === 'Site') updateSite(elementId, { risks: mergedRisks });
-    else if (level === 'Zone' && path.siteId) updateZone(path.siteId, elementId, { risks: mergedRisks });
-    else if (level === 'Unité' && path.siteId && path.zoneId) updateUnit(path.siteId, path.zoneId, elementId, { risks: mergedRisks });
-    else if (level === 'Activité' && path.siteId && path.zoneId && path.unitId) updateActivity(path.siteId, path.zoneId, path.unitId, elementId, { risks: mergedRisks });
+    else if (level === 'Unité' && path.siteId) updateUnit(path.siteId, elementId, { risks: mergedRisks });
     
     const message = duplicateCount > 0 
       ? `${newRisks.length} risque(s) ajouté(s), ${duplicateCount} doublon(s) ignoré(s)`
@@ -353,8 +355,8 @@ export default function HierarchicalEditorStep({
     setLibrarySelector(null);
   };
 
-  const TreeNode = ({ icon: Icon, iconColor, label, nodeId, isSelected, onSelect, onToggle, isExpanded, hasChildren, onAdd, onRemove, onGenerate, onOpenLibrary, isGenerating, riskCount, depth = 0 }: {
-    icon: any; iconColor: string; label: string; nodeId: string; isSelected: boolean; onSelect: () => void; onToggle: () => void; isExpanded: boolean; hasChildren: boolean; onAdd?: () => void; onRemove: () => void; onGenerate: () => void; onOpenLibrary: () => void; isGenerating: boolean; riskCount: number; depth?: number;
+  const TreeNode = ({ icon: Icon, iconColor, label, nodeId, isSelected, onSelect, onToggle, isExpanded, hasChildren, onAdd, onRemove, onGenerate, onOpenLibrary, isGenerating, riskCount, depth = 0, workstationCount }: {
+    icon: any; iconColor: string; label: string; nodeId: string; isSelected: boolean; onSelect: () => void; onToggle: () => void; isExpanded: boolean; hasChildren: boolean; onAdd?: () => void; onRemove: () => void; onGenerate: () => void; onOpenLibrary: () => void; isGenerating: boolean; riskCount: number; depth?: number; workstationCount?: number;
   }) => (
     <div className={`group flex items-center gap-1 py-1 px-2 rounded cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : ''}`} style={{ paddingLeft: `${depth * 12 + 8}px` }}>
       {hasChildren ? (
@@ -368,21 +370,14 @@ export default function HierarchicalEditorStep({
           const site = sites.find(s => s.id === nodeId);
           if (site) { updateSite(nodeId, { name: e.target.value }); return; }
           for (const s of sites) {
-            const zone = s.zones.find(z => z.id === nodeId);
-            if (zone) { updateZone(s.id, nodeId, { name: e.target.value }); return; }
-            for (const z of s.zones) {
-              const unit = z.workUnits.find(u => u.id === nodeId);
-              if (unit) { updateUnit(s.id, z.id, nodeId, { name: e.target.value }); return; }
-              for (const u of z.workUnits) {
-                const act = u.activities.find(a => a.id === nodeId);
-                if (act) { updateActivity(s.id, z.id, u.id, nodeId, { name: e.target.value }); return; }
-              }
-            }
+            const unit = s.workUnits.find(u => u.id === nodeId);
+            if (unit) { updateUnit(s.id, nodeId, { name: e.target.value }); return; }
           }
         }} onBlur={() => setEditingNode(null)} onKeyDown={(e) => e.key === 'Enter' && setEditingNode(null)} className="h-5 text-xs flex-1 min-w-0" />
       ) : (
         <span className="text-xs flex-1 truncate" onClick={onSelect} onDoubleClick={() => setEditingNode(nodeId)}>{label}</span>
       )}
+      {workstationCount !== undefined && workstationCount > 0 && <Badge variant="outline" className="text-[8px] h-4 px-1 border-blue-300 text-blue-600">{workstationCount} postes</Badge>}
       {riskCount > 0 && <Badge variant="secondary" className="text-[9px] h-4 px-1">{riskCount}</Badge>}
       <div className="hidden group-hover:flex items-center gap-0.5">
         <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); onOpenLibrary(); }} title="Bibliothèque INRS">
@@ -409,13 +404,13 @@ export default function HierarchicalEditorStep({
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 h-[600px]">
+      <div className="grid grid-cols-12 gap-4 h-[650px]">
         <Card className="col-span-3 flex flex-col">
           <CardHeader className="py-2 px-3 border-b flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FolderTree className="h-4 w-4" />
-                Arborescence
+                Structure
               </CardTitle>
               <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={addSite}>
                 <Plus className="h-3 w-3 mr-1" />Site
@@ -439,8 +434,8 @@ export default function HierarchicalEditorStep({
                       onSelect={() => setSelection({ type: 'site', siteId: site.id })}
                       onToggle={() => toggleNode(site.id)}
                       isExpanded={expandedNodes.has(site.id)}
-                      hasChildren={site.zones.length > 0}
-                      onAdd={() => addZone(site.id)}
+                      hasChildren={(site.workUnits || []).length > 0}
+                      onAdd={() => addWorkUnit(site.id)}
                       onRemove={() => removeSite(site.id)}
                       onGenerate={() => generateRisks('Site', site.id, site.name, { type: 'site', siteId: site.id })}
                       onOpenLibrary={() => openLibrary('Site', site.id, site.name, { type: 'site', siteId: site.id })}
@@ -448,61 +443,62 @@ export default function HierarchicalEditorStep({
                       riskCount={countRisks({ type: 'site', siteId: site.id })}
                       depth={0}
                     />
-                    {expandedNodes.has(site.id) && site.zones.map(zone => (
-                      <div key={zone.id}>
+                    {expandedNodes.has(site.id) && (site.workUnits || []).map(unit => (
+                      <div key={unit.id}>
                         <TreeNode
-                          icon={Layers} iconColor="text-green-600" label={zone.name} nodeId={zone.id}
-                          isSelected={selection.type === 'zone' && selection.zoneId === zone.id}
-                          onSelect={() => setSelection({ type: 'zone', siteId: site.id, zoneId: zone.id })}
-                          onToggle={() => toggleNode(zone.id)}
-                          isExpanded={expandedNodes.has(zone.id)}
-                          hasChildren={zone.workUnits.length > 0}
-                          onAdd={() => addUnit(site.id, zone.id)}
-                          onRemove={() => removeZone(site.id, zone.id)}
-                          onGenerate={() => generateRisks('Zone', zone.id, zone.name, { type: 'zone', siteId: site.id, zoneId: zone.id })}
-                          onOpenLibrary={() => openLibrary('Zone', zone.id, zone.name, { type: 'zone', siteId: site.id, zoneId: zone.id })}
-                          isGenerating={generatingFor === zone.id}
-                          riskCount={countRisks({ type: 'zone', siteId: site.id, zoneId: zone.id })}
+                          icon={Users} iconColor="text-purple-600" label={unit.name} nodeId={unit.id}
+                          isSelected={selection.type === 'unit' && selection.unitId === unit.id}
+                          onSelect={() => setSelection({ type: 'unit', siteId: site.id, unitId: unit.id })}
+                          onToggle={() => toggleNode(unit.id)}
+                          isExpanded={expandedNodes.has(unit.id)}
+                          hasChildren={(unit.workstations || []).length > 0}
+                          onRemove={() => removeUnit(site.id, unit.id)}
+                          onGenerate={() => generateRisks('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, unitId: unit.id })}
+                          onOpenLibrary={() => openLibrary('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, unitId: unit.id })}
+                          isGenerating={generatingFor === unit.id}
+                          riskCount={countRisks({ type: 'unit', siteId: site.id, unitId: unit.id })}
+                          workstationCount={(unit.workstations || []).length}
                           depth={1}
                         />
-                        {expandedNodes.has(zone.id) && zone.workUnits.map(unit => (
-                          <div key={unit.id}>
-                            <TreeNode
-                              icon={Users} iconColor="text-purple-600" label={unit.name} nodeId={unit.id}
-                              isSelected={selection.type === 'unit' && selection.unitId === unit.id}
-                              onSelect={() => setSelection({ type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
-                              onToggle={() => toggleNode(unit.id)}
-                              isExpanded={expandedNodes.has(unit.id)}
-                              hasChildren={unit.activities.length > 0}
-                              onAdd={() => addActivity(site.id, zone.id, unit.id)}
-                              onRemove={() => removeUnit(site.id, zone.id, unit.id)}
-                              onGenerate={() => generateRisks('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
-                              onOpenLibrary={() => openLibrary('Unité', unit.id, unit.name, { type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
-                              isGenerating={generatingFor === unit.id}
-                              riskCount={countRisks({ type: 'unit', siteId: site.id, zoneId: zone.id, unitId: unit.id })}
-                              depth={2}
-                            />
-                            {expandedNodes.has(unit.id) && unit.activities.map(activity => (
-                              <TreeNode
-                                key={activity.id}
-                                icon={ActivityIcon} iconColor="text-orange-500" label={activity.name} nodeId={activity.id}
-                                isSelected={selection.type === 'activity' && selection.activityId === activity.id}
-                                onSelect={() => setSelection({ type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
-                                onToggle={() => {}}
-                                isExpanded={false}
-                                hasChildren={false}
-                                onRemove={() => removeActivity(site.id, zone.id, unit.id, activity.id)}
-                                onGenerate={() => generateRisks('Activité', activity.id, activity.name, { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
-                                onOpenLibrary={() => openLibrary('Activité', activity.id, activity.name, { type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
-                                isGenerating={generatingFor === activity.id}
-                                riskCount={countRisks({ type: 'activity', siteId: site.id, zoneId: zone.id, unitId: unit.id, activityId: activity.id })}
-                                depth={3}
-                              />
-                            ))}
+                        {expandedNodes.has(unit.id) && (unit.workstations || []).map(ws => (
+                          <div key={ws.id} className="flex items-center gap-1 py-0.5 group" style={{ paddingLeft: '44px' }}>
+                            <Briefcase className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                            <span className="text-[10px] text-muted-foreground truncate flex-1">{ws.name}</span>
+                            <Button variant="ghost" size="sm" className="h-4 w-4 p-0 hidden group-hover:flex" onClick={() => removeWorkstation(site.id, unit.id, ws.id)}>
+                              <X className="h-2.5 w-2.5 text-destructive" />
+                            </Button>
                           </div>
                         ))}
+                        {expandedNodes.has(unit.id) && (
+                          <div className="flex items-center gap-1 py-0.5" style={{ paddingLeft: '44px' }}>
+                            <Input
+                              placeholder="+ Ajouter un poste..."
+                              value={newWorkstationName[`${site.id}-${unit.id}`] || ''}
+                              onChange={(e) => setNewWorkstationName(prev => ({ ...prev, [`${site.id}-${unit.id}`]: e.target.value }))}
+                              onKeyDown={(e) => e.key === 'Enter' && addWorkstation(site.id, unit.id)}
+                              className="h-5 text-[10px] flex-1 min-w-0 border-dashed"
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
+                    {expandedNodes.has(site.id) && (
+                      <div className="pl-6 py-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] w-full border-dashed"
+                          onClick={() => groupWorkstationsWithAI(site.id)}
+                          disabled={groupingFor === site.id}
+                        >
+                          {groupingFor === site.id ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Regroupement...</>
+                          ) : (
+                            <><Wand2 className="h-3 w-3 mr-1" />Regrouper les postes en unités</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -532,7 +528,7 @@ export default function HierarchicalEditorStep({
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 z-10">
                   <tr>
-                    <th className="text-left p-2 font-semibold border-b w-[140px]">Localisation</th>
+                    <th className="text-left p-2 font-semibold border-b w-[140px]">Unité de travail</th>
                     <th className="text-left p-2 font-semibold border-b w-[100px]">Famille de risque</th>
                     <th className="text-left p-2 font-semibold border-b">Situation d'exposition</th>
                     <th className="text-center p-2 font-semibold border-b w-[35px]">G</th>
@@ -557,7 +553,7 @@ export default function HierarchicalEditorStep({
                     filteredRisks.map((r) => (
                       <tr key={r.risk.id} className={`${r.risk.isValidated ? RISK_ROW_COLORS[r.risk.priority || ''] || '' : 'bg-amber-50 dark:bg-amber-950/30 border-l-2 border-l-amber-400'} hover:bg-muted/50 transition-colors`}>
                         <td className="p-2 border-b">
-                          <div className="text-xs font-medium">{r.zoneName && `${r.zoneName}`}{r.unitName && ` > ${r.unitName}`}{r.activityName && ` > ${r.activityName}`}</div>
+                          <div className="text-xs font-medium">{r.unitName || r.siteName}</div>
                           <div className="flex gap-1 mt-0.5">
                             <Badge variant="outline" className="text-[8px]">{r.level}</Badge>
                             {!r.risk.isValidated && <Badge variant="outline" className="text-[8px] border-amber-400 text-amber-600 dark:text-amber-400">En attente</Badge>}
@@ -627,7 +623,7 @@ export default function HierarchicalEditorStep({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Détails du risque</DialogTitle>
-            <DialogDescription>{reviewingRisk && `${reviewingRisk.siteName}${reviewingRisk.zoneName ? ' > ' + reviewingRisk.zoneName : ''}${reviewingRisk.unitName ? ' > ' + reviewingRisk.unitName : ''}${reviewingRisk.activityName ? ' > ' + reviewingRisk.activityName : ''}`}</DialogDescription>
+            <DialogDescription>{reviewingRisk && `${reviewingRisk.siteName}${reviewingRisk.unitName ? ' > ' + reviewingRisk.unitName : ''}`}</DialogDescription>
           </DialogHeader>
           {reviewingRisk && (
             <div className="space-y-4">

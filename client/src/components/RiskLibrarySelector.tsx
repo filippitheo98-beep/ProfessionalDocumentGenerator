@@ -60,16 +60,14 @@ interface RiskLibrarySelectorProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectRisks: (risks: Risk[]) => void;
-  hierarchyLevel: 'Site' | 'Zone' | 'Unité' | 'Activité';
+  hierarchyLevel: 'Site' | 'Unité';
   companySector?: string;
   elementName: string;
 }
 
 const HIERARCHY_LEVEL_MAP: Record<string, string> = {
   'Site': 'Site',
-  'Zone': 'Zone',
   'Unité': 'Unité',
-  'Activité': 'Activité',
 };
 
 type GravityType = 'Faible' | 'Moyenne' | 'Grave' | 'Très Grave';
@@ -317,9 +315,7 @@ export default function RiskLibrarySelector({
                 <SelectContent>
                   <SelectItem value="all">Tous les niveaux</SelectItem>
                   <SelectItem value="Site">Site</SelectItem>
-                  <SelectItem value="Zone">Zone</SelectItem>
                   <SelectItem value="Unité">Unité de travail</SelectItem>
-                  <SelectItem value="Activité">Activité</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -292,8 +292,8 @@ export type InsertSector = z.infer<typeof insertSectorSchema>;
 export type InsertRiskFamily = z.infer<typeof insertRiskFamilySchema>;
 
 // ============================================
-// NOUVELLE HIÉRARCHIE DUERP
-// Société → Sites → Zones → Unités → Activités → Risques
+// HIÉRARCHIE DUERP SIMPLIFIÉE
+// Société → Sites → Unités de travail (avec postes) → Risques
 // ============================================
 
 // Types de priorité pour les sites
@@ -316,7 +316,7 @@ export type RiskFamily =
   | 'Autre';
 
 // Niveau hiérarchique d'où provient le risque
-export type HierarchyLevel = 'Site' | 'Zone' | 'Unité' | 'Activité';
+export type HierarchyLevel = 'Site' | 'Unité';
 
 // Interface de base pour un risque professionnel avec validation utilisateur
 export interface Risk {
@@ -352,7 +352,7 @@ export interface Risk {
 export interface PreventionMeasure {
   id: string;
   description: string;
-  level: 'Général' | 'Site' | 'Zone' | 'Unité' | 'Activité';
+  level: 'Général' | 'Site' | 'Unité';
   category: 'Technique' | 'Organisationnel' | 'Humain' | 'EPI';
   priority: 'Élevée' | 'Moyenne' | 'Faible';
   responsible?: string;
@@ -361,46 +361,30 @@ export interface PreventionMeasure {
   effectiveness?: 'Faible' | 'Moyenne' | 'Élevée';
   targetRiskIds?: string[];
   siteId?: string;
-  zoneId?: string;
   workUnitId?: string;
-  activityId?: string;
 }
 
 // ============================================
 // STRUCTURE HIÉRARCHIQUE PRINCIPALE
+// Société → Sites → Unités de travail → Risques
 // ============================================
 
-// Activité de travail (niveau le plus bas)
-export interface Activity {
+// Poste de travail (input utilisateur, regroupé en unités)
+export interface Workstation {
   id: string;
   name: string;
   description?: string;
-  workUnitId: string; // Parent: Unité de travail
-  risks: Risk[]; // Risques spécifiques à cette activité
-  preventionMeasures: PreventionMeasure[];
-  order: number; // Ordre d'affichage
+  order: number;
 }
 
-// Unité de travail (poste, fonction)
+// Unité de travail (regroupement intelligent de postes)
 export interface WorkUnit {
   id: string;
   name: string;
   description?: string;
-  zoneId: string; // Parent: Zone de travail
-  activities: Activity[]; // Activités dans cette unité
-  risks: Risk[]; // Risques spécifiques à cette unité
-  preventionMeasures: PreventionMeasure[];
-  order: number;
-}
-
-// Zone de travail (atelier, bureau, entrepôt)
-export interface WorkZone {
-  id: string;
-  name: string;
-  description?: string;
-  siteId: string; // Parent: Site
-  workUnits: WorkUnit[]; // Unités dans cette zone
-  risks: Risk[]; // Risques spécifiques à cette zone
+  siteId: string;
+  workstations: Workstation[];
+  risks: Risk[];
   preventionMeasures: PreventionMeasure[];
   order: number;
 }
@@ -411,10 +395,10 @@ export interface Site {
   name: string;
   address?: string;
   description?: string;
-  priority: SitePriority; // Priorité du site
-  companyId: number; // Parent: Société
-  zones: WorkZone[]; // Zones dans ce site
-  risks: Risk[]; // Risques spécifiques à ce site
+  priority: SitePriority;
+  companyId: number;
+  workUnits: WorkUnit[];
+  risks: Risk[];
   preventionMeasures: PreventionMeasure[];
   order: number;
 }
@@ -425,7 +409,7 @@ export interface HierarchicalDUERP {
   companyName: string;
   companyActivity: string;
   sites: Site[];
-  globalPreventionMeasures: PreventionMeasure[]; // Mesures globales société
+  globalPreventionMeasures: PreventionMeasure[];
   createdAt: string;
   updatedAt: string;
   version: string;
@@ -463,26 +447,22 @@ export const generateRisksRequestSchema = z.object({
 
 // Nouveau schéma de requête pour génération hiérarchique de risques
 export const generateHierarchicalRisksRequestSchema = z.object({
-  level: z.enum(['Site', 'Zone', 'Unité', 'Activité']),
-  elementName: z.string(), // Nom de l'élément (site, zone, unité, ou activité)
+  level: z.enum(['Site', 'Unité']),
+  elementName: z.string(),
   elementDescription: z.string().optional(),
   companyActivity: z.string(),
   companyDescription: z.string().optional(),
   companyId: z.number().optional(),
   
-  // Contexte hiérarchique (pour enrichir la génération IA)
   siteName: z.string().optional(),
-  zoneName: z.string().optional(),
-  workUnitName: z.string().optional(),
+  workstationNames: z.array(z.string()).optional(),
   
-  // Risques hérités du niveau supérieur
   inheritedRisks: z.array(z.object({
     id: z.string(),
     type: z.string(),
     danger: z.string(),
   })).optional(),
   
-  // Documents de référence
   uploadedDocumentsContext: z.string().optional(),
 });
 
