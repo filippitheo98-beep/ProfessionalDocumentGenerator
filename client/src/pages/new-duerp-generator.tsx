@@ -8,6 +8,7 @@ import { apiRequest, getQueryFn } from '@/lib/queryClient';
 import StepperDuerp from '@/components/StepperDuerp';
 import CompanyInfoStep from '@/components/steps/CompanyInfoStep';
 import LocationsWorkstationsStep from '@/components/steps/LocationsWorkstationsStep';
+import WorkstationSetupStep from '@/components/steps/WorkstationSetupStep';
 import HierarchicalEditorStep from '@/components/steps/HierarchicalEditorStep';
 import RiskGenerationStep from '@/components/steps/RiskGenerationStep';
 import HierarchicalRiskSummaryStep from '@/components/steps/HierarchicalRiskSummaryStep';
@@ -41,7 +42,6 @@ export default function NewDuerpGenerator() {
   const [isGeneratingRisks, setIsGeneratingRisks] = useState(false);
   const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
-  const [useHierarchicalMode, setUseHierarchicalMode] = useState(true);
   
   // Gestion du document (création/modification)
   const urlParams = new URLSearchParams(window.location.search);
@@ -77,7 +77,6 @@ export default function NewDuerpGenerator() {
     enabled: !!existingDocument?.companyId,
   });
 
-  // Chargement des données existantes
   useEffect(() => {
     if (existingDocument && existingCompany) {
       setCompany(existingCompany);
@@ -85,13 +84,18 @@ export default function NewDuerpGenerator() {
       setWorkStations(existingDocument.workStations || []);
       setPreventionMeasures(existingDocument.preventionMeasures || []);
       setFinalRisks(existingDocument.finalRisks || []);
+      if (existingDocument.sites && existingDocument.sites.length > 0) {
+        setSites(existingDocument.sites);
+      }
       
-      // Marquer les étapes complétées
-      const completed = [1]; // Étape 1 toujours complétée si on a une société
-      if ((existingDocument.locations?.length ?? 0) > 0 || (existingDocument.workStations?.length ?? 0) > 0) {
+      const completed = [1];
+      if ((existingDocument.sites?.length ?? 0) > 0 || (existingDocument.locations?.length ?? 0) > 0) {
         completed.push(2);
       }
-      if ((existingDocument.finalRisks?.length ?? 0) > 0) {
+      const hasSiteRisks = existingDocument.sites?.some(s => 
+        (s.risks?.length ?? 0) > 0 || s.workUnits?.some(u => (u.risks?.length ?? 0) > 0)
+      );
+      if (hasSiteRisks || (existingDocument.finalRisks?.length ?? 0) > 0) {
         completed.push(3, 4);
       }
       setCompletedSteps(completed);
@@ -506,6 +510,7 @@ export default function NewDuerpGenerator() {
       saveDuerpMutation.mutate({
         companyId: company.id,
         title: `${company.name} - DUERP`,
+        sites,
         locations,
         workStations,
         finalRisks,
@@ -632,61 +637,25 @@ export default function NewDuerpGenerator() {
             )}
 
             {currentStep === 2 && (
-              useHierarchicalMode ? (
-                <HierarchicalEditorStep
-                  companyId={company?.id || 0}
-                  companyActivity={company?.activity || ''}
-                  companyDescription={company?.description || ''}
-                  sites={sites}
-                  onUpdateSites={setSites}
-                  onSave={handleSaveProgress}
-                />
-              ) : (
-                <LocationsWorkstationsStep
-                  locations={locations}
-                  workStations={workStations}
-                  preventionMeasures={preventionMeasures}
-                  onUpdateLocations={handleLocationsUpdate}
-                  onUpdateWorkStations={handleWorkStationsUpdate}
-                  onUpdatePreventionMeasures={handlePreventionMeasuresUpdate}
-                  onAddPreventionMeasure={handleAddPreventionMeasure}
-                  onUpdatePreventionMeasure={handleUpdatePreventionMeasure}
-                  onRemovePreventionMeasure={handleRemovePreventionMeasure}
-                  onGeneratePreventionRecommendations={handleGeneratePreventionRecommendations}
-                  onAnalyzePhotos={handleAnalyzePhotos}
-                  onSave={handleSaveProgress}
-                  companyActivity={company?.activity || ''}
-                />
-              )
+              <WorkstationSetupStep
+                companyId={company?.id || 0}
+                companyActivity={company?.activity || ''}
+                companyDescription={company?.description || ''}
+                sites={sites}
+                onUpdateSites={setSites}
+                onSave={handleSaveProgress}
+              />
             )}
 
             {currentStep === 3 && (
-              useHierarchicalMode ? (
-                <HierarchicalRiskSummaryStep
-                  sites={sites}
-                  companyName={company?.name || 'Entreprise'}
-                  companyActivity={company?.activity || ''}
-                  preventionMeasures={preventionMeasures}
-                  onSave={handleSaveProgress}
-                  isSaving={saveDuerpMutation.isPending}
-                />
-              ) : (
-                <RiskGenerationStep
-                  locations={locations}
-                  workStations={workStations}
-                  finalRisks={finalRisks}
-                  preventionMeasures={preventionMeasures}
-                  companyActivity={company?.activity || ''}
-                  companyName={company?.name}
-                  onGenerateRisks={() => generateRisksMutation.mutate()}
-                  onRegenerateRisks={() => generateRisksMutation.mutate()}
-                  onAddSelectiveRisks={(selectedLocations, selectedWorkStations) => 
-                    addSelectiveRisksMutation.mutate({ selectedLocations, selectedWorkStations })
-                  }
-                  isGenerating={isGeneratingRisks}
-                  onSave={handleSaveProgress}
-                />
-              )
+              <HierarchicalEditorStep
+                companyId={company?.id || 0}
+                companyActivity={company?.activity || ''}
+                companyDescription={company?.description || ''}
+                sites={sites}
+                onUpdateSites={setSites}
+                onSave={handleSaveProgress}
+              />
             )}
 
             {currentStep === 4 && (

@@ -32,14 +32,14 @@ const steps = [
   },
   {
     id: 2,
-    title: "Lieux et postes de travail",
-    description: "Ajout des locaux, postes et photos",
+    title: "Paramétrage des postes",
+    description: "Sites et postes de travail",
     icon: MapPin
   },
   {
     id: 3,
-    title: "Génération des risques",
-    description: "Tableau des risques professionnels",
+    title: "Tableau des risques",
+    description: "Évaluation des risques professionnels",
     icon: FileText
   },
   {
