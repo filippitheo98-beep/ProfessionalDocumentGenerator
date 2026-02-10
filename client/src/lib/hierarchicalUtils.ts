@@ -1,51 +1,32 @@
-import type { Site, WorkUnit, Risk } from '@shared/schema';
+import type { WorkUnit, Risk } from '@shared/schema';
 
 export interface FlattenedRisk extends Risk {
-  siteName: string;
   workUnitName: string;
   hierarchyPath: string;
-  originLevel: 'Site' | 'Unité';
 }
 
-export function extractAllRisks(sites: Site[]): FlattenedRisk[] {
+export function extractAllRisks(workUnits: WorkUnit[]): FlattenedRisk[] {
   const allRisks: FlattenedRisk[] = [];
 
-  for (const site of sites) {
-    for (const risk of site.risks.filter(r => r.isValidated)) {
+  for (const unit of workUnits) {
+    for (const risk of (unit.risks || []).filter(r => r.isValidated)) {
       allRisks.push({
         ...risk,
-        siteName: site.name,
-        workUnitName: '-',
-        hierarchyPath: site.name,
-        originLevel: 'Site'
+        workUnitName: unit.name,
+        hierarchyPath: unit.name,
       });
-    }
-
-    for (const unit of site.workUnits) {
-      for (const risk of unit.risks.filter(r => r.isValidated)) {
-        allRisks.push({
-          ...risk,
-          siteName: site.name,
-          workUnitName: unit.name,
-          hierarchyPath: `${site.name} > ${unit.name}`,
-          originLevel: 'Unité'
-        });
-      }
     }
   }
 
-  return allRisks.sort((a, b) => {
-    if (a.siteName !== b.siteName) return a.siteName.localeCompare(b.siteName);
-    return a.workUnitName.localeCompare(b.workUnitName);
-  });
+  return allRisks.sort((a, b) => a.workUnitName.localeCompare(b.workUnitName));
 }
 
-export function countTotalRisks(sites: Site[]): number {
-  return extractAllRisks(sites).length;
+export function countTotalRisks(workUnits: WorkUnit[]): number {
+  return extractAllRisks(workUnits).length;
 }
 
-export function getRisksByFamily(sites: Site[]): Record<string, FlattenedRisk[]> {
-  const risks = extractAllRisks(sites);
+export function getRisksByFamily(workUnits: WorkUnit[]): Record<string, FlattenedRisk[]> {
+  const risks = extractAllRisks(workUnits);
   return risks.reduce((acc, risk) => {
     const family = risk.family || 'Autre';
     if (!acc[family]) acc[family] = [];
@@ -54,8 +35,8 @@ export function getRisksByFamily(sites: Site[]): Record<string, FlattenedRisk[]>
   }, {} as Record<string, FlattenedRisk[]>);
 }
 
-export function getRisksByPriority(sites: Site[]): Record<string, FlattenedRisk[]> {
-  const risks = extractAllRisks(sites);
+export function getRisksByPriority(workUnits: WorkUnit[]): Record<string, FlattenedRisk[]> {
+  const risks = extractAllRisks(workUnits);
   return risks.reduce((acc, risk) => {
     const priority = risk.priority || 'Priorité 4 (Faible)';
     if (!acc[priority]) acc[priority] = [];
@@ -64,10 +45,10 @@ export function getRisksByPriority(sites: Site[]): Record<string, FlattenedRisk[
   }, {} as Record<string, FlattenedRisk[]>);
 }
 
-export function getRiskStatistics(sites: Site[]) {
-  const risks = extractAllRisks(sites);
-  const byPriority = getRisksByPriority(sites);
-  const byFamily = getRisksByFamily(sites);
+export function getRiskStatistics(workUnits: WorkUnit[]) {
+  const risks = extractAllRisks(workUnits);
+  const byPriority = getRisksByPriority(workUnits);
+  const byFamily = getRisksByFamily(workUnits);
 
   return {
     total: risks.length,
@@ -81,9 +62,9 @@ export function getRiskStatistics(sites: Site[]) {
       family,
       count: risks.length
     })).sort((a, b) => b.count - a.count),
-    bySite: sites.map(site => ({
-      site: site.name,
-      count: extractAllRisks([site]).length
+    byUnit: workUnits.map(unit => ({
+      unit: unit.name,
+      count: extractAllRisks([unit]).length
     }))
   };
 }

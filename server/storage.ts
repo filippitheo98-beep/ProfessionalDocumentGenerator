@@ -35,6 +35,8 @@ export interface IStorage {
   createDuerpDocument(data: {
     companyId: number;
     title: string;
+    workUnitsData?: any[];
+    sites?: any[];
     locations: Location[];
     workStations: any[];
     finalRisks: Risk[];
@@ -152,12 +154,13 @@ export class DatabaseStorage implements IStorage {
   async createDuerpDocument(data: {
     companyId: number;
     title: string;
+    workUnitsData?: any[];
+    sites?: any[];
     locations: Location[];
     workStations: any[];
     finalRisks: Risk[];
     preventionMeasures: PreventionMeasure[];
   }): Promise<DuerpDocument> {
-    // Vérifier si un document avec le même titre existe déjà
     const existingDocument = await db
       .select()
       .from(duerpDocuments)
@@ -179,12 +182,14 @@ export class DatabaseStorage implements IStorage {
         companyId: data.companyId,
         title: data.title,
         version: "1.0",
+        workUnitsData: data.workUnitsData || [],
+        sites: data.sites || [],
         locations: data.locations,
         workStations: data.workStations,
         finalRisks: data.finalRisks,
         preventionMeasures: data.preventionMeasures,
         status: "draft",
-        nextReviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+        nextReviewDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         lastRevisionDate: new Date(),
         revisionNotified: false,
         updatedAt: new Date()

@@ -10,6 +10,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **2026-02-10**: Restructured hierarchy from Company→Sites→WorkUnits to Company→WorkUnits→(Postes+Sites)
+- **2026-02-10**: WorkUnit is now the top-level container; users create units then add workstations and sites inside
+- **2026-02-10**: Updated WorkstationSetupStep, HierarchicalEditorStep, hierarchicalUtils for new structure
+- **2026-02-10**: Added workUnitsData column to duerp_documents table for new hierarchy persistence
 - **2025-07-12**: Major UI/UX overhaul with modern design system and animations
 - **2025-07-12**: Implemented dark/light theme toggle with system preference detection
 - **2025-07-12**: Added comprehensive header with navigation, notifications, and user menu

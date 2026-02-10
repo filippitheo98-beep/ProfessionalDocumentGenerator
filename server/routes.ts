@@ -450,7 +450,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
 
   app.post('/api/duerp/save', async (req, res) => {
     try {
-      const { companyId, title, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      const { companyId, title, workUnitsData, sites, locations, workStations, finalRisks, preventionMeasures } = req.body;
       
       if (!companyId || !title) {
         return res.status(400).json({ message: 'Company ID and title are required' });
@@ -459,6 +459,8 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
       const document = await storage.createDuerpDocument({
         companyId,
         title,
+        workUnitsData: workUnitsData || [],
+        sites: sites || [],
         locations: locations || [],
         workStations: workStations || [],
         finalRisks: finalRisks || [],

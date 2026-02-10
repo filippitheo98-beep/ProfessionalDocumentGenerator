@@ -32,8 +32,8 @@ const steps = [
   },
   {
     id: 2,
-    title: "Paramétrage des postes",
-    description: "Sites et postes de travail",
+    title: "Unités de travail",
+    description: "Unités, postes et sites",
     icon: MapPin
   },
   {

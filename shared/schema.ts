@@ -41,7 +41,8 @@ export const duerpDocuments = pgTable("duerp_documents", {
   version: varchar("version", { length: 20 }).default("1.0"),
   status: varchar("status", { length: 50 }).default("draft"), // draft, pending, approved, archived
   
-  // Nouvelle structure hiérarchique
+  // Nouvelle structure hiérarchique (Unités de travail au premier niveau)
+  workUnitsData: jsonb("work_units_data").$type<WorkUnit[]>().default([]),
   sites: jsonb("sites").$type<Site[]>().default([]),
   globalPreventionMeasures: jsonb("global_prevention_measures").$type<PreventionMeasure[]>().default([]),
   
@@ -293,7 +294,7 @@ export type InsertRiskFamily = z.infer<typeof insertRiskFamilySchema>;
 
 // ============================================
 // HIÉRARCHIE DUERP SIMPLIFIÉE
-// Société → Sites → Unités de travail (avec postes) → Risques
+// Société → Unités de travail → (Postes de travail + Sites/Lieux)
 // ============================================
 
 // Types de priorité pour les sites
@@ -366,10 +367,10 @@ export interface PreventionMeasure {
 
 // ============================================
 // STRUCTURE HIÉRARCHIQUE PRINCIPALE
-// Société → Sites → Unités de travail → Risques
+// Société → Unités de travail → (Postes + Sites/Lieux)
 // ============================================
 
-// Poste de travail (input utilisateur, regroupé en unités)
+// Poste de travail (input utilisateur)
 export interface Workstation {
   id: string;
   name: string;
@@ -377,19 +378,29 @@ export interface Workstation {
   order: number;
 }
 
-// Unité de travail (regroupement intelligent de postes)
+// Lieu / Site (rattaché à une unité de travail)
+export interface UnitSite {
+  id: string;
+  name: string;
+  address?: string;
+  description?: string;
+  order: number;
+}
+
+// Unité de travail (conteneur principal avec postes et sites)
 export interface WorkUnit {
   id: string;
   name: string;
   description?: string;
-  siteId: string;
+  companyId: number;
   workstations: Workstation[];
+  unitSites: UnitSite[];
   risks: Risk[];
   preventionMeasures: PreventionMeasure[];
   order: number;
 }
 
-// Site (établissement, agence, chantier)
+// Legacy Site type kept for backward compatibility
 export interface Site {
   id: string;
   name: string;
@@ -408,7 +419,7 @@ export interface HierarchicalDUERP {
   companyId: number;
   companyName: string;
   companyActivity: string;
-  sites: Site[];
+  workUnits: WorkUnit[];
   globalPreventionMeasures: PreventionMeasure[];
   createdAt: string;
   updatedAt: string;

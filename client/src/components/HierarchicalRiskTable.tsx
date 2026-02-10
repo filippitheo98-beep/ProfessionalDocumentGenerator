@@ -12,14 +12,13 @@ import {
   AlertCircle,
   Info,
   CheckCircle,
-  Building2,
   Users
 } from "lucide-react";
-import type { Site } from "@shared/schema";
+import type { WorkUnit } from "@shared/schema";
 import { extractAllRisks, getRiskStatistics, type FlattenedRisk } from "@/lib/hierarchicalUtils";
 
 interface HierarchicalRiskTableProps {
-  sites: Site[];
+  workUnits: WorkUnit[];
   companyName: string;
   onExportExcel?: () => void;
   onExportWord?: () => void;
@@ -32,11 +31,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   'Priorité 4 (Faible)': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
 
-const LEVEL_ICONS = {
-  'Site': Building2,
-  'Unité': Users,
-};
-
 const PRIORITY_ICONS = {
   'Priorité 1 (Forte)': AlertTriangle,
   'Priorité 2 (Moyenne)': AlertCircle,
@@ -45,17 +39,17 @@ const PRIORITY_ICONS = {
 };
 
 export default function HierarchicalRiskTable({ 
-  sites, 
+  workUnits, 
   companyName,
   onExportExcel,
   onExportWord 
 }: HierarchicalRiskTableProps) {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterFamily, setFilterFamily] = useState<string>('all');
-  const [filterSite, setFilterSite] = useState<string>('all');
+  const [filterUnit, setFilterUnit] = useState<string>('all');
 
-  const allRisks = useMemo(() => extractAllRisks(sites), [sites]);
-  const stats = useMemo(() => getRiskStatistics(sites), [sites]);
+  const allRisks = useMemo(() => extractAllRisks(workUnits), [workUnits]);
+  const stats = useMemo(() => getRiskStatistics(workUnits), [workUnits]);
   
   const families = useMemo(() => {
     const familySet = new Set(allRisks.map(r => r.family || 'Autre'));
@@ -66,20 +60,17 @@ export default function HierarchicalRiskTable({
     return allRisks.filter(risk => {
       if (filterPriority !== 'all' && risk.priority !== filterPriority) return false;
       if (filterFamily !== 'all' && (risk.family || 'Autre') !== filterFamily) return false;
-      if (filterSite !== 'all' && risk.siteName !== filterSite) return false;
+      if (filterUnit !== 'all' && risk.workUnitName !== filterUnit) return false;
       return true;
     });
-  }, [allRisks, filterPriority, filterFamily, filterSite]);
+  }, [allRisks, filterPriority, filterFamily, filterUnit]);
 
   const groupedRisks = useMemo(() => {
-    const grouped: Record<string, Record<string, FlattenedRisk[]>> = {};
+    const grouped: Record<string, FlattenedRisk[]> = {};
     
     for (const risk of filteredRisks) {
-      if (!grouped[risk.siteName]) grouped[risk.siteName] = {};
-      if (!grouped[risk.siteName][risk.workUnitName]) {
-        grouped[risk.siteName][risk.workUnitName] = [];
-      }
-      grouped[risk.siteName][risk.workUnitName].push(risk);
+      if (!grouped[risk.workUnitName]) grouped[risk.workUnitName] = [];
+      grouped[risk.workUnitName].push(risk);
     }
     
     return grouped;
@@ -100,7 +91,7 @@ export default function HierarchicalRiskTable({
         <CardContent className="text-center py-12">
           <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-muted-foreground">
-            Utilisez l'éditeur de structure pour ajouter des sites et unités de travail,
+            Utilisez l'éditeur de structure pour ajouter des unités de travail,
             puis générez les risques avec l'IA et validez-les.
           </p>
         </CardContent>
@@ -172,14 +163,14 @@ export default function HierarchicalRiskTable({
 
           <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={filterSite} onValueChange={setFilterSite}>
-              <SelectTrigger className="w-[180px]" data-testid="select-filter-site">
-                <SelectValue placeholder="Tous les sites" />
+            <Select value={filterUnit} onValueChange={setFilterUnit}>
+              <SelectTrigger className="w-[180px]" data-testid="select-filter-unit">
+                <SelectValue placeholder="Toutes les unités" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les sites</SelectItem>
-                {sites.map(site => (
-                  <SelectItem key={site.id} value={site.name}>{site.name}</SelectItem>
+                <SelectItem value="all">Toutes les unités</SelectItem>
+                {workUnits.map(unit => (
+                  <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -227,60 +218,52 @@ export default function HierarchicalRiskTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(groupedRisks).map(([siteName, units]) => (
-                  Object.entries(units).map(([unitName, risks]) => (
-                    risks.map((risk) => {
-                      const PriorityIcon = PRIORITY_ICONS[risk.priority as keyof typeof PRIORITY_ICONS] || Info;
-                      
-                      return (
-                        <TableRow key={risk.id} className="hover:bg-muted/30">
-                          <TableCell className="align-top">
-                            <div className="text-xs space-y-1">
-                              <div className="flex items-center gap-1">
-                                <Building2 className="h-3 w-3 text-blue-500" />
-                                <span className="font-medium">{siteName}</span>
-                              </div>
-                              {unitName !== '-' && (
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                  <Users className="h-3 w-3 text-purple-500" />
-                                  <span>{unitName}</span>
-                                </div>
-                              )}
+                {Object.entries(groupedRisks).map(([unitName, risks]) => (
+                  risks.map((risk) => {
+                    const PriorityIcon = PRIORITY_ICONS[risk.priority as keyof typeof PRIORITY_ICONS] || Info;
+                    
+                    return (
+                      <TableRow key={risk.id} className="hover:bg-muted/30">
+                        <TableCell className="align-top">
+                          <div className="text-xs space-y-1">
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-purple-500" />
+                              <span className="font-medium">{unitName}</span>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {risk.family || 'Autre'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">
-                            {risk.type}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {risk.danger}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {risk.gravityValue || risk.gravity}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {risk.frequencyValue || risk.frequency}
-                          </TableCell>
-                          <TableCell className="text-center text-xs">
-                            {risk.controlValue || risk.control}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-xs ${PRIORITY_COLORS[risk.priority || 'Priorité 4 (Faible)']}`}>
-                              <PriorityIcon className="h-3 w-3 mr-1" />
-                              {(risk.priority || 'P4').split(' ')[0] + ' ' + (risk.priority || '').match(/\d/)?.[0]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground max-w-[300px]">
-                            {risk.measures}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ))
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {risk.family || 'Autre'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {risk.type}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {risk.danger}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">
+                          {risk.gravityValue || risk.gravity}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">
+                          {risk.frequencyValue || risk.frequency}
+                        </TableCell>
+                        <TableCell className="text-center text-xs">
+                          {risk.controlValue || risk.control}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs ${PRIORITY_COLORS[risk.priority || 'Priorité 4 (Faible)']}`}>
+                            <PriorityIcon className="h-3 w-3 mr-1" />
+                            {(risk.priority || 'P4').split(' ')[0] + ' ' + (risk.priority || '').match(/\d/)?.[0]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[300px]">
+                          {risk.measures}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ))}
               </TableBody>
             </Table>

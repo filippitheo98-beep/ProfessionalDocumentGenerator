@@ -13,12 +13,12 @@ import {
   BarChart3,
   Save
 } from "lucide-react";
-import type { Site, PreventionMeasure } from "@shared/schema";
+import type { WorkUnit, PreventionMeasure } from "@shared/schema";
 import HierarchicalRiskTable from "@/components/HierarchicalRiskTable";
 import { extractAllRisks, getRiskStatistics } from "@/lib/hierarchicalUtils";
 
 interface HierarchicalRiskSummaryStepProps {
-  sites: Site[];
+  workUnits: WorkUnit[];
   companyName: string;
   companyActivity: string;
   preventionMeasures: PreventionMeasure[];
@@ -27,7 +27,7 @@ interface HierarchicalRiskSummaryStepProps {
 }
 
 export default function HierarchicalRiskSummaryStep({
-  sites,
+  workUnits,
   companyName,
   companyActivity,
   preventionMeasures,
@@ -38,11 +38,11 @@ export default function HierarchicalRiskSummaryStep({
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isExportingWord, setIsExportingWord] = useState(false);
 
-  const allRisks = extractAllRisks(sites);
-  const stats = getRiskStatistics(sites);
+  const allRisks = extractAllRisks(workUnits);
+  const stats = getRiskStatistics(workUnits);
   
-  const completionPercentage = sites.length > 0 
-    ? Math.round((allRisks.length / Math.max(sites.length * 5, 1)) * 100)
+  const completionPercentage = workUnits.length > 0 
+    ? Math.round((allRisks.length / Math.max(workUnits.length * 5, 1)) * 100)
     : 0;
 
   const handleExportExcel = async () => {
@@ -52,7 +52,7 @@ export default function HierarchicalRiskSummaryStep({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sites,
+          workUnits,
           companyName,
           companyActivity,
         }),
@@ -92,7 +92,7 @@ export default function HierarchicalRiskSummaryStep({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sites,
+          workUnits,
           companyName,
           companyActivity,
           preventionMeasures,
@@ -147,8 +147,8 @@ export default function HierarchicalRiskSummaryStep({
                     <FileSpreadsheet className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Sites analysés</p>
-                    <p className="text-2xl font-bold">{sites.length}</p>
+                    <p className="text-sm text-muted-foreground">Unités analysées</p>
+                    <p className="text-2xl font-bold">{workUnits.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -222,7 +222,7 @@ export default function HierarchicalRiskSummaryStep({
       </Card>
 
       <HierarchicalRiskTable 
-        sites={sites}
+        workUnits={workUnits}
         companyName={companyName}
         onExportExcel={handleExportExcel}
         onExportWord={handleExportWord}

@@ -1,22 +1,18 @@
 import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import RiskLibrarySelector from "@/components/RiskLibrarySelector";
 import {
-  Building2,
-  MapPin,
   Users,
   Sparkles,
   Check,
-  X,
   Loader2,
   Eye,
   Library,
@@ -26,21 +22,17 @@ import {
   Info,
   CheckCircle,
   Filter,
-  Plus,
-  Wand2
+  Wand2,
+  X
 } from "lucide-react";
-import type {
-  Site,
-  WorkUnit,
-  Risk,
-} from "@shared/schema";
+import type { WorkUnit, Risk } from "@shared/schema";
 
 interface HierarchicalEditorStepProps {
   companyId: number;
   companyActivity: string;
   companyDescription?: string;
-  sites: Site[];
-  onUpdateSites: (sites: Site[]) => void;
+  workUnits: WorkUnit[];
+  onUpdateWorkUnits: (units: WorkUnit[]) => void;
   onSave: () => void;
 }
 
@@ -67,119 +59,84 @@ const PRIORITY_ICONS: Record<string, any> = {
 
 interface TableRisk {
   risk: Risk;
-  siteName: string;
-  siteId: string;
-  unitName?: string;
-  unitId?: string;
-  level: 'Site' | 'Unité';
+  unitName: string;
+  unitId: string;
 }
 
 export default function HierarchicalEditorStep({
   companyId,
   companyActivity,
   companyDescription,
-  sites,
-  onUpdateSites,
+  workUnits,
+  onUpdateWorkUnits,
   onSave
 }: HierarchicalEditorStepProps) {
   const { toast } = useToast();
 
-  const [filterSite, setFilterSite] = useState<string>('all');
   const [filterUnit, setFilterUnit] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
-
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [generateTarget, setGenerateTarget] = useState<{ siteId: string; unitId?: string } | null>(null);
 
   const [pendingRisks, setPendingRisks] = useState<{
     risks: Risk[];
-    siteId: string;
-    unitId?: string;
+    unitId: string;
     elementName: string;
-    level: string;
   } | null>(null);
   const [selectedPendingRisks, setSelectedPendingRisks] = useState<Set<string>>(new Set());
   const [reviewingRisk, setReviewingRisk] = useState<TableRisk | null>(null);
 
   const [librarySelector, setLibrarySelector] = useState<{
     isOpen: boolean;
-    level: 'Site' | 'Unité';
-    siteId: string;
-    unitId?: string;
+    unitId: string;
     elementName: string;
   } | null>(null);
 
-  const updateSite = (siteId: string, updates: Partial<Site>) => {
-    onUpdateSites(sites.map(s => s.id === siteId ? { ...s, ...updates } : s));
-  };
-
-  const updateUnit = (siteId: string, unitId: string, updates: Partial<WorkUnit>) => {
-    const site = sites.find(s => s.id === siteId);
-    if (site) updateSite(siteId, { workUnits: site.workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u) });
+  const updateUnit = (unitId: string, updates: Partial<WorkUnit>) => {
+    onUpdateWorkUnits(workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u));
   };
 
   const allRisks = useMemo((): TableRisk[] => {
     const risks: TableRisk[] = [];
-    for (const site of sites) {
-      for (const risk of (site.risks || [])) {
-        risks.push({ risk, siteName: site.name, siteId: site.id, level: 'Site' });
-      }
-      for (const unit of site.workUnits || []) {
-        for (const risk of (unit.risks || [])) {
-          risks.push({ risk, siteName: site.name, siteId: site.id, unitName: unit.name, unitId: unit.id, level: 'Unité' });
-        }
+    for (const unit of workUnits) {
+      for (const risk of (unit.risks || [])) {
+        risks.push({ risk, unitName: unit.name, unitId: unit.id });
       }
     }
     return risks;
-  }, [sites]);
+  }, [workUnits]);
 
   const filteredRisks = useMemo(() => {
     return allRisks.filter(r => {
-      if (filterSite !== 'all' && r.siteId !== filterSite) return false;
       if (filterUnit !== 'all' && r.unitId !== filterUnit) return false;
       if (filterPriority !== 'all' && r.risk.priority !== filterPriority) return false;
       return true;
     });
-  }, [allRisks, filterSite, filterUnit, filterPriority]);
+  }, [allRisks, filterUnit, filterPriority]);
 
-  const allUnits = useMemo(() => {
-    const units: { id: string; name: string; siteName: string; siteId: string }[] = [];
-    for (const site of sites) {
-      for (const unit of site.workUnits) {
-        units.push({ id: unit.id, name: unit.name, siteName: site.name, siteId: site.id });
-      }
-    }
-    return units;
-  }, [sites]);
+  const generateRisks = async (unitId: string) => {
+    const unit = workUnits.find(u => u.id === unitId);
+    if (!unit) return;
 
-  const filteredUnits = useMemo(() => {
-    if (filterSite === 'all') return allUnits;
-    return allUnits.filter(u => u.siteId === filterSite);
-  }, [allUnits, filterSite]);
+    const workstationNames = unit.workstations?.map(w => w.name) || [];
+    const siteNames = (unit.unitSites || []).map(s => s.name);
 
-  const generateRisks = async (siteId: string, unitId?: string) => {
-    const site = sites.find(s => s.id === siteId);
-    if (!site) return;
-
-    const level = unitId ? 'Unité' : 'Site';
-    const unit = unitId ? site.workUnits.find(u => u.id === unitId) : undefined;
-    const elementName = unit ? unit.name : site.name;
-    const workstationNames = unit?.workstations?.map(w => w.name) || [];
-
-    const elementId = unitId || siteId;
-    setGeneratingFor(elementId);
-
+    setGeneratingFor(unitId);
     try {
       const response = await apiRequest('/api/generate-hierarchical-risks', {
         method: 'POST',
         body: JSON.stringify({
-          level, elementName, companyActivity, companyDescription, companyId,
-          siteName: site.name, workstationNames
+          level: 'Unité',
+          elementName: unit.name,
+          companyActivity,
+          companyDescription,
+          companyId,
+          workstationNames,
+          siteNames,
         }),
       });
 
       if (response.risks?.length > 0) {
-        setPendingRisks({ risks: response.risks, siteId, unitId, elementName, level });
+        setPendingRisks({ risks: response.risks, unitId, elementName: unit.name });
         setSelectedPendingRisks(new Set(response.risks.map((r: Risk) => r.id)));
       } else {
         toast({ title: "Aucun risque identifié" });
@@ -193,21 +150,14 @@ export default function HierarchicalEditorStep({
 
   const validateSelectedRisks = () => {
     if (!pendingRisks) return;
-    const { siteId, unitId, level } = pendingRisks;
+    const { unitId } = pendingRisks;
     const validatedRisks = pendingRisks.risks
       .filter(r => selectedPendingRisks.has(r.id))
       .map(r => ({ ...r, isValidated: true }));
 
-    if (level === 'Site') {
-      const site = sites.find(s => s.id === siteId);
-      const existingRisks = site?.risks?.filter(r => r.isValidated) || [];
-      updateSite(siteId, { risks: [...existingRisks, ...validatedRisks] });
-    } else if (unitId) {
-      const site = sites.find(s => s.id === siteId);
-      const unit = site?.workUnits.find(u => u.id === unitId);
-      const existingRisks = unit?.risks?.filter(r => r.isValidated) || [];
-      updateUnit(siteId, unitId, { risks: [...existingRisks, ...validatedRisks] });
-    }
+    const unit = workUnits.find(u => u.id === unitId);
+    const existingRisks = unit?.risks?.filter(r => r.isValidated) || [];
+    updateUnit(unitId, { risks: [...existingRisks, ...validatedRisks] });
 
     toast({ title: `${validatedRisks.length} risque(s) ajouté(s)` });
     setPendingRisks(null);
@@ -215,47 +165,25 @@ export default function HierarchicalEditorStep({
   };
 
   const removeRisk = (tableRisk: TableRisk) => {
-    const { risk, siteId, unitId, level } = tableRisk;
-    if (level === 'Site') {
-      const site = sites.find(s => s.id === siteId);
-      if (site) updateSite(siteId, { risks: (site.risks || []).filter(r => r.id !== risk.id) });
-    } else if (unitId) {
-      const site = sites.find(s => s.id === siteId);
-      const unit = site?.workUnits.find(u => u.id === unitId);
-      if (unit) updateUnit(siteId, unitId, { risks: (unit.risks || []).filter(r => r.id !== risk.id) });
-    }
+    const { risk, unitId } = tableRisk;
+    const unit = workUnits.find(u => u.id === unitId);
+    if (unit) updateUnit(unitId, { risks: (unit.risks || []).filter(r => r.id !== risk.id) });
   };
 
-  const openLibrary = (siteId: string, unitId?: string) => {
-    const site = sites.find(s => s.id === siteId);
-    if (!site) return;
-    const unit = unitId ? site.workUnits.find(u => u.id === unitId) : undefined;
-    setLibrarySelector({
-      isOpen: true,
-      level: unitId ? 'Unité' : 'Site',
-      siteId,
-      unitId,
-      elementName: unit?.name || site.name
-    });
+  const openLibrary = (unitId: string) => {
+    const unit = workUnits.find(u => u.id === unitId);
+    if (!unit) return;
+    setLibrarySelector({ isOpen: true, unitId, elementName: unit.name });
   };
 
   const handleLibraryRisksSelected = (risks: Risk[]) => {
     if (!librarySelector) return;
-    const { level, siteId, unitId } = librarySelector;
-
-    const getCurrentRisks = (): Risk[] => {
-      if (level === 'Site') return sites.find(s => s.id === siteId)?.risks || [];
-      if (unitId) { const site = sites.find(s => s.id === siteId); return site?.workUnits.find(u => u.id === unitId)?.risks || []; }
-      return [];
-    };
-
-    const existingRisks = getCurrentRisks();
+    const { unitId } = librarySelector;
+    const unit = workUnits.find(u => u.id === unitId);
+    const existingRisks = unit?.risks || [];
     const existingDangers = new Set(existingRisks.map(r => r.danger.toLowerCase().trim()));
     const newRisks = risks.filter(r => !existingDangers.has(r.danger.toLowerCase().trim()));
-    const mergedRisks = [...existingRisks, ...newRisks];
-
-    if (level === 'Site') updateSite(siteId, { risks: mergedRisks });
-    else if (unitId) updateUnit(siteId, unitId, { risks: mergedRisks });
+    updateUnit(unitId, { risks: [...existingRisks, ...newRisks] });
 
     const duplicates = risks.length - newRisks.length;
     toast({
@@ -298,53 +226,35 @@ export default function HierarchicalEditorStep({
               Générer des risques
             </CardTitle>
             <div className="flex flex-wrap gap-2 flex-1">
-              {sites.map(site => (
-                <div key={site.id} className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => generateRisks(site.id)}
-                    disabled={generatingFor === site.id}
-                  >
-                    {generatingFor === site.id ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 mr-1" />
-                    )}
-                    {site.name}
-                  </Button>
-                  {site.workUnits.map(unit => (
-                    <Button
-                      key={unit.id}
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground"
-                      onClick={() => generateRisks(site.id, unit.id)}
-                      disabled={generatingFor === unit.id}
-                    >
-                      {generatingFor === unit.id ? (
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Users className="h-3 w-3 mr-1" />
-                      )}
-                      {unit.name}
-                    </Button>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {sites.map(site => (
+              {workUnits.map(unit => (
                 <Button
-                  key={`lib-${site.id}`}
+                  key={unit.id}
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => openLibrary(site.id)}
+                  onClick={() => generateRisks(unit.id)}
+                  disabled={generatingFor === unit.id}
+                >
+                  {generatingFor === unit.id ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 mr-1" />
+                  )}
+                  {unit.name}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {workUnits.map(unit => (
+                <Button
+                  key={`lib-${unit.id}`}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => openLibrary(unit.id)}
                 >
                   <Library className="h-3 w-3 mr-1" />
-                  Bibliothèque
+                  {unit.name}
                 </Button>
               ))}
             </div>
@@ -356,25 +266,14 @@ export default function HierarchicalEditorStep({
         <CardHeader className="py-3 border-b">
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={filterSite} onValueChange={(v) => { setFilterSite(v); setFilterUnit('all'); }}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
-                <SelectValue placeholder="Tous les sites" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les sites</SelectItem>
-                {sites.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={filterUnit} onValueChange={setFilterUnit}>
               <SelectTrigger className="w-[200px] h-8 text-xs">
                 <SelectValue placeholder="Toutes les unités" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les unités</SelectItem>
-                {filteredUnits.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.siteName} &gt; {u.name}</SelectItem>
+                {workUnits.map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -435,15 +334,9 @@ export default function HierarchicalEditorStep({
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-blue-500 flex-shrink-0" />
-                            <span className="font-medium truncate">{tr.siteName}</span>
+                            <Users className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                            <span className="font-medium truncate">{tr.unitName}</span>
                           </div>
-                          {tr.unitName && (
-                            <div className="flex items-center gap-1 mt-0.5 text-muted-foreground">
-                              <Users className="h-3 w-3 text-purple-500 flex-shrink-0" />
-                              <span className="truncate">{tr.unitName}</span>
-                            </div>
-                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px]">{tr.risk.family || 'Autre'}</Badge>
@@ -469,14 +362,8 @@ export default function HierarchicalEditorStep({
                             </Button>
                             {!tr.risk.isValidated && (
                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
-                                if (tr.level === 'Site') {
-                                  const site = sites.find(s => s.id === tr.siteId);
-                                  if (site) updateSite(tr.siteId, { risks: (site.risks || []).map(r => r.id === tr.risk.id ? { ...r, isValidated: true } : r) });
-                                } else if (tr.unitId) {
-                                  const site = sites.find(s => s.id === tr.siteId);
-                                  const unit = site?.workUnits.find(u => u.id === tr.unitId);
-                                  if (unit) updateUnit(tr.siteId, tr.unitId, { risks: (unit.risks || []).map(r => r.id === tr.risk.id ? { ...r, isValidated: true } : r) });
-                                }
+                                const unit = workUnits.find(u => u.id === tr.unitId);
+                                if (unit) updateUnit(tr.unitId, { risks: (unit.risks || []).map(r => r.id === tr.risk.id ? { ...r, isValidated: true } : r) });
                               }} title="Valider">
                                 <Check className="h-3 w-3 text-green-600" />
                               </Button>
@@ -534,18 +421,24 @@ export default function HierarchicalEditorStep({
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-[10px]">{risk.family}</Badge>
                       <span className="text-sm font-medium">{risk.type}</span>
-                      <Badge className={`text-[10px] ml-auto ${PRIORITY_BADGE_COLORS[risk.priority] || ''}`}>
-                        P{risk.priority?.match(/\d/)?.[0]}
-                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{risk.danger}</p>
-                    <p className="text-xs text-muted-foreground mt-1 italic">{risk.measures}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Mesures: {risk.measures}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge className={`text-[9px] ${PRIORITY_BADGE_COLORS[risk.priority] || ''}`}>
+                        {risk.priority}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        G={risk.gravityValue} × F={risk.frequencyValue} × M={risk.controlValue} = {risk.riskScore}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
+                <X className="h-4 w-4 mr-2" />
                 Annuler
               </Button>
               <Button onClick={validateSelectedRisks} disabled={selectedPendingRisks.size === 0}>
@@ -561,51 +454,51 @@ export default function HierarchicalEditorStep({
         <Dialog open={true} onOpenChange={() => setReviewingRisk(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Détails du risque</DialogTitle>
+              <DialogTitle>Détail du risque</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <span className="text-xs text-muted-foreground">Localisation</span>
-                <p className="text-sm font-medium">{reviewingRisk.siteName}{reviewingRisk.unitName ? ` > ${reviewingRisk.unitName}` : ''}</p>
+                <Label className="text-xs text-muted-foreground">Unité de travail</Label>
+                <p className="text-sm font-medium">{reviewingRisk.unitName}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground">Famille</span>
+                <Label className="text-xs text-muted-foreground">Famille</Label>
                 <p className="text-sm">{reviewingRisk.risk.family}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground">Type / Situation</span>
+                <Label className="text-xs text-muted-foreground">Situation d'exposition</Label>
                 <p className="text-sm">{reviewingRisk.risk.type}</p>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground">Danger identifié</span>
+                <Label className="text-xs text-muted-foreground">Danger identifié</Label>
                 <p className="text-sm">{reviewingRisk.risk.danger}</p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <span className="text-xs text-muted-foreground">Gravité</span>
+                  <Label className="text-xs text-muted-foreground">Gravité</Label>
                   <p className="text-sm">{reviewingRisk.risk.gravity} ({reviewingRisk.risk.gravityValue})</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">Fréquence</span>
+                  <Label className="text-xs text-muted-foreground">Fréquence</Label>
                   <p className="text-sm">{reviewingRisk.risk.frequency} ({reviewingRisk.risk.frequencyValue})</p>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">Maîtrise</span>
+                  <Label className="text-xs text-muted-foreground">Maîtrise</Label>
                   <p className="text-sm">{reviewingRisk.risk.control} ({reviewingRisk.risk.controlValue})</p>
                 </div>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground">Score / Priorité</span>
-                <p className="text-sm">{reviewingRisk.risk.riskScore} - {reviewingRisk.risk.priority}</p>
+                <Label className="text-xs text-muted-foreground">Score et Priorité</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm font-mono">{reviewingRisk.risk.riskScore}</span>
+                  <Badge className={PRIORITY_BADGE_COLORS[reviewingRisk.risk.priority]}>{reviewingRisk.risk.priority}</Badge>
+                </div>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground">Mesures de prévention</span>
+                <Label className="text-xs text-muted-foreground">Mesures de prévention</Label>
                 <p className="text-sm">{reviewingRisk.risk.measures}</p>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setReviewingRisk(null)}>Fermer</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
@@ -615,10 +508,14 @@ export default function HierarchicalEditorStep({
           isOpen={true}
           onClose={() => setLibrarySelector(null)}
           onSelectRisks={handleLibraryRisksSelected}
+          hierarchyLevel="Unité"
           elementName={librarySelector.elementName}
-          hierarchyLevel={librarySelector.level}
         />
       )}
     </div>
   );
+}
+
+function Label({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <label className={className}>{children}</label>;
 }

@@ -20,7 +20,8 @@ import type {
   WorkStation, 
   Risk,
   PreventionMeasure,
-  Site
+  Site,
+  WorkUnit
 } from '@shared/schema';
 import { SelectiveUpdateModal } from '@/components/SelectiveUpdateModal';
 
@@ -37,6 +38,7 @@ export default function NewDuerpGenerator() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [workStations, setWorkStations] = useState<WorkStation[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [duerpWorkUnits, setDuerpWorkUnits] = useState<WorkUnit[]>([]);
   const [preventionMeasures, setPreventionMeasures] = useState<PreventionMeasure[]>([]);
   const [finalRisks, setFinalRisks] = useState<Risk[]>([]);
   const [isGeneratingRisks, setIsGeneratingRisks] = useState(false);
@@ -57,6 +59,7 @@ export default function NewDuerpGenerator() {
     title: string;
     version?: string;
     status?: string;
+    workUnitsData?: WorkUnit[];
     sites?: Site[];
     locations?: Location[];
     workStations?: WorkStation[];
@@ -84,18 +87,19 @@ export default function NewDuerpGenerator() {
       setWorkStations(existingDocument.workStations || []);
       setPreventionMeasures(existingDocument.preventionMeasures || []);
       setFinalRisks(existingDocument.finalRisks || []);
+      if (existingDocument.workUnitsData && existingDocument.workUnitsData.length > 0) {
+        setDuerpWorkUnits(existingDocument.workUnitsData);
+      }
       if (existingDocument.sites && existingDocument.sites.length > 0) {
         setSites(existingDocument.sites);
       }
       
       const completed = [1];
-      if ((existingDocument.sites?.length ?? 0) > 0 || (existingDocument.locations?.length ?? 0) > 0) {
+      if ((existingDocument.workUnitsData?.length ?? 0) > 0 || (existingDocument.locations?.length ?? 0) > 0) {
         completed.push(2);
       }
-      const hasSiteRisks = existingDocument.sites?.some(s => 
-        (s.risks?.length ?? 0) > 0 || s.workUnits?.some(u => (u.risks?.length ?? 0) > 0)
-      );
-      if (hasSiteRisks || (existingDocument.finalRisks?.length ?? 0) > 0) {
+      const hasUnitRisks = existingDocument.workUnitsData?.some(u => (u.risks?.length ?? 0) > 0);
+      if (hasUnitRisks || (existingDocument.finalRisks?.length ?? 0) > 0) {
         completed.push(3, 4);
       }
       setCompletedSteps(completed);
@@ -510,6 +514,7 @@ export default function NewDuerpGenerator() {
       saveDuerpMutation.mutate({
         companyId: company.id,
         title: `${company.name} - DUERP`,
+        workUnitsData: duerpWorkUnits,
         sites,
         locations,
         workStations,
@@ -641,8 +646,8 @@ export default function NewDuerpGenerator() {
                 companyId={company?.id || 0}
                 companyActivity={company?.activity || ''}
                 companyDescription={company?.description || ''}
-                sites={sites}
-                onUpdateSites={setSites}
+                workUnits={duerpWorkUnits}
+                onUpdateWorkUnits={setDuerpWorkUnits}
                 onSave={handleSaveProgress}
               />
             )}
@@ -652,8 +657,8 @@ export default function NewDuerpGenerator() {
                 companyId={company?.id || 0}
                 companyActivity={company?.activity || ''}
                 companyDescription={company?.description || ''}
-                sites={sites}
-                onUpdateSites={setSites}
+                workUnits={duerpWorkUnits}
+                onUpdateWorkUnits={setDuerpWorkUnits}
                 onSave={handleSaveProgress}
               />
             )}
