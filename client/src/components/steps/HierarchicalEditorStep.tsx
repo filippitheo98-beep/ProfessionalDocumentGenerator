@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,8 +22,9 @@ import {
   Info,
   CheckCircle,
   Filter,
-  Wand2,
-  X
+  X,
+  Briefcase,
+  MapPin
 } from "lucide-react";
 import type { WorkUnit, Risk } from "@shared/schema";
 
@@ -127,8 +128,9 @@ export default function HierarchicalEditorStep({
         body: JSON.stringify({
           level: 'Unité',
           elementName: unit.name,
+          elementDescription: unit.description || '',
           companyActivity,
-          companyDescription,
+          companyDescription: companyDescription || '',
           companyId,
           workstationNames,
           siteNames,
@@ -139,10 +141,15 @@ export default function HierarchicalEditorStep({
         setPendingRisks({ risks: response.risks, unitId, elementName: unit.name });
         setSelectedPendingRisks(new Set(response.risks.map((r: Risk) => r.id)));
       } else {
-        toast({ title: "Aucun risque identifié" });
+        toast({ title: "Aucun risque identifié", description: "L'IA n'a pas généré de risques pour cette unité." });
       }
-    } catch (error) {
-      toast({ title: "Erreur de génération", variant: "destructive" });
+    } catch (error: any) {
+      console.error('Erreur génération IA:', error);
+      toast({
+        title: "Erreur de génération",
+        description: error?.message || "Impossible de générer les risques. Vérifiez votre connexion.",
+        variant: "destructive"
+      });
     } finally {
       setGeneratingFor(null);
     }
@@ -156,7 +163,7 @@ export default function HierarchicalEditorStep({
       .map(r => ({ ...r, isValidated: true }));
 
     const unit = workUnits.find(u => u.id === unitId);
-    const existingRisks = unit?.risks?.filter(r => r.isValidated) || [];
+    const existingRisks = unit?.risks || [];
     updateUnit(unitId, { risks: [...existingRisks, ...validatedRisks] });
 
     toast({ title: `${validatedRisks.length} risque(s) ajouté(s)` });
@@ -195,7 +202,11 @@ export default function HierarchicalEditorStep({
   };
 
   const validatedCount = allRisks.filter(r => r.risk.isValidated).length;
-  const pendingCount = allRisks.filter(r => !r.risk.isValidated).length;
+  const totalCount = allRisks.length;
+
+  const getRiskCountForUnit = (unitId: string) => {
+    return allRisks.filter(r => r.unitId === unitId).length;
+  };
 
   return (
     <div className="space-y-4">
@@ -203,64 +214,105 @@ export default function HierarchicalEditorStep({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Tableau des Risques Professionnels</h2>
-            <p className="text-blue-100 text-sm mt-1">Générez, validez et gérez les risques par unité de travail</p>
+            <p className="text-blue-100 text-sm mt-1">Sélectionnez une unité de travail pour générer ou ajouter des risques</p>
           </div>
           <div className="flex gap-2">
             <Badge variant="secondary" className="bg-white/20 text-white">
+              {totalCount} risque(s)
+            </Badge>
+            <Badge variant="secondary" className="bg-white/20 text-white">
               <CheckCircle className="h-3 w-3 mr-1" />{validatedCount} validé(s)
             </Badge>
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="bg-yellow-500/30 text-white">
-                {pendingCount} en attente
-              </Badge>
-            )}
           </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="py-3">
-          <div className="flex flex-col md:flex-row md:items-center gap-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Wand2 className="h-4 w-4" />
-              Générer des risques
-            </CardTitle>
-            <div className="flex flex-wrap gap-2 flex-1">
-              {workUnits.map(unit => (
-                <Button
-                  key={unit.id}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => generateRisks(unit.id)}
-                  disabled={generatingFor === unit.id}
-                >
-                  {generatingFor === unit.id ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3 mr-1" />
+      {workUnits.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="text-center py-12">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground font-medium mb-2">
+              Aucune unité de travail configurée
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Retournez à l'étape précédente pour créer vos unités de travail, postes et sites.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {workUnits.map(unit => {
+            const unitRiskCount = getRiskCountForUnit(unit.id);
+            const isGenerating = generatingFor === unit.id;
+            return (
+              <Card key={unit.id} className="relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-purple-600 flex-shrink-0" />
+                      <div>
+                        <CardTitle className="text-sm">{unit.name}</CardTitle>
+                        <CardDescription className="text-xs mt-0.5">
+                          {unit.workstations?.length || 0} poste(s) • {(unit.unitSites || []).length} site(s)
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant={unitRiskCount > 0 ? "default" : "outline"} className="text-xs">
+                      {unitRiskCount} risque(s)
+                    </Badge>
+                  </div>
+                  {unit.workstations?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {unit.workstations.map(ws => (
+                        <Badge key={ws.id} variant="secondary" className="text-[10px] py-0 px-1.5">
+                          <Briefcase className="h-2.5 w-2.5 mr-0.5" />{ws.name}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
-                  {unit.name}
-                </Button>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {workUnits.map(unit => (
-                <Button
-                  key={`lib-${unit.id}`}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => openLibrary(unit.id)}
-                >
-                  <Library className="h-3 w-3 mr-1" />
-                  {unit.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+                  {(unit.unitSites || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(unit.unitSites || []).map(site => (
+                        <Badge key={site.id} variant="outline" className="text-[10px] py-0 px-1.5">
+                          <MapPin className="h-2.5 w-2.5 mr-0.5" />{site.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-2 pb-3">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1 h-8 text-xs"
+                      onClick={() => generateRisks(unit.id)}
+                      disabled={isGenerating || generatingFor !== null}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1.5" />
+                      )}
+                      {isGenerating ? 'Génération...' : 'Générer IA'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => openLibrary(unit.id)}
+                      disabled={generatingFor !== null}
+                    >
+                      <Library className="h-3 w-3 mr-1.5" />
+                      Bibliothèque
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Card>
         <CardHeader className="py-3 border-b">
@@ -299,7 +351,9 @@ export default function HierarchicalEditorStep({
             <div className="text-center py-12">
               <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">
-                Aucun risque. Utilisez les boutons ci-dessus pour générer des risques avec l'IA ou depuis la bibliothèque.
+                {workUnits.length === 0
+                  ? "Ajoutez des unités de travail à l'étape précédente pour commencer."
+                  : "Aucun risque. Cliquez sur « Générer IA » ou « Bibliothèque » sur une unité ci-dessus."}
               </p>
             </div>
           ) : (
@@ -429,7 +483,7 @@ export default function HierarchicalEditorStep({
                         {risk.priority}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        G={risk.gravityValue} × F={risk.frequencyValue} × M={risk.controlValue} = {risk.riskScore}
+                        G={risk.gravityValue} x F={risk.frequencyValue} x M={risk.controlValue} = {risk.riskScore}
                       </span>
                     </div>
                   </div>
@@ -458,44 +512,44 @@ export default function HierarchicalEditorStep({
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <Label className="text-xs text-muted-foreground">Unité de travail</Label>
+                <LabelText className="text-xs text-muted-foreground">Unité de travail</LabelText>
                 <p className="text-sm font-medium">{reviewingRisk.unitName}</p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Famille</Label>
+                <LabelText className="text-xs text-muted-foreground">Famille</LabelText>
                 <p className="text-sm">{reviewingRisk.risk.family}</p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Situation d'exposition</Label>
+                <LabelText className="text-xs text-muted-foreground">Situation d'exposition</LabelText>
                 <p className="text-sm">{reviewingRisk.risk.type}</p>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Danger identifié</Label>
+                <LabelText className="text-xs text-muted-foreground">Danger identifié</LabelText>
                 <p className="text-sm">{reviewingRisk.risk.danger}</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Gravité</Label>
+                  <LabelText className="text-xs text-muted-foreground">Gravité</LabelText>
                   <p className="text-sm">{reviewingRisk.risk.gravity} ({reviewingRisk.risk.gravityValue})</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Fréquence</Label>
+                  <LabelText className="text-xs text-muted-foreground">Fréquence</LabelText>
                   <p className="text-sm">{reviewingRisk.risk.frequency} ({reviewingRisk.risk.frequencyValue})</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Maîtrise</Label>
+                  <LabelText className="text-xs text-muted-foreground">Maîtrise</LabelText>
                   <p className="text-sm">{reviewingRisk.risk.control} ({reviewingRisk.risk.controlValue})</p>
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Score et Priorité</Label>
+                <LabelText className="text-xs text-muted-foreground">Score et Priorité</LabelText>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm font-mono">{reviewingRisk.risk.riskScore}</span>
                   <Badge className={PRIORITY_BADGE_COLORS[reviewingRisk.risk.priority]}>{reviewingRisk.risk.priority}</Badge>
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Mesures de prévention</Label>
+                <LabelText className="text-xs text-muted-foreground">Mesures de prévention</LabelText>
                 <p className="text-sm">{reviewingRisk.risk.measures}</p>
               </div>
             </div>
@@ -516,6 +570,6 @@ export default function HierarchicalEditorStep({
   );
 }
 
-function Label({ className, children }: { className?: string; children: React.ReactNode }) {
+function LabelText({ className, children }: { className?: string; children: React.ReactNode }) {
   return <label className={className}>{children}</label>;
 }
