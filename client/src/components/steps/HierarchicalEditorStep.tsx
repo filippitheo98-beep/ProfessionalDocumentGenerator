@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,6 +24,7 @@ import {
   CheckCircle,
   Filter,
   X,
+  Plus,
   Briefcase,
   MapPin
 } from "lucide-react";
@@ -77,6 +79,7 @@ export default function HierarchicalEditorStep({
   const [filterUnit, setFilterUnit] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const [pendingRisks, setPendingRisks] = useState<{
     risks: Risk[];
@@ -122,6 +125,7 @@ export default function HierarchicalEditorStep({
     const siteNames = (unit.unitSites || []).map(s => s.name);
 
     setGeneratingFor(unitId);
+    setAddMenuOpen(false);
     try {
       const response = await apiRequest('/api/generate-hierarchical-risks', {
         method: 'POST',
@@ -181,6 +185,7 @@ export default function HierarchicalEditorStep({
     const unit = workUnits.find(u => u.id === unitId);
     if (!unit) return;
     setLibrarySelector({ isOpen: true, unitId, elementName: unit.name });
+    setAddMenuOpen(false);
   };
 
   const handleLibraryRisksSelected = (risks: Risk[]) => {
@@ -214,7 +219,7 @@ export default function HierarchicalEditorStep({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Tableau des Risques Professionnels</h2>
-            <p className="text-blue-100 text-sm mt-1">Sélectionnez une unité de travail pour générer ou ajouter des risques</p>
+            <p className="text-blue-100 text-sm mt-1">Ajoutez des risques pour vos unités de travail</p>
           </div>
           <div className="flex gap-2">
             <Badge variant="secondary" className="bg-white/20 text-white">
@@ -227,99 +232,87 @@ export default function HierarchicalEditorStep({
         </div>
       </div>
 
-      {workUnits.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="text-center py-12">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground font-medium mb-2">
-              Aucune unité de travail configurée
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Retournez à l'étape précédente pour créer vos unités de travail, postes et sites.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {workUnits.map(unit => {
-            const unitRiskCount = getRiskCountForUnit(unit.id);
-            const isGenerating = generatingFor === unit.id;
-            return (
-              <Card key={unit.id} className="relative overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                      <div>
-                        <CardTitle className="text-sm">{unit.name}</CardTitle>
-                        <CardDescription className="text-xs mt-0.5">
-                          {unit.workstations?.length || 0} poste(s) • {(unit.unitSites || []).length} site(s)
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Badge variant={unitRiskCount > 0 ? "default" : "outline"} className="text-xs">
-                      {unitRiskCount} risque(s)
-                    </Badge>
-                  </div>
-                  {unit.workstations?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {unit.workstations.map(ws => (
-                        <Badge key={ws.id} variant="secondary" className="text-[10px] py-0 px-1.5">
-                          <Briefcase className="h-2.5 w-2.5 mr-0.5" />{ws.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  {(unit.unitSites || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(unit.unitSites || []).map(site => (
-                        <Badge key={site.id} variant="outline" className="text-[10px] py-0 px-1.5">
-                          <MapPin className="h-2.5 w-2.5 mr-0.5" />{site.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardHeader>
-                <CardContent className="pt-2 pb-3">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1 h-8 text-xs"
-                      onClick={() => generateRisks(unit.id)}
-                      disabled={isGenerating || generatingFor !== null}
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3 w-3 mr-1.5" />
-                      )}
-                      {isGenerating ? 'Génération...' : 'Générer IA'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => openLibrary(unit.id)}
-                      disabled={generatingFor !== null}
-                    >
-                      <Library className="h-3 w-3 mr-1.5" />
-                      Bibliothèque
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
       <Card>
         <CardHeader className="py-3 border-b">
           <div className="flex flex-wrap items-center gap-3">
+            <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button size="sm" className="h-8 gap-1.5" disabled={workUnits.length === 0 || generatingFor !== null}>
+                  {generatingFor ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  {generatingFor ? 'Génération...' : 'Ajouter des risques'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="start">
+                <div className="p-3 border-b bg-muted/30">
+                  <p className="text-sm font-medium">Choisir une unité de travail</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Sélectionnez l'unité puis le mode d'ajout</p>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  {workUnits.map(unit => {
+                    const count = getRiskCountForUnit(unit.id);
+                    return (
+                      <div key={unit.id} className="border-b last:border-b-0">
+                        <div className="px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                              <span className="text-sm font-medium truncate">{unit.name}</span>
+                            </div>
+                            {count > 0 && (
+                              <Badge variant="secondary" className="text-[10px] ml-2 flex-shrink-0">{count}</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {(unit.workstations || []).map(ws => (
+                              <Badge key={ws.id} variant="outline" className="text-[10px] py-0 px-1.5">
+                                <Briefcase className="h-2.5 w-2.5 mr-0.5" />{ws.name}
+                              </Badge>
+                            ))}
+                            {(unit.unitSites || []).map(site => (
+                              <Badge key={site.id} variant="outline" className="text-[10px] py-0 px-1.5">
+                                <MapPin className="h-2.5 w-2.5 mr-0.5" />{site.name}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="flex-1 h-7 text-xs"
+                              onClick={() => generateRisks(unit.id)}
+                              disabled={generatingFor !== null}
+                            >
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              Générer IA
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 h-7 text-xs"
+                              onClick={() => openLibrary(unit.id)}
+                              disabled={generatingFor !== null}
+                            >
+                              <Library className="h-3 w-3 mr-1" />
+                              Bibliothèque
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="h-5 w-px bg-border" />
+
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={filterUnit} onValueChange={setFilterUnit}>
-              <SelectTrigger className="w-[200px] h-8 text-xs">
+              <SelectTrigger className="w-[180px] h-8 text-xs">
                 <SelectValue placeholder="Toutes les unités" />
               </SelectTrigger>
               <SelectContent>
@@ -330,7 +323,7 @@ export default function HierarchicalEditorStep({
               </SelectContent>
             </Select>
             <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectTrigger className="w-[170px] h-8 text-xs">
                 <SelectValue placeholder="Toutes priorités" />
               </SelectTrigger>
               <SelectContent>
@@ -353,7 +346,7 @@ export default function HierarchicalEditorStep({
               <p className="text-muted-foreground text-sm">
                 {workUnits.length === 0
                   ? "Ajoutez des unités de travail à l'étape précédente pour commencer."
-                  : "Aucun risque. Cliquez sur « Générer IA » ou « Bibliothèque » sur une unité ci-dessus."}
+                  : "Aucun risque. Cliquez sur « + Ajouter des risques » pour commencer."}
               </p>
             </div>
           ) : (
