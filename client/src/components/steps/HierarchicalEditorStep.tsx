@@ -480,56 +480,19 @@ export default function HierarchicalEditorStep({
       )}
 
       {reviewingRisk && (
-        <Dialog open={true} onOpenChange={() => setReviewingRisk(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Détail du risque</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Unité de travail</LabelText>
-                <p className="text-sm font-medium">{reviewingRisk.unitName}</p>
-              </div>
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Famille</LabelText>
-                <p className="text-sm">{reviewingRisk.risk.family}</p>
-              </div>
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Situation d'exposition</LabelText>
-                <p className="text-sm">{reviewingRisk.risk.type}</p>
-              </div>
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Danger identifié</LabelText>
-                <p className="text-sm">{reviewingRisk.risk.danger}</p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <LabelText className="text-xs text-muted-foreground">Gravité</LabelText>
-                  <p className="text-sm">{reviewingRisk.risk.gravity} ({reviewingRisk.risk.gravityValue})</p>
-                </div>
-                <div>
-                  <LabelText className="text-xs text-muted-foreground">Fréquence</LabelText>
-                  <p className="text-sm">{reviewingRisk.risk.frequency} ({reviewingRisk.risk.frequencyValue})</p>
-                </div>
-                <div>
-                  <LabelText className="text-xs text-muted-foreground">Maîtrise</LabelText>
-                  <p className="text-sm">{reviewingRisk.risk.control} ({reviewingRisk.risk.controlValue})</p>
-                </div>
-              </div>
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Score et Priorité</LabelText>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm font-mono">{reviewingRisk.risk.riskScore}</span>
-                  <Badge className={PRIORITY_BADGE_COLORS[reviewingRisk.risk.priority]}>{reviewingRisk.risk.priority}</Badge>
-                </div>
-              </div>
-              <div>
-                <LabelText className="text-xs text-muted-foreground">Mesures de prévention</LabelText>
-                <p className="text-sm">{reviewingRisk.risk.measures}</p>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <RiskEditDialog
+          tableRisk={reviewingRisk}
+          onClose={() => setReviewingRisk(null)}
+          onSave={(updated) => {
+            const unit = workUnits.find(u => u.id === reviewingRisk.unitId);
+            if (unit) {
+              updateUnit(reviewingRisk.unitId, {
+                risks: (unit.risks || []).map(r => r.id === updated.id ? { ...updated, userModified: true } : r)
+              });
+            }
+            setReviewingRisk(null);
+          }}
+        />
       )}
 
       {librarySelector?.isOpen && (
@@ -542,6 +505,161 @@ export default function HierarchicalEditorStep({
         />
       )}
     </div>
+  );
+}
+
+const GRAVITY_OPTIONS = [
+  { label: 'Faible', value: 1 },
+  { label: 'Moyenne', value: 4 },
+  { label: 'Grave', value: 20 },
+  { label: 'Très Grave', value: 100 },
+] as const;
+
+const FREQUENCY_OPTIONS = [
+  { label: 'Annuelle', value: 1 },
+  { label: 'Mensuelle', value: 4 },
+  { label: 'Hebdomadaire', value: 10 },
+  { label: 'Journalière', value: 50 },
+] as const;
+
+const CONTROL_OPTIONS = [
+  { label: 'Très élevée', value: 0.05 },
+  { label: 'Élevée', value: 0.2 },
+  { label: 'Moyenne', value: 0.5 },
+  { label: 'Absente', value: 1 },
+] as const;
+
+function calcPriority(score: number): Risk['priority'] {
+  if (score >= 200) return 'Priorité 1 (Forte)';
+  if (score >= 50) return 'Priorité 2 (Moyenne)';
+  if (score >= 10) return 'Priorité 3 (Modéré)';
+  return 'Priorité 4 (Faible)';
+}
+
+function RiskEditDialog({ tableRisk, onClose, onSave }: {
+  tableRisk: TableRisk;
+  onClose: () => void;
+  onSave: (risk: Risk) => void;
+}) {
+  const r = tableRisk.risk;
+  const [gravity, setGravity] = useState(String(r.gravityValue));
+  const [frequency, setFrequency] = useState(String(r.frequencyValue));
+  const [control, setControl] = useState(String(r.controlValue));
+
+  const gVal = Number(gravity) as Risk['gravityValue'];
+  const fVal = Number(frequency) as Risk['frequencyValue'];
+  const mVal = Number(control) as Risk['controlValue'];
+  const score = Math.round(gVal * fVal * mVal * 100) / 100;
+  const priority = calcPriority(score);
+
+  const gLabel = GRAVITY_OPTIONS.find(o => o.value === gVal)?.label || r.gravity;
+  const fLabel = FREQUENCY_OPTIONS.find(o => o.value === fVal)?.label || r.frequency;
+  const mLabel = CONTROL_OPTIONS.find(o => o.value === mVal)?.label || r.control;
+
+  const handleSave = () => {
+    onSave({
+      ...r,
+      gravity: gLabel as Risk['gravity'],
+      gravityValue: gVal,
+      frequency: fLabel as Risk['frequency'],
+      frequencyValue: fVal,
+      control: mLabel as Risk['control'],
+      controlValue: mVal,
+      riskScore: score,
+      priority,
+    });
+  };
+
+  const PIcon = PRIORITY_ICONS[priority] || Info;
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Modifier le risque</DialogTitle>
+          <DialogDescription>{tableRisk.unitName}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <LabelText className="text-xs text-muted-foreground">Famille</LabelText>
+            <p className="text-sm">{r.family}</p>
+          </div>
+          <div>
+            <LabelText className="text-xs text-muted-foreground">Situation d'exposition</LabelText>
+            <p className="text-sm">{r.type}</p>
+          </div>
+          <div>
+            <LabelText className="text-xs text-muted-foreground">Danger identifié</LabelText>
+            <p className="text-sm">{r.danger}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Gravité</LabelText>
+              <Select value={gravity} onValueChange={setGravity}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GRAVITY_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Fréquence</LabelText>
+              <Select value={frequency} onValueChange={setFrequency}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCY_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Maîtrise</LabelText>
+              <Select value={control} onValueChange={setControl}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTROL_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Score :</span>
+              <span className="text-sm font-mono font-bold">{score}</span>
+            </div>
+            <Badge className={`${PRIORITY_BADGE_COLORS[priority] || ''}`}>
+              <PIcon className="h-3 w-3 mr-1" />
+              {priority}
+            </Badge>
+          </div>
+
+          <div>
+            <LabelText className="text-xs text-muted-foreground">Mesures de prévention</LabelText>
+            <p className="text-sm">{r.measures}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSave}>
+            <Check className="h-4 w-4 mr-2" />
+            Enregistrer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
