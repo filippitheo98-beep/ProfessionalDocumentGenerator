@@ -383,12 +383,16 @@ export default function HierarchicalEditorStep({
                             P{tr.risk.priority?.match(/\d/)?.[0] || '?'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs max-w-[200px]">
+                        <TableCell className="text-xs max-w-[300px]">
                           {(tr.risk.existingMeasures?.length || 0) > 0 ? (
-                            <div className="flex items-center gap-1">
-                              <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0" />
-                              <span className="text-green-700 dark:text-green-400">{tr.risk.existingMeasures.length} mesure(s)</span>
-                            </div>
+                            <ul className="list-none space-y-0.5">
+                              {tr.risk.existingMeasures.map((m: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-1">
+                                  <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0 mt-0.5" />
+                                  <span className="text-green-700 dark:text-green-400 leading-tight">{m}</span>
+                                </li>
+                              ))}
+                            </ul>
                           ) : (
                             <span className="text-muted-foreground italic">Aucune</span>
                           )}
