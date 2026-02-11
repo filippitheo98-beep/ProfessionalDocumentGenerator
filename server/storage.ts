@@ -412,7 +412,8 @@ INTERDIT : ${levelRules[level].forbidden}
   "gravity": "Faible | Moyenne | Grave | Très Grave",
   "frequency": "Annuelle | Mensuelle | Hebdomadaire | Journalière",
   "control": "Très élevée | Élevée | Moyenne | Absente",
-  "measures": "Mesures de prévention (génériques, non pédagogiques)"
+  "measures": "Mesures de prévention recommandées (génériques, non pédagogiques)",
+  "existingMeasures": ["Mesure existante 1", "Mesure existante 2"]
 }
 
 4️⃣ QUANTITÉ ATTENDUE
@@ -479,6 +480,7 @@ Répondez en JSON valide: { "risks": [...] }`;
           riskScore,
           priority: priority as 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)',
           measures: risk.measures || 'Mesures de prévention à définir',
+          existingMeasures: Array.isArray(risk.existingMeasures) ? risk.existingMeasures : [],
           originLevel: level,
           isValidated: false,
           isAIGenerated: true,

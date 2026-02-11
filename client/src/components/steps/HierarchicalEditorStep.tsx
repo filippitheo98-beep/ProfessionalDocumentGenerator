@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -22,7 +23,8 @@ import {
   Info,
   CheckCircle,
   Filter,
-  X
+  X,
+  Plus
 } from "lucide-react";
 import type { WorkUnit, Risk } from "@shared/schema";
 
@@ -345,7 +347,7 @@ export default function HierarchicalEditorStep({
                     <TableHead className="w-[50px] text-center text-xs">F</TableHead>
                     <TableHead className="w-[50px] text-center text-xs">M</TableHead>
                     <TableHead className="w-[110px] text-xs">Priorité</TableHead>
-                    <TableHead className="text-xs max-w-[200px]">Mesures</TableHead>
+                    <TableHead className="text-xs max-w-[200px]">Mesures existantes</TableHead>
                     <TableHead className="w-[80px] text-center text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -381,8 +383,15 @@ export default function HierarchicalEditorStep({
                             P{tr.risk.priority?.match(/\d/)?.[0] || '?'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                          {tr.risk.measures}
+                        <TableCell className="text-xs max-w-[200px]">
+                          {(tr.risk.existingMeasures?.length || 0) > 0 ? (
+                            <div className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0" />
+                              <span className="text-green-700 dark:text-green-400">{tr.risk.existingMeasures.length} mesure(s)</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground italic">Aucune</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 justify-center">
@@ -452,7 +461,7 @@ export default function HierarchicalEditorStep({
                       <span className="text-sm font-medium">{risk.type}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{risk.danger}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Mesures: {risk.measures}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Mesures recommandées: {risk.measures}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge className={`text-[9px] ${PRIORITY_BADGE_COLORS[risk.priority] || ''}`}>
                         {risk.priority}
@@ -529,6 +538,115 @@ const CONTROL_OPTIONS = [
   { label: 'Absente', value: 1 },
 ] as const;
 
+const SUGGESTED_MEASURES: Record<string, string[]> = {
+  'Mécanique': [
+    'Port des EPI adaptés (gants, lunettes, casque)',
+    'Vérification périodique des équipements de travail',
+    'Mise en place de protecteurs sur les machines',
+    'Formation à l\'utilisation des machines',
+    'Consignation des équipements avant intervention',
+    'Balisage des zones dangereuses',
+    'Maintenance préventive des outils et machines',
+    'Affichage des consignes de sécurité',
+  ],
+  'Physique': [
+    'Mise à disposition de protections auditives',
+    'Isolation phonique des équipements bruyants',
+    'Éclairage adapté aux postes de travail',
+    'Mesures de protection contre les vibrations',
+    'Contrôle régulier des niveaux de bruit',
+    'Aménagement des postes pour réduire l\'exposition',
+    'Rotation des postes exposés',
+    'Suivi médical renforcé des travailleurs exposés',
+  ],
+  'Chimique': [
+    'Stockage des produits chimiques dans des armoires ventilées',
+    'Port des EPI chimiques (gants, masque, lunettes)',
+    'Fiches de données de sécurité (FDS) accessibles',
+    'Ventilation et aspiration à la source',
+    'Substitution des produits dangereux',
+    'Étiquetage conforme des produits',
+    'Formation au risque chimique',
+    'Douche de sécurité et rince-œil',
+  ],
+  'Biologique': [
+    'Mise à disposition de gel hydroalcoolique',
+    'Port de gants et masques adaptés',
+    'Protocole de nettoyage et désinfection',
+    'Vaccination du personnel exposé',
+    'Gestion des déchets biologiques (DASRI)',
+    'Procédure en cas d\'accident d\'exposition au sang',
+  ],
+  'Radiologique': [
+    'Contrôle dosimétrique individuel',
+    'Balisage des zones contrôlées',
+    'Formation à la radioprotection',
+    'Suivi médical spécifique',
+    'Écrans de protection plombés',
+  ],
+  'Incendie-Explosion': [
+    'Extincteurs vérifiés et accessibles',
+    'Plan d\'évacuation affiché et exercices réguliers',
+    'Détecteurs de fumée et alarme incendie',
+    'Stockage séparé des produits inflammables',
+    'Formation des équipiers de première intervention',
+    'Issues de secours dégagées et signalées',
+    'Permis de feu pour les travaux par points chauds',
+    'Installation électrique conforme et vérifiée',
+  ],
+  'Électrique': [
+    'Habilitation électrique du personnel',
+    'Vérification périodique des installations électriques',
+    'Consignation avant intervention',
+    'Utilisation d\'outillage isolé',
+    'Mise à la terre des équipements',
+    'Protection différentielle des circuits',
+    'Signalisation des armoires électriques',
+  ],
+  'Ergonomique': [
+    'Formation aux gestes et postures',
+    'Mise à disposition d\'aides à la manutention',
+    'Aménagement ergonomique des postes de travail',
+    'Alternance des tâches et pauses régulières',
+    'Mobilier réglable (bureau, siège, écran)',
+    'Limitation du port de charges lourdes',
+    'Évaluation ergonomique des postes',
+  ],
+  'Psychosocial': [
+    'Mise en place d\'un dispositif d\'écoute',
+    'Organisation du travail équilibrée',
+    'Prévention du harcèlement et des violences',
+    'Formation des managers à la prévention des RPS',
+    'Entretiens individuels réguliers',
+    'Aménagement des horaires de travail',
+    'Plan de prévention du stress au travail',
+  ],
+  'Routier': [
+    'Formation à la conduite préventive',
+    'Entretien régulier des véhicules',
+    'Protocole de déplacement professionnel',
+    'Limitation des déplacements (visioconférence)',
+    'Interdiction du téléphone au volant',
+    'Kit de sécurité dans les véhicules',
+  ],
+  'Environnemental': [
+    'Tri et gestion des déchets',
+    'Bacs de rétention pour les produits polluants',
+    'Plan de prévention des pollutions',
+    'Surveillance des rejets atmosphériques',
+    'Formation au risque environnemental',
+  ],
+  'Organisationnel': [
+    'Mise à jour du document unique',
+    'Plan de prévention pour les entreprises extérieures',
+    'Accueil sécurité des nouveaux arrivants',
+    'Procédures de travail formalisées',
+    'Réunions sécurité périodiques (quart d\'heure sécurité)',
+    'Registre des accidents et presqu\'accidents',
+    'Désignation d\'un référent sécurité',
+  ],
+};
+
 function calcPriority(score: number): Risk['priority'] {
   if (score >= 200) return 'Priorité 1 (Forte)';
   if (score >= 50) return 'Priorité 2 (Moyenne)';
@@ -545,6 +663,9 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
   const [gravity, setGravity] = useState(String(r.gravityValue));
   const [frequency, setFrequency] = useState(String(r.frequencyValue));
   const [control, setControl] = useState(String(r.controlValue));
+  const [existingMeasures, setExistingMeasures] = useState<string[]>(r.existingMeasures || []);
+  const [newMeasure, setNewMeasure] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const gVal = Number(gravity) as Risk['gravityValue'];
   const fVal = Number(frequency) as Risk['frequencyValue'];
@@ -555,6 +676,28 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
   const gLabel = GRAVITY_OPTIONS.find(o => o.value === gVal)?.label || r.gravity;
   const fLabel = FREQUENCY_OPTIONS.find(o => o.value === fVal)?.label || r.frequency;
   const mLabel = CONTROL_OPTIONS.find(o => o.value === mVal)?.label || r.control;
+
+  const suggestedMeasures = useMemo(() => {
+    const familyMeasures = SUGGESTED_MEASURES[r.family] || [];
+    return familyMeasures.filter(m => !existingMeasures.includes(m));
+  }, [r.family, existingMeasures]);
+
+  const addMeasure = (measure: string) => {
+    if (measure.trim() && !existingMeasures.includes(measure.trim())) {
+      setExistingMeasures(prev => [...prev, measure.trim()]);
+    }
+  };
+
+  const removeMeasure = (index: number) => {
+    setExistingMeasures(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddManual = () => {
+    if (newMeasure.trim()) {
+      addMeasure(newMeasure);
+      setNewMeasure('');
+    }
+  };
 
   const handleSave = () => {
     onSave({
@@ -567,6 +710,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
       controlValue: mVal,
       riskScore: score,
       priority,
+      existingMeasures,
     });
   };
 
@@ -574,19 +718,21 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier le risque</DialogTitle>
           <DialogDescription>{tableRisk.unitName}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <LabelText className="text-xs text-muted-foreground">Famille</LabelText>
-            <p className="text-sm">{r.family}</p>
-          </div>
-          <div>
-            <LabelText className="text-xs text-muted-foreground">Situation d'exposition</LabelText>
-            <p className="text-sm">{r.type}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <LabelText className="text-xs text-muted-foreground">Famille</LabelText>
+              <p className="text-sm">{r.family}</p>
+            </div>
+            <div>
+              <LabelText className="text-xs text-muted-foreground">Situation d'exposition</LabelText>
+              <p className="text-sm">{r.type}</p>
+            </div>
           </div>
           <div>
             <LabelText className="text-xs text-muted-foreground">Danger identifié</LabelText>
@@ -647,8 +793,69 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
           </div>
 
           <div>
-            <LabelText className="text-xs text-muted-foreground">Mesures de prévention</LabelText>
-            <p className="text-sm">{r.measures}</p>
+            <LabelText className="text-xs text-muted-foreground">Mesures de prévention recommandées</LabelText>
+            <p className="text-sm text-muted-foreground italic mt-1">{r.measures}</p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <LabelText className="text-sm font-medium">Mesures de prévention existantes</LabelText>
+              <Badge variant="outline" className="text-xs">{existingMeasures.length} mesure(s)</Badge>
+            </div>
+
+            {existingMeasures.length > 0 && (
+              <div className="space-y-1.5">
+                {existingMeasures.map((measure, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                    <span className="text-sm flex-1">{measure}</span>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0" onClick={() => removeMeasure(idx)}>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ajouter une mesure manuellement..."
+                value={newMeasure}
+                onChange={(e) => setNewMeasure(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddManual(); } }}
+                className="h-9 text-sm"
+              />
+              <Button variant="outline" size="sm" className="h-9 px-3 flex-shrink-0" onClick={handleAddManual} disabled={!newMeasure.trim()}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {suggestedMeasures.length > 0 && (
+              <div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-blue-600 dark:text-blue-400 h-7 px-2 mb-2"
+                  onClick={() => setShowSuggestions(!showSuggestions)}
+                >
+                  {showSuggestions ? 'Masquer les suggestions' : `Voir ${suggestedMeasures.length} suggestion(s) pour "${r.family}"`}
+                </Button>
+                {showSuggestions && (
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto border rounded-md p-2 bg-blue-50/50 dark:bg-blue-950/10">
+                    {suggestedMeasures.map((measure, idx) => (
+                      <button
+                        key={idx}
+                        className="w-full text-left text-sm p-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-2"
+                        onClick={() => addMeasure(measure)}
+                      >
+                        <Plus className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                        <span>{measure}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>

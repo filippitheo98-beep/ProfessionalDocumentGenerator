@@ -150,7 +150,8 @@ function convertLibraryRiskToRisk(libRisk: LibraryRisk): Risk & { catalogId?: nu
     riskScore,
     priority,
     measures: libRisk.measures,
-    isValidated: false, // Requires user validation
+    existingMeasures: [],
+    isValidated: false,
     isAIGenerated: false,
     isInherited: false,
     userModified: false

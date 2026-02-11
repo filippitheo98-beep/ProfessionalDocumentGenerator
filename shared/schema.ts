@@ -335,6 +335,7 @@ export interface Risk {
   riskScore: number;
   priority: 'Priorité 1 (Forte)' | 'Priorité 2 (Moyenne)' | 'Priorité 3 (Modéré)' | 'Priorité 4 (Faible)';
   measures: string;
+  existingMeasures: string[];
   
   // Traçabilité hiérarchique
   source?: string; // Nom de la source (site, zone, unité, activité)
