@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,10 +22,7 @@ import {
   Info,
   CheckCircle,
   Filter,
-  X,
-  Plus,
-  Briefcase,
-  MapPin
+  X
 } from "lucide-react";
 import type { WorkUnit, Risk } from "@shared/schema";
 
@@ -79,7 +75,7 @@ export default function HierarchicalEditorStep({
   const [filterUnit, setFilterUnit] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [selectedAddUnit, setSelectedAddUnit] = useState<string>('');
 
   const [pendingRisks, setPendingRisks] = useState<{
     risks: Risk[];
@@ -125,7 +121,6 @@ export default function HierarchicalEditorStep({
     const siteNames = (unit.unitSites || []).map(s => s.name);
 
     setGeneratingFor(unitId);
-    setAddMenuOpen(false);
     try {
       const response = await apiRequest('/api/generate-hierarchical-risks', {
         method: 'POST',
@@ -185,7 +180,6 @@ export default function HierarchicalEditorStep({
     const unit = workUnits.find(u => u.id === unitId);
     if (!unit) return;
     setLibrarySelector({ isOpen: true, unitId, elementName: unit.name });
-    setAddMenuOpen(false);
   };
 
   const handleLibraryRisksSelected = (risks: Risk[]) => {
@@ -232,84 +226,72 @@ export default function HierarchicalEditorStep({
         </div>
       </div>
 
+      {workUnits.length > 0 && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300 whitespace-nowrap">Ajouter des risques à :</span>
+              <Select value={selectedAddUnit} onValueChange={setSelectedAddUnit}>
+                <SelectTrigger className="w-[220px] h-9 bg-white dark:bg-background">
+                  <SelectValue placeholder="Choisir une unité..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {workUnits.map(u => {
+                    const count = getRiskCountForUnit(u.id);
+                    return (
+                      <SelectItem key={u.id} value={u.id}>
+                        <span className="flex items-center gap-2">
+                          <Users className="h-3.5 w-3.5 text-purple-600" />
+                          {u.name}
+                          {count > 0 && <Badge variant="secondary" className="text-[10px] ml-1 py-0 px-1.5">{count}</Badge>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-9 gap-1.5"
+                onClick={() => selectedAddUnit && generateRisks(selectedAddUnit)}
+                disabled={!selectedAddUnit || generatingFor !== null}
+              >
+                {generatingFor ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {generatingFor ? 'Génération...' : 'Générer IA'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 bg-white dark:bg-background"
+                onClick={() => selectedAddUnit && openLibrary(selectedAddUnit)}
+                disabled={!selectedAddUnit || generatingFor !== null}
+              >
+                <Library className="h-4 w-4" />
+                Bibliothèque
+              </Button>
+              {selectedAddUnit && (() => {
+                const unit = workUnits.find(u => u.id === selectedAddUnit);
+                if (!unit) return null;
+                const wsCount = unit.workstations?.length || 0;
+                const siteCount = (unit.unitSites || []).length;
+                return (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {wsCount} poste(s), {siteCount} site(s)
+                  </span>
+                );
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="py-3 border-b">
           <div className="flex flex-wrap items-center gap-3">
-            <Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-              <PopoverTrigger asChild>
-                <Button size="sm" className="h-8 gap-1.5" disabled={workUnits.length === 0 || generatingFor !== null}>
-                  {generatingFor ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  {generatingFor ? 'Génération...' : 'Ajouter des risques'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="start">
-                <div className="p-3 border-b bg-muted/30">
-                  <p className="text-sm font-medium">Choisir une unité de travail</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Sélectionnez l'unité puis le mode d'ajout</p>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {workUnits.map(unit => {
-                    const count = getRiskCountForUnit(unit.id);
-                    return (
-                      <div key={unit.id} className="border-b last:border-b-0">
-                        <div className="px-3 py-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Users className="h-4 w-4 text-purple-600 flex-shrink-0" />
-                              <span className="text-sm font-medium truncate">{unit.name}</span>
-                            </div>
-                            {count > 0 && (
-                              <Badge variant="secondary" className="text-[10px] ml-2 flex-shrink-0">{count}</Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {(unit.workstations || []).map(ws => (
-                              <Badge key={ws.id} variant="outline" className="text-[10px] py-0 px-1.5">
-                                <Briefcase className="h-2.5 w-2.5 mr-0.5" />{ws.name}
-                              </Badge>
-                            ))}
-                            {(unit.unitSites || []).map(site => (
-                              <Badge key={site.id} variant="outline" className="text-[10px] py-0 px-1.5">
-                                <MapPin className="h-2.5 w-2.5 mr-0.5" />{site.name}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="flex-1 h-7 text-xs"
-                              onClick={() => generateRisks(unit.id)}
-                              disabled={generatingFor !== null}
-                            >
-                              <Sparkles className="h-3 w-3 mr-1" />
-                              Générer IA
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 h-7 text-xs"
-                              onClick={() => openLibrary(unit.id)}
-                              disabled={generatingFor !== null}
-                            >
-                              <Library className="h-3 w-3 mr-1" />
-                              Bibliothèque
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <div className="h-5 w-px bg-border" />
-
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={filterUnit} onValueChange={setFilterUnit}>
               <SelectTrigger className="w-[180px] h-8 text-xs">
@@ -346,7 +328,7 @@ export default function HierarchicalEditorStep({
               <p className="text-muted-foreground text-sm">
                 {workUnits.length === 0
                   ? "Ajoutez des unités de travail à l'étape précédente pour commencer."
-                  : "Aucun risque. Cliquez sur « + Ajouter des risques » pour commencer."}
+                  : "Aucun risque. Sélectionnez une unité ci-dessus puis cliquez sur « Générer IA » ou « Bibliothèque »."}
               </p>
             </div>
           ) : (
