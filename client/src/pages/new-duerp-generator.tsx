@@ -108,6 +108,20 @@ export default function NewDuerpGenerator() {
     }
   }, [existingDocument, existingCompany]);
 
+  // Synchroniser finalRisks depuis les unités de travail
+  useEffect(() => {
+    const allRisksFromUnits = duerpWorkUnits.flatMap(u =>
+      (u.risks || []).map(r => ({
+        ...r,
+        source: r.source || u.name,
+        sourceType: r.sourceType || ('Lieu' as const),
+      }))
+    );
+    if (allRisksFromUnits.length > 0) {
+      setFinalRisks(allRisksFromUnits);
+    }
+  }, [duerpWorkUnits]);
+
   // Écouter les mises à jour de risques depuis le tableau
   useEffect(() => {
     const handleRisksUpdated = (event: CustomEvent) => {
