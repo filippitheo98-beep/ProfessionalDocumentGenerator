@@ -22,7 +22,9 @@ import {
   Target,
   Activity,
   FileText,
-  CheckCircle
+  CheckCircle,
+  CheckSquare,
+  Loader2
 } from 'lucide-react';
 import type { Risk } from '@shared/schema';
 
@@ -31,6 +33,9 @@ interface AnalyticsStepProps {
   companyName: string;
   onSave: () => void;
   onGenerateWord: () => void;
+  onFinalize?: () => void;
+  isFinalized?: boolean;
+  isFinalizing?: boolean;
   locations: any[];
   workStations: any[];
   preventionMeasures: any[];
@@ -62,7 +67,7 @@ const RISK_TYPE_COLORS = [
   '#14B8A6', '#A855F7', '#F43F5E', '#0EA5E9'
 ];
 
-export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
+export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, onFinalize, isFinalized, isFinalizing, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
   const totalRisks = risks.length;
 
   const highRisks = risks.filter(r => getRiskLevel(r) === 'Important').length;
@@ -378,26 +383,55 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Générer le rapport DUERP
+            Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Générez le rapport DUERP complet avec toutes les informations de l'entreprise, 
-              les graphiques d'analyse et le tableau détaillé des risques.
-            </p>
-            
-            <div className="flex gap-4">
-              <Button onClick={onGenerateWord} size="lg" className="flex-1">
-                <FileText className="h-4 w-4 mr-2" />
-                Générer le rapport Word complet
-              </Button>
-              
+            <div className="flex flex-wrap gap-3">
               <Button onClick={onSave} variant="outline" size="lg">
-                Sauvegarder les données
+                Sauvegarder le brouillon
               </Button>
+
+              <Button onClick={onGenerateWord} variant="outline" size="lg">
+                <FileText className="h-4 w-4 mr-2" />
+                Exporter Word
+              </Button>
+
+              {onFinalize && (
+                <Button 
+                  onClick={onFinalize} 
+                  size="lg" 
+                  disabled={isFinalizing || isFinalized}
+                  className={isFinalized ? 'bg-green-600 hover:bg-green-600' : ''}
+                >
+                  {isFinalizing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : isFinalized ? (
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                  ) : (
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                  )}
+                  {isFinalizing ? 'Finalisation...' : isFinalized ? 'DUERP finalisé' : 'Finaliser le DUERP'}
+                </Button>
+              )}
             </div>
+
+            {isFinalized && (
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Ce DUERP est finalisé et enregistré. La prochaine révision est prévue dans un an. 
+                  Vous pouvez le retrouver dans l'onglet "Mes DUERP".
+                </p>
+              </div>
+            )}
+
+            {!isFinalized && onFinalize && (
+              <p className="text-sm text-muted-foreground">
+                Finalisez le DUERP pour l'enregistrer officiellement et démarrer le suivi de révision annuelle.
+                Vous pourrez toujours le modifier ou le mettre à jour ultérieurement.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

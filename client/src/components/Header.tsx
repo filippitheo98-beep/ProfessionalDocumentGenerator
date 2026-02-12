@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building, FileText, Home, LogOut, Settings, User, Users, TrendingUp, Shield, Archive, Library, Menu, X } from 'lucide-react';
+import { Building, FileText, Home, LogOut, Settings, User, Shield, Library, Menu, X } from 'lucide-react';
 import { RevisionNotifications } from './RevisionNotifications';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -17,10 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 const navItems = [
   { path: '/', label: 'Accueil', icon: Home },
   { path: '/duerp-generator', label: 'Générateur', icon: Shield },
-  { path: '/documents', label: 'Documents', icon: FileText },
-  { path: '/archives', label: 'Archives', icon: Archive },
-  { path: '/collaborators', label: 'Équipe', icon: Users },
-  { path: '/reports', label: 'Rapports', icon: TrendingUp },
+  { path: '/documents', label: 'Mes DUERP', icon: FileText },
   { path: '/revisions', label: 'Révisions', icon: Shield },
   { path: '/risk-library', label: 'Bibliothèque', icon: Library },
 ];

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, FileText, Shield, Users, Calendar, TrendingUp, AlertTriangle, Clock, CheckCircle } from "lucide-react";
+import { Plus, FileText, Shield, Calendar, AlertTriangle, Clock, CheckCircle, Library, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,14 +109,14 @@ export default function Home() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-3">
                 <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5 text-purple-600" />
-                  <CardTitle className="text-sm">Collaborateurs</CardTitle>
+                  <RefreshCw className="h-5 w-5 text-purple-600" />
+                  <CardTitle className="text-sm">Révisions</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <Link href="/collaborators">
+                <Link href="/revisions">
                   <Button variant="outline" size="sm" className="w-full">
-                    Gérer l'équipe
+                    Suivi des révisions
                   </Button>
                 </Link>
               </CardContent>
@@ -125,14 +125,14 @@ export default function Home() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="pb-3">
                 <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-5 w-5 text-orange-600" />
-                  <CardTitle className="text-sm">Rapports</CardTitle>
+                  <Library className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-sm">Bibliothèque</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <Link href="/reports">
+                <Link href="/risk-library">
                   <Button variant="outline" size="sm" className="w-full">
-                    Voir les stats
+                    Voir les risques
                   </Button>
                 </Link>
               </CardContent>

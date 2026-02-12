@@ -15,13 +15,14 @@ import {
   Calendar, 
   Building, 
   Plus,
-  Download,
   Eye,
   Edit,
-  Trash2,
-  Archive
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Header } from '@/components/Header';
 import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
@@ -44,57 +45,70 @@ export default function Documents() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'draft'>('all');
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['/api/documents'],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
-  const archiveMutation = useMutation({
+  const annualUpdateMutation = useMutation({
     mutationFn: async (documentId: number) => {
-      await apiRequest(`/api/duerp-documents/${documentId}/archive`, {
+      const response = await apiRequest(`/api/duerp-documents/${documentId}/annual-update`, {
         method: 'POST',
       });
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (_, documentId) => {
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/revisions/needed'] });
       toast({
-        title: "Document archivé",
-        description: "Le document a été archivé avec succès",
+        title: "Mise à jour annuelle effectuée",
+        description: "La date de révision a été mise à jour. Vous pouvez maintenant modifier le document.",
       });
+      navigate(`/duerp-generator?edit=${documentId}`);
     },
     onError: () => {
       toast({
         title: "Erreur",
-        description: "Impossible d'archiver le document",
+        description: "Impossible d'effectuer la mise à jour annuelle",
         variant: "destructive",
       });
     },
   });
 
   const filteredDocuments = documents?.filter((doc: Document) => {
-    const matchesSearch = doc.companyName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      doc.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.title?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || doc.status === statusFilter;
     return matchesSearch && matchesStatus;
   }) || [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'expired': return 'bg-red-100 text-red-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusBadge = (status: string, nextReviewDate: string) => {
+    const isOverdue = nextReviewDate && new Date(nextReviewDate) < new Date();
+    
+    if (status === 'draft') {
+      return <Badge variant="outline" className="text-yellow-700 border-yellow-300 bg-yellow-50"><Clock className="h-3 w-3 mr-1" />Brouillon</Badge>;
     }
+    if (isOverdue) {
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Révision requise</Badge>;
+    }
+    if (status === 'active') {
+      return <Badge className="bg-green-100 text-green-800 border-green-300"><CheckCircle className="h-3 w-3 mr-1" />Actif</Badge>;
+    }
+    return <Badge variant="secondary">{status}</Badge>;
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active': return 'Actif';
-      case 'expired': return 'Expiré';
-      case 'draft': return 'Brouillon';
-      default: return status;
-    }
+  const getDaysUntilReview = (nextReviewDate: string) => {
+    if (!nextReviewDate) return null;
+    const diff = Math.ceil((new Date(nextReviewDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
   };
+
+  const activeCount = documents?.filter((d: Document) => d.status === 'active').length || 0;
+  const draftCount = documents?.filter((d: Document) => d.status === 'draft').length || 0;
+  const overdueCount = documents?.filter((d: Document) => d.nextReviewDate && new Date(d.nextReviewDate) < new Date()).length || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -103,9 +117,9 @@ export default function Documents() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Documents DUERP</h1>
+            <h1 className="text-2xl font-bold">Mes DUERP</h1>
             <p className="text-muted-foreground">
-              Gérez vos Documents Uniques d'Évaluation des Risques Professionnels
+              Retrouvez et gérez vos Documents Uniques d'Évaluation des Risques
             </p>
           </div>
           <Button asChild>
@@ -116,60 +130,67 @@ export default function Documents() {
           </Button>
         </div>
 
-        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div>
+                <div className="text-2xl font-bold">{activeCount}</div>
+                <div className="text-sm text-muted-foreground">Actifs</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <Clock className="h-5 w-5 text-yellow-500" />
+              <div>
+                <div className="text-2xl font-bold">{draftCount}</div>
+                <div className="text-sm text-muted-foreground">Brouillons</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <div>
+                <div className="text-2xl font-bold">{overdueCount}</div>
+                <div className="text-sm text-muted-foreground">Révision requise</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Rechercher par nom d'entreprise..."
+              placeholder="Rechercher par nom..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={statusFilter === 'all' ? 'default' : 'outline'}
-              onClick={() => setStatusFilter('all')}
-              size="sm"
-            >
-              Tous
-            </Button>
-            <Button
-              variant={statusFilter === 'active' ? 'default' : 'outline'}
-              onClick={() => setStatusFilter('active')}
-              size="sm"
-            >
-              Actifs
-            </Button>
-            <Button
-              variant={statusFilter === 'expired' ? 'default' : 'outline'}
-              onClick={() => setStatusFilter('expired')}
-              size="sm"
-            >
-              Expirés
-            </Button>
-            <Button
-              variant={statusFilter === 'draft' ? 'default' : 'outline'}
-              onClick={() => setStatusFilter('draft')}
-              size="sm"
-            >
-              Brouillons
-            </Button>
+            {(['all', 'active', 'draft', 'expired'] as const).map(filter => (
+              <Button
+                key={filter}
+                variant={statusFilter === filter ? 'default' : 'outline'}
+                onClick={() => setStatusFilter(filter)}
+                size="sm"
+              >
+                {filter === 'all' ? 'Tous' : filter === 'active' ? 'Actifs' : filter === 'draft' ? 'Brouillons' : 'Expirés'}
+              </Button>
+            ))}
           </div>
         </div>
 
-        {/* Documents Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-300 rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-8 bg-gray-300 rounded w-full"></div>
+                <CardContent className="p-6">
+                  <div className="h-4 bg-muted rounded w-1/3 mb-3"></div>
+                  <div className="h-3 bg-muted rounded w-1/4"></div>
                 </CardContent>
               </Card>
             ))}
@@ -177,11 +198,11 @@ export default function Documents() {
         ) : filteredDocuments.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Aucun document trouvé</h3>
+            <h3 className="text-lg font-semibold mb-2">Aucun DUERP trouvé</h3>
             <p className="text-muted-foreground mb-4">
               {searchTerm || statusFilter !== 'all' 
-                ? "Aucun document ne correspond à vos critères de recherche."
-                : "Vous n'avez pas encore créé de document DUERP."}
+                ? "Aucun document ne correspond à vos critères."
+                : "Vous n'avez pas encore créé de DUERP."}
             </p>
             <Button asChild>
               <Link href="/duerp-generator">
@@ -191,67 +212,72 @@ export default function Documents() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDocuments.map((doc: Document) => (
-              <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Building className="h-5 w-5" />
-                        {doc.title}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">{doc.companyName}</p>
-                      <Badge className={`mt-2 ${getStatusColor(doc.status)}`}>
-                        {getStatusLabel(doc.status)}
-                      </Badge>
+          <div className="space-y-4">
+            {filteredDocuments.map((doc: Document) => {
+              const daysUntilReview = getDaysUntilReview(doc.nextReviewDate);
+              const isOverdue = daysUntilReview !== null && daysUntilReview < 0;
+              const isDueSoon = daysUntilReview !== null && daysUntilReview >= 0 && daysUntilReview <= 30;
+              
+              return (
+                <Card key={doc.id} className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-red-200' : isDueSoon ? 'border-yellow-200' : ''}`}>
+                  <CardContent className="p-5">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Building className="h-5 w-5 text-muted-foreground" />
+                          <h3 className="font-semibold text-lg">{doc.title}</h3>
+                          {getStatusBadge(doc.status, doc.nextReviewDate)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            Créé le {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3.5 w-3.5" />
+                            {doc.riskCount} risques
+                          </span>
+                          {doc.nextReviewDate && (
+                            <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-600 font-medium' : isDueSoon ? 'text-yellow-600' : ''}`}>
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              {isOverdue 
+                                ? `Révision en retard de ${Math.abs(daysUntilReview!)} jours`
+                                : `Prochaine révision dans ${daysUntilReview} jours`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/duerp-generator?view=${doc.id}`}>
+                            <Eye className="h-4 w-4 mr-1.5" />
+                            Visualiser
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/duerp-generator?edit=${doc.id}`}>
+                            <Edit className="h-4 w-4 mr-1.5" />
+                            Modifier
+                          </Link>
+                        </Button>
+                        {doc.status === 'active' && (
+                          <Button 
+                            size="sm"
+                            variant={isOverdue ? 'destructive' : 'default'}
+                            onClick={() => annualUpdateMutation.mutate(doc.id)}
+                            disabled={annualUpdateMutation.isPending}
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-1.5 ${annualUpdateMutation.isPending ? 'animate-spin' : ''}`} />
+                            Mise à jour annuelle
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      Créé le {new Date(doc.createdAt).toLocaleDateString('fr-FR')}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      {doc.riskCount} risques identifiés
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      Prochaine révision: {new Date(doc.nextReviewDate).toLocaleDateString('fr-FR')}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link href={`/duerp-generator?view=${doc.id}`}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Voir
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link href={`/duerp-generator?edit=${doc.id}`}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Modifier
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => archiveMutation.mutate(doc.id)}
-                      disabled={archiveMutation.isPending}
-                    >
-                      <Archive className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

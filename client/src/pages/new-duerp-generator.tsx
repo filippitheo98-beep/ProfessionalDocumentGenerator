@@ -45,6 +45,7 @@ export default function NewDuerpGenerator() {
   const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
   const [savedDocumentId, setSavedDocumentId] = useState<number | null>(null);
+  const [isFinalized, setIsFinalized] = useState(false);
   const initialLoadDone = useRef<string | null>(null);
   
   // Gestion du document (création/modification)
@@ -92,6 +93,7 @@ export default function NewDuerpGenerator() {
       setPreventionMeasures(existingDocument.preventionMeasures || []);
       setFinalRisks(existingDocument.finalRisks || []);
       setDuerpWorkUnits(existingDocument.workUnitsData || []);
+      setIsFinalized(existingDocument.status === 'active');
       setSites(existingDocument.sites || []);
       
       const completed = [1];
@@ -521,6 +523,73 @@ export default function NewDuerpGenerator() {
     });
   };
 
+  const doSave = async (): Promise<any> => {
+    if (!company) throw new Error('Société manquante');
+    const allRisksFromUnits = duerpWorkUnits.flatMap(u => (u.risks || []).map(r => ({ ...r, source: u.name, sourceType: 'Lieu' as const })));
+    const risksToSave = allRisksFromUnits.length > 0 ? allRisksFromUnits : finalRisks;
+    const data = {
+      companyId: company.id,
+      title: `${company.name} - DUERP`,
+      workUnitsData: duerpWorkUnits,
+      sites,
+      locations,
+      workStations,
+      finalRisks: risksToSave,
+      preventionMeasures,
+    };
+    const docId = editDocumentId || viewDocumentId || (savedDocumentId ? String(savedDocumentId) : null);
+    if (docId) {
+      return await apiRequest(`/api/duerp/document/${docId}`, { method: 'PUT', body: JSON.stringify(data) });
+    } else {
+      return await apiRequest('/api/duerp/save', { method: 'POST', body: JSON.stringify(data) });
+    }
+  };
+
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      const saveResult = await doSave();
+      const docId = saveResult?.id || savedDocumentId || (editDocumentId ? parseInt(editDocumentId) : null);
+      if (saveResult?.id && !savedDocumentId) {
+        setSavedDocumentId(saveResult.id);
+      }
+      if (!docId) {
+        throw new Error('Document non sauvegardé');
+      }
+      const response = await apiRequest(`/api/duerp-documents/${docId}/finalize`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: () => {
+      setIsFinalized(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/revisions/needed'] });
+      toast({
+        title: "DUERP finalisé",
+        description: "Le document est enregistré et la prochaine révision est programmée dans un an.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur de finalisation",
+        description: error?.message || "Impossible de finaliser le document. Vérifiez que toutes les données sont remplies.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFinalize = () => {
+    if (!company) {
+      toast({
+        title: "Impossible de finaliser",
+        description: "Veuillez d'abord remplir les informations de la société",
+        variant: "destructive",
+      });
+      return;
+    }
+    finalizeMutation.mutate();
+  };
+
   const handleSaveProgress = () => {
     if (!company) {
       toast({
@@ -689,6 +758,9 @@ export default function NewDuerpGenerator() {
                 companyName={company?.name || 'Entreprise'}
                 onSave={handleSaveProgress}
                 onGenerateWord={handleExportWord}
+                onFinalize={handleFinalize}
+                isFinalized={isFinalized}
+                isFinalizing={finalizeMutation.isPending}
                 locations={locations}
                 workStations={workStations}
                 preventionMeasures={preventionMeasures}

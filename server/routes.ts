@@ -884,6 +884,65 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
+  app.post("/api/duerp-documents/:id/finalize", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const now = new Date();
+      const nextReview = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+      const [updated] = await db
+        .update(duerpDocuments)
+        .set({
+          status: 'active',
+          lastRevisionDate: now,
+          nextReviewDate: nextReview,
+          revisionNotified: false,
+          updatedAt: now,
+        })
+        .where(eq(duerpDocuments.id, documentId))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ message: 'Document non trouvé' });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error finalizing document:', error);
+      res.status(500).json({ message: 'Failed to finalize document' });
+    }
+  });
+
+  app.post("/api/duerp-documents/:id/annual-update", async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const now = new Date();
+      const nextReview = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+      const [updated] = await db
+        .update(duerpDocuments)
+        .set({
+          status: 'active',
+          lastRevisionDate: now,
+          nextReviewDate: nextReview,
+          revisionNotified: false,
+          updatedAt: now,
+          version: sql`CAST(CAST(COALESCE(${duerpDocuments.version}, '1.0') AS DECIMAL) + 1.0 AS TEXT)`,
+        })
+        .where(eq(duerpDocuments.id, documentId))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ message: 'Document non trouvé' });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error performing annual update:', error);
+      res.status(500).json({ message: 'Failed to perform annual update' });
+    }
+  });
+
   // Revision tracking routes
   app.get("/api/revisions/needed", async (req, res) => {
     try {

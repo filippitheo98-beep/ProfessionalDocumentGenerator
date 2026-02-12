@@ -5,14 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
-import DuerpGenerator from "@/pages/duerp-generator";
 import NewDuerpGenerator from "@/pages/new-duerp-generator";
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
 import Documents from "@/pages/documents";
-import Archives from "@/pages/archives";
-import Collaborators from "@/pages/collaborators";
-import Reports from "@/pages/reports";
 import Revisions from "@/pages/revisions";
 import RiskLibraryManagement from "@/pages/RiskLibraryManagement";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -39,11 +35,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/duerp-generator" component={NewDuerpGenerator} />
-          <Route path="/old-duerp-generator" component={DuerpGenerator} />
           <Route path="/documents" component={Documents} />
-          <Route path="/archives" component={Archives} />
-          <Route path="/collaborators" component={Collaborators} />
-          <Route path="/reports" component={Reports} />
           <Route path="/revisions" component={Revisions} />
           <Route path="/risk-library" component={RiskLibraryManagement} />
         </>
