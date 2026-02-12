@@ -113,7 +113,7 @@ export default function NewDuerpGenerator() {
     const allRisksFromUnits = duerpWorkUnits.flatMap(u =>
       (u.risks || []).map(r => ({
         ...r,
-        source: r.source || u.name,
+        source: u.name,
         sourceType: r.sourceType || ('Lieu' as const),
       }))
     );
