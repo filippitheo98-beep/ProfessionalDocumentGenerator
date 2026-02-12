@@ -108,8 +108,6 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
   const topRiskTypes = [...riskTypeData].sort((a, b) => b.value - a.value).slice(0, 5);
 
   const validatedCount = risks.filter(r => r.isValidated).length;
-  const aiGeneratedCount = risks.filter(r => r.isAIGenerated).length;
-  const manualCount = risks.filter(r => !r.isAIGenerated).length;
 
   if (totalRisks === 0) {
     return (
@@ -238,7 +236,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
 
         <Card>
           <CardHeader>
-            <CardTitle>Risques par source</CardTitle>
+            <CardTitle>Risques par unité de travail</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -293,16 +291,16 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                 <Badge variant="secondary">{avgScore}</Badge>
               </div>
               <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm">Risques IA</span>
-                <Badge variant="secondary">{aiGeneratedCount}</Badge>
-              </div>
-              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm">Risques manuels</span>
-                <Badge variant="secondary">{manualCount}</Badge>
-              </div>
-              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm">Sources identifiées</span>
+                <span className="text-sm">Unités de travail</span>
                 <Badge variant="secondary">{sourceData.length}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Familles de risques</span>
+                <Badge variant="secondary">{riskTypeData.length}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Risques validés</span>
+                <Badge variant="secondary">{validatedCount}/{totalRisks}</Badge>
               </div>
             </div>
           </CardContent>
