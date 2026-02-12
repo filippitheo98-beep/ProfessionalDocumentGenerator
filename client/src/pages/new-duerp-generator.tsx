@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Header } from '@/components/Header';
@@ -45,6 +45,7 @@ export default function NewDuerpGenerator() {
   const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
   const [savedDocumentId, setSavedDocumentId] = useState<number | null>(null);
+  const initialLoadDone = useRef<string | null>(null);
   
   // Gestion du document (création/modification)
   const urlParams = new URLSearchParams(window.location.search);
@@ -82,18 +83,16 @@ export default function NewDuerpGenerator() {
   });
 
   useEffect(() => {
-    if (existingDocument && existingCompany) {
+    const docKey = editDocumentId || viewDocumentId;
+    if (existingDocument && existingCompany && initialLoadDone.current !== docKey) {
+      initialLoadDone.current = docKey;
       setCompany(existingCompany);
       setLocations(existingDocument.locations || []);
       setWorkStations(existingDocument.workStations || []);
       setPreventionMeasures(existingDocument.preventionMeasures || []);
       setFinalRisks(existingDocument.finalRisks || []);
-      if (existingDocument.workUnitsData && existingDocument.workUnitsData.length > 0) {
-        setDuerpWorkUnits(existingDocument.workUnitsData);
-      }
-      if (existingDocument.sites && existingDocument.sites.length > 0) {
-        setSites(existingDocument.sites);
-      }
+      setDuerpWorkUnits(existingDocument.workUnitsData || []);
+      setSites(existingDocument.sites || []);
       
       const completed = [1];
       if ((existingDocument.workUnitsData?.length ?? 0) > 0 || (existingDocument.locations?.length ?? 0) > 0) {
@@ -318,8 +317,9 @@ export default function NewDuerpGenerator() {
 
   const saveDuerpMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (documentId) {
-        const response = await apiRequest(`/api/duerp/document/${documentId}`, {
+      const docId = editDocumentId || viewDocumentId || (savedDocumentId ? String(savedDocumentId) : null);
+      if (docId) {
+        const response = await apiRequest(`/api/duerp/document/${docId}`, {
           method: 'PUT',
           body: JSON.stringify(data),
         });
@@ -339,6 +339,14 @@ export default function NewDuerpGenerator() {
       toast({
         title: "Document sauvegardé",
         description: "Votre DUERP a été sauvegardé avec succès",
+      });
+    },
+    onError: (error: any) => {
+      console.error('[SAVE ERROR]', error);
+      toast({
+        title: "Erreur de sauvegarde",
+        description: error?.message || "Impossible de sauvegarder le document",
+        variant: "destructive",
       });
     },
   });
@@ -514,20 +522,26 @@ export default function NewDuerpGenerator() {
   };
 
   const handleSaveProgress = () => {
-    if (company) {
-      const allRisksFromUnits = duerpWorkUnits.flatMap(u => (u.risks || []).map(r => ({ ...r, source: u.name, sourceType: 'Lieu' as const })));
-      const risksToSave = allRisksFromUnits.length > 0 ? allRisksFromUnits : finalRisks;
-      saveDuerpMutation.mutate({
-        companyId: company.id,
-        title: `${company.name} - DUERP`,
-        workUnitsData: duerpWorkUnits,
-        sites,
-        locations,
-        workStations,
-        finalRisks: risksToSave,
-        preventionMeasures,
+    if (!company) {
+      toast({
+        title: "Impossible de sauvegarder",
+        description: "Veuillez d'abord remplir les informations de la société (étape 1)",
+        variant: "destructive",
       });
+      return;
     }
+    const allRisksFromUnits = duerpWorkUnits.flatMap(u => (u.risks || []).map(r => ({ ...r, source: u.name, sourceType: 'Lieu' as const })));
+    const risksToSave = allRisksFromUnits.length > 0 ? allRisksFromUnits : finalRisks;
+    saveDuerpMutation.mutate({
+      companyId: company.id,
+      title: `${company.name} - DUERP`,
+      workUnitsData: duerpWorkUnits,
+      sites,
+      locations,
+      workStations,
+      finalRisks: risksToSave,
+      preventionMeasures,
+    });
   };
 
   const handleExportExcel = async () => {

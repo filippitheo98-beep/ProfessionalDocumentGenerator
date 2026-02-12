@@ -451,6 +451,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   app.post('/api/duerp/save', async (req, res) => {
     try {
       const { companyId, title, workUnitsData, sites, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      console.log(`[SAVE POST] companyId=${companyId} title=${title} workUnitsData=${(workUnitsData||[]).length} finalRisks=${(finalRisks||[]).length}`);
       
       if (!companyId || !title) {
         return res.status(400).json({ message: 'Company ID and title are required' });
@@ -528,6 +529,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     try {
       const id = parseInt(req.params.id);
       const { title, workUnitsData, sites, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      console.log(`[SAVE PUT] id=${id} workUnitsData=${(workUnitsData||[]).length} finalRisks=${(finalRisks||[]).length} sites=${(sites||[]).length}`);
       
       const [updatedDocument] = await db
         .update(duerpDocuments)
