@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Header } from '@/components/Header';
 import { 
   Plus, 
   Trash2, 
@@ -221,6 +222,8 @@ export default function RiskLibraryManagement() {
   }, [risks]);
 
   return (
+    <div className="min-h-screen bg-background">
+    <Header />
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -598,6 +601,7 @@ export default function RiskLibraryManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }

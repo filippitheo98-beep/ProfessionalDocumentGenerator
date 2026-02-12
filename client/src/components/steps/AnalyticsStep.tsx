@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import html2canvas from 'html2canvas';
 import { 
   BarChart, 
   Bar, 
@@ -22,7 +21,8 @@ import {
   Shield,
   Target,
   Activity,
-  FileText
+  FileText,
+  CheckCircle
 } from 'lucide-react';
 import type { Risk } from '@shared/schema';
 
@@ -36,55 +36,56 @@ interface AnalyticsStepProps {
   preventionMeasures: any[];
 }
 
-const COLORS = {
-  'Faible': '#10B981',
+function getRiskLevel(risk: Risk): 'Important' | 'Moyen' | 'Faible' {
+  if (risk.priority === 'Priorité 1 (Forte)') return 'Important';
+  if (risk.priority === 'Priorité 2 (Moyenne)') return 'Moyen';
+  if (risk.priority === 'Priorité 3 (Modéré)') return 'Moyen';
+  return 'Faible';
+}
+
+const COLORS: Record<string, string> = {
+  'Important': '#EF4444',
   'Moyen': '#F59E0B',
-  'Important': '#EF4444'
+  'Faible': '#10B981'
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  'Priorité 1 (Forte)': '#EF4444',
+  'Priorité 2 (Moyenne)': '#F97316',
+  'Priorité 3 (Modéré)': '#F59E0B',
+  'Priorité 4 (Faible)': '#10B981',
 };
 
 const RISK_TYPE_COLORS = [
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#F97316',
-  '#06B6D4',
-  '#84CC16',
-  '#EF4444',
-  '#6B7280'
+  '#3B82F6', '#8B5CF6', '#EC4899', '#F97316',
+  '#06B6D4', '#84CC16', '#EF4444', '#6B7280',
+  '#14B8A6', '#A855F7', '#F43F5E', '#0EA5E9'
 ];
 
 export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
-  // Données pour le graphique en barres (par niveau de risque)
-  const riskLevelData = [
-    {
-      name: 'Faible',
-      count: risks.filter(r => r.finalRisk === 'Faible').length,
-      color: COLORS['Faible']
-    },
-    {
-      name: 'Moyen',
-      count: risks.filter(r => r.finalRisk === 'Moyen').length,
-      color: COLORS['Moyen']
-    },
-    {
-      name: 'Important',
-      count: risks.filter(r => r.finalRisk === 'Important').length,
-      color: COLORS['Important']
-    }
+  const totalRisks = risks.length;
+
+  const highRisks = risks.filter(r => getRiskLevel(r) === 'Important').length;
+  const mediumRisks = risks.filter(r => getRiskLevel(r) === 'Moyen').length;
+  const lowRisks = risks.filter(r => getRiskLevel(r) === 'Faible').length;
+
+  const priorityData = [
+    { name: 'P1 - Forte', count: risks.filter(r => r.priority === 'Priorité 1 (Forte)').length, fill: PRIORITY_COLORS['Priorité 1 (Forte)'] },
+    { name: 'P2 - Moyenne', count: risks.filter(r => r.priority === 'Priorité 2 (Moyenne)').length, fill: PRIORITY_COLORS['Priorité 2 (Moyenne)'] },
+    { name: 'P3 - Modéré', count: risks.filter(r => r.priority === 'Priorité 3 (Modéré)').length, fill: PRIORITY_COLORS['Priorité 3 (Modéré)'] },
+    { name: 'P4 - Faible', count: risks.filter(r => r.priority === 'Priorité 4 (Faible)').length, fill: PRIORITY_COLORS['Priorité 4 (Faible)'] },
   ];
 
-  // Données pour le graphique en secteurs (par type de risque)
   const riskTypeData = risks.reduce((acc, risk) => {
-    const existing = acc.find(item => item.name === risk.type);
+    const existing = acc.find(item => item.name === risk.family);
     if (existing) {
       existing.value += 1;
     } else {
-      acc.push({ name: risk.type, value: 1 });
+      acc.push({ name: risk.family, value: 1 });
     }
     return acc;
   }, [] as { name: string; value: number }[]);
 
-  // Données pour le graphique par source
   const sourceData = risks.reduce((acc, risk) => {
     const source = risk.source || 'Non spécifié';
     const existing = acc.find(item => item.name === source);
@@ -96,17 +97,14 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
     return acc;
   }, [] as { name: string; value: number }[]);
 
-  // Calculer les statistiques
-  const totalRisks = risks.length;
-  const highRisks = risks.filter(r => r.finalRisk === 'Important').length;
-  const mediumRisks = risks.filter(r => r.finalRisk === 'Moyen').length;
-  const lowRisks = risks.filter(r => r.finalRisk === 'Faible').length;
-  const riskScore = Math.round(((highRisks * 3 + mediumRisks * 2 + lowRisks * 1) / totalRisks) * 100) || 0;
+  const avgScore = totalRisks > 0 ? Math.round(risks.reduce((sum, r) => sum + r.riskScore, 0) / totalRisks) : 0;
+  const maxScore = totalRisks > 0 ? Math.max(...risks.map(r => r.riskScore)) : 0;
 
-  // Top 5 des types de risques les plus fréquents
-  const topRiskTypes = riskTypeData
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+  const topRiskTypes = [...riskTypeData].sort((a, b) => b.value - a.value).slice(0, 5);
+
+  const validatedCount = risks.filter(r => r.isValidated).length;
+  const aiGeneratedCount = risks.filter(r => r.isAIGenerated).length;
+  const manualCount = risks.filter(r => !r.isAIGenerated).length;
 
   if (totalRisks === 0) {
     return (
@@ -130,8 +128,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
 
   return (
     <div className="space-y-6">
-      {/* Statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
@@ -150,7 +147,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
               <AlertTriangle className="h-4 w-4 text-red-500" />
               <div>
                 <div className="text-2xl font-bold text-red-600">{highRisks}</div>
-                <div className="text-sm text-muted-foreground">Risques importants</div>
+                <div className="text-sm text-muted-foreground">Priorité forte</div>
               </div>
             </div>
           </CardContent>
@@ -159,10 +156,10 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-yellow-500" />
+              <Target className="h-4 w-4 text-yellow-500" />
               <div>
-                <div className="text-2xl font-bold text-yellow-600">{mediumRisks}</div>
-                <div className="text-sm text-muted-foreground">Risques moyens</div>
+                <div className="text-2xl font-bold text-yellow-600">{avgScore}</div>
+                <div className="text-sm text-muted-foreground">Score moyen</div>
               </div>
             </div>
           </CardContent>
@@ -171,33 +168,33 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-purple-500" />
+              <CheckCircle className="h-4 w-4 text-green-500" />
               <div>
-                <div className="text-2xl font-bold text-purple-600">{riskScore}%</div>
-                <div className="text-sm text-muted-foreground">Score de risque</div>
+                <div className="text-2xl font-bold text-green-600">{validatedCount}/{totalRisks}</div>
+                <div className="text-sm text-muted-foreground">Validés</div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Graphique en barres - Répartition par niveau */}
       <Card>
         <CardHeader>
-          <CardTitle>Répartition des risques par niveau</CardTitle>
+          <CardTitle>Répartition par priorité</CardTitle>
         </CardHeader>
         <CardContent>
           <div data-chart="bar">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={riskLevelData}>
+              <BarChart data={priorityData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value) => [`${value} risques`, 'Nombre']}
-                  labelFormatter={(label) => `Niveau : ${label}`}
-                />
-                <Bar dataKey="count" fill="#3B82F6" />
+                <YAxis allowDecimals={false} />
+                <Tooltip formatter={(value) => [`${value} risque(s)`, 'Nombre']} />
+                <Bar dataKey="count">
+                  {priorityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -205,10 +202,9 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Graphique en secteurs - Types de risques */}
         <Card>
           <CardHeader>
-            <CardTitle>Types de risques</CardTitle>
+            <CardTitle>Familles de risques</CardTitle>
           </CardHeader>
           <CardContent>
             <div data-chart="pie">
@@ -219,37 +215,33 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={({ name, percent }) => `${name.length > 15 ? name.substring(0, 15) + '…' : name} (${(percent * 100).toFixed(0)}%)`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {riskTypeData.map((entry, index) => (
+                    {riskTypeData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={RISK_TYPE_COLORS[index % RISK_TYPE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} risques`, 'Nombre']} />
+                  <Tooltip formatter={(value) => [`${value} risque(s)`, 'Nombre']} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Graphique par source */}
         <Card>
           <CardHeader>
             <CardTitle>Risques par source</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={sourceData} layout="horizontal">
+              <BarChart data={sourceData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={100} />
-                <Tooltip 
-                  formatter={(value) => [`${value} risques`, 'Nombre']}
-                  labelFormatter={(label) => `Source : ${label}`}
-                />
+                <XAxis type="number" allowDecimals={false} />
+                <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value) => [`${value} risque(s)`, 'Nombre']} />
                 <Bar dataKey="value" fill="#8B5CF6" />
               </BarChart>
             </ResponsiveContainer>
@@ -257,31 +249,61 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
         </Card>
       </div>
 
-      {/* Top 5 des types de risques */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Types de risques les plus fréquents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {topRiskTypes.map((riskType, index) => (
-              <div key={riskType.name} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium">{index + 1}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Familles de risques les plus fréquentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {topRiskTypes.map((riskType, index) => (
+                <div key={riskType.name} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium">{index + 1}</span>
+                    </div>
+                    <span className="font-medium text-sm">{riskType.name}</span>
                   </div>
-                  <span className="font-medium">{riskType.name}</span>
+                  <Badge variant="secondary">
+                    {riskType.value} risque{riskType.value > 1 ? 's' : ''}
+                  </Badge>
                 </div>
-                <Badge variant="secondary">
-                  {riskType.value} risque{riskType.value > 1 ? 's' : ''}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Recommandations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistiques détaillées</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Score le plus élevé</span>
+                <Badge variant={maxScore >= 500 ? "destructive" : "secondary"}>{maxScore}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Score moyen</span>
+                <Badge variant="secondary">{avgScore}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Risques IA</span>
+                <Badge variant="secondary">{aiGeneratedCount}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Risques manuels</span>
+                <Badge variant="secondary">{manualCount}</Badge>
+              </div>
+              <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm">Sources identifiées</span>
+                <Badge variant="secondary">{sourceData.length}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -300,7 +322,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                   </span>
                 </div>
                 <p className="text-sm text-red-600 dark:text-red-300">
-                  {highRisks} risque{highRisks > 1 ? 's' : ''} important{highRisks > 1 ? 's' : ''} identifié{highRisks > 1 ? 's' : ''}. 
+                  {highRisks} risque{highRisks > 1 ? 's' : ''} de priorité forte identifié{highRisks > 1 ? 's' : ''} (score ≥ 500). 
                   Mettre en place des mesures de prévention immédiates.
                 </p>
               </div>
@@ -315,8 +337,23 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                   </span>
                 </div>
                 <p className="text-sm text-yellow-600 dark:text-yellow-300">
-                  {mediumRisks} risque{mediumRisks > 1 ? 's' : ''} moyen{mediumRisks > 1 ? 's' : ''} à surveiller. 
-                  Planifier des mesures préventives.
+                  {mediumRisks} risque{mediumRisks > 1 ? 's' : ''} de priorité moyenne à modérée à surveiller. 
+                  Planifier des mesures préventives dans les prochains mois.
+                </p>
+              </div>
+            )}
+
+            {validatedCount < totalRisks && (
+              <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium text-orange-700 dark:text-orange-400">
+                    Validation en attente
+                  </span>
+                </div>
+                <p className="text-sm text-orange-600 dark:text-orange-300">
+                  {totalRisks - validatedCount} risque{(totalRisks - validatedCount) > 1 ? 's' : ''} non encore validé{(totalRisks - validatedCount) > 1 ? 's' : ''}. 
+                  Retournez au tableau des risques pour les valider.
                 </p>
               </div>
             )}
@@ -325,18 +362,18 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-blue-500" />
                 <span className="font-medium text-blue-700 dark:text-blue-400">
-                  Objectif
+                  Rappel réglementaire
                 </span>
               </div>
               <p className="text-sm text-blue-600 dark:text-blue-300">
-                Réviser ce document DUERP au moins une fois par an et après tout changement significatif.
+                Le DUERP doit être révisé au moins une fois par an et après tout changement significatif 
+                dans les conditions de travail.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Bouton de génération PDF */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
