@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,9 +26,10 @@ import {
   CheckCircle,
   Filter,
   X,
-  Plus
+  Plus,
+  PenLine
 } from "lucide-react";
-import type { WorkUnit, Risk } from "@shared/schema";
+import type { WorkUnit, Risk, RiskFamily } from "@shared/schema";
 
 interface HierarchicalEditorStepProps {
   companyId: number;
@@ -92,6 +95,8 @@ export default function HierarchicalEditorStep({
     unitId: string;
     elementName: string;
   } | null>(null);
+
+  const [showCreateRisk, setShowCreateRisk] = useState(false);
 
   const updateUnit = (unitId: string, updates: Partial<WorkUnit>) => {
     onUpdateWorkUnits(workUnits.map(u => u.id === unitId ? { ...u, ...updates } : u));
@@ -274,6 +279,16 @@ export default function HierarchicalEditorStep({
               >
                 <Library className="h-4 w-4" />
                 Bibliothèque
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 bg-white dark:bg-background"
+                onClick={() => selectedAddUnit && setShowCreateRisk(true)}
+                disabled={!selectedAddUnit || generatingFor !== null}
+              >
+                <PenLine className="h-4 w-4" />
+                Créer un risque
               </Button>
               {selectedAddUnit && (() => {
                 const unit = workUnits.find(u => u.id === selectedAddUnit);
@@ -517,6 +532,20 @@ export default function HierarchicalEditorStep({
           elementName={librarySelector.elementName}
         />
       )}
+
+      {showCreateRisk && selectedAddUnit && (
+        <CreateCustomRiskDialog
+          unitName={workUnits.find(u => u.id === selectedAddUnit)?.name || ''}
+          onClose={() => setShowCreateRisk(false)}
+          onRiskCreated={(risk) => {
+            const unit = workUnits.find(u => u.id === selectedAddUnit);
+            const existingRisks = unit?.risks || [];
+            updateUnit(selectedAddUnit, { risks: [...existingRisks, risk] });
+            toast({ title: "Risque créé et ajouté" });
+            setShowCreateRisk(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -649,6 +678,19 @@ const SUGGESTED_MEASURES: Record<string, string[]> = {
     'Registre des accidents et presqu\'accidents',
     'Désignation d\'un référent sécurité',
   ],
+  'Chutes': [
+    'Revêtements de sol antidérapants',
+    'Signalisation des sols mouillés ou glissants',
+    'Éclairage suffisant des zones de circulation',
+    'Nez de marche antidérapants dans les escaliers',
+    'Rampes et garde-corps conformes',
+    'Rangement et dégagement des passages',
+    'Chaussures de sécurité antidérapantes',
+    'Protection collective contre les chutes de hauteur (garde-corps, filets)',
+    'Harnais et lignes de vie pour le travail en hauteur',
+    'Formation au travail en hauteur',
+    'Vérification régulière des escabeaux et échelles',
+  ],
 };
 
 function calcPriority(score: number): Risk['priority'] {
@@ -681,11 +723,6 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
   const fLabel = FREQUENCY_OPTIONS.find(o => o.value === fVal)?.label || r.frequency;
   const mLabel = CONTROL_OPTIONS.find(o => o.value === mVal)?.label || r.control;
 
-  const suggestedMeasures = useMemo(() => {
-    const familyMeasures = SUGGESTED_MEASURES[r.family] || [];
-    return familyMeasures.filter(m => !existingMeasures.includes(m));
-  }, [r.family, existingMeasures]);
-
   const addMeasure = (measure: string) => {
     if (measure.trim() && !existingMeasures.includes(measure.trim())) {
       setExistingMeasures(prev => [...prev, measure.trim()]);
@@ -699,9 +736,25 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
   const handleAddManual = () => {
     if (newMeasure.trim()) {
       addMeasure(newMeasure);
+      apiRequest('/api/custom-measures', {
+        method: 'POST',
+        body: JSON.stringify({ family: r.family, measure: newMeasure.trim() }),
+      }).catch(() => {});
       setNewMeasure('');
     }
   };
+
+  const { data: customDbMeasures = [] } = useQuery<{id: number; family: string; measure: string}[]>({
+    queryKey: ['/api/custom-measures', r.family],
+    queryFn: async () => apiRequest(`/api/custom-measures?family=${encodeURIComponent(r.family)}`),
+  });
+
+  const allSuggestedMeasures = useMemo(() => {
+    const familyMeasures = SUGGESTED_MEASURES[r.family] || [];
+    const customOnes = customDbMeasures.map(m => m.measure);
+    const merged = [...familyMeasures, ...customOnes.filter(c => !familyMeasures.includes(c))];
+    return merged.filter(m => !existingMeasures.includes(m));
+  }, [r.family, existingMeasures, customDbMeasures]);
 
   const handleSave = () => {
     onSave({
@@ -834,7 +887,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
               </Button>
             </div>
 
-            {suggestedMeasures.length > 0 && (
+            {allSuggestedMeasures.length > 0 && (
               <div>
                 <Button
                   variant="ghost"
@@ -842,11 +895,11 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
                   className="text-xs text-blue-600 dark:text-blue-400 h-7 px-2 mb-2"
                   onClick={() => setShowSuggestions(!showSuggestions)}
                 >
-                  {showSuggestions ? 'Masquer les suggestions' : `Voir ${suggestedMeasures.length} suggestion(s) pour "${r.family}"`}
+                  {showSuggestions ? 'Masquer les suggestions' : `Voir ${allSuggestedMeasures.length} suggestion(s) pour "${r.family}"`}
                 </Button>
                 {showSuggestions && (
                   <div className="space-y-1 max-h-[200px] overflow-y-auto border rounded-md p-2 bg-blue-50/50 dark:bg-blue-950/10">
-                    {suggestedMeasures.map((measure, idx) => (
+                    {allSuggestedMeasures.map((measure, idx) => (
                       <button
                         key={idx}
                         className="w-full text-left text-sm p-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-2"
@@ -876,4 +929,209 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
 
 function LabelText({ className, children }: { className?: string; children: React.ReactNode }) {
   return <label className={className}>{children}</label>;
+}
+
+const RISK_FAMILIES: RiskFamily[] = [
+  'Mécanique', 'Physique', 'Chimique', 'Biologique', 'Radiologique',
+  'Incendie-Explosion', 'Électrique', 'Ergonomique', 'Psychosocial',
+  'Routier', 'Environnemental', 'Organisationnel', 'Chutes'
+];
+
+function CreateCustomRiskDialog({ unitName, onClose, onRiskCreated }: {
+  unitName: string;
+  onClose: () => void;
+  onRiskCreated: (risk: Risk) => void;
+}) {
+  const { toast } = useToast();
+  const [family, setFamily] = useState<string>('Mécanique');
+  const [situation, setSituation] = useState('');
+  const [description, setDescription] = useState('');
+  const [measures, setMeasures] = useState('');
+  const [gravity, setGravity] = useState('4');
+  const [frequency, setFrequency] = useState('4');
+  const [control, setControl] = useState('0.5');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const gVal = Number(gravity) as Risk['gravityValue'];
+  const fVal = Number(frequency) as Risk['frequencyValue'];
+  const mVal = Number(control) as Risk['controlValue'];
+  const score = Math.round(gVal * fVal * mVal * 100) / 100;
+  const priority = calcPriority(score);
+
+  const gLabel = GRAVITY_OPTIONS.find(o => o.value === gVal)?.label || 'Moyenne';
+  const fLabel = FREQUENCY_OPTIONS.find(o => o.value === fVal)?.label || 'Mensuelle';
+  const mLabel = CONTROL_OPTIONS.find(o => o.value === mVal)?.label || 'Moyenne';
+
+  const handleCreate = async () => {
+    if (!situation.trim() || !description.trim()) {
+      toast({ title: "Champs requis", description: "La situation et la description sont obligatoires", variant: "destructive" });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await apiRequest('/api/risk-library/custom', {
+        method: 'POST',
+        body: JSON.stringify({
+          family,
+          sector: 'TOUS',
+          hierarchyLevel: 'Unité',
+          situation: situation.trim(),
+          description: description.trim(),
+          defaultGravity: gLabel,
+          defaultFrequency: fLabel,
+          defaultControl: mLabel,
+          measures: measures.trim(),
+          keywords: situation.toLowerCase(),
+        }),
+      });
+
+      const risk: Risk = {
+        id: crypto.randomUUID(),
+        type: situation.trim(),
+        family: family as RiskFamily,
+        danger: description.trim(),
+        source: unitName,
+        sourceType: 'Lieu',
+        gravity: gLabel as Risk['gravity'],
+        gravityValue: gVal,
+        frequency: fLabel as Risk['frequency'],
+        frequencyValue: fVal,
+        control: mLabel as Risk['control'],
+        controlValue: mVal,
+        riskScore: score,
+        priority,
+        measures: measures.trim(),
+        existingMeasures: [],
+        isValidated: true,
+        isAIGenerated: false,
+        isInherited: false,
+        userModified: false,
+      };
+
+      onRiskCreated(risk);
+    } catch (error) {
+      toast({ title: "Erreur", description: "Impossible d'enregistrer le risque", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const PIcon = PRIORITY_ICONS[priority] || Info;
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Créer un risque personnalisé</DialogTitle>
+          <DialogDescription>Ce risque sera ajouté à "{unitName}" et enregistré dans la bibliothèque pour une utilisation future.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <LabelText className="text-xs text-muted-foreground mb-1.5 block">Famille de risque *</LabelText>
+            <Select value={family} onValueChange={setFamily}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RISK_FAMILIES.map(f => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <LabelText className="text-xs text-muted-foreground mb-1.5 block">Situation d'exposition *</LabelText>
+            <Input
+              placeholder="Ex: Travail en hauteur sur nacelle"
+              value={situation}
+              onChange={(e) => setSituation(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          <div>
+            <LabelText className="text-xs text-muted-foreground mb-1.5 block">Description du danger *</LabelText>
+            <Textarea
+              placeholder="Ex: Chute de hauteur lors d'intervention sur nacelle élévatrice"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <LabelText className="text-xs text-muted-foreground mb-1.5 block">Mesures de prévention recommandées</LabelText>
+            <Textarea
+              placeholder="Ex: Harnais, formation, vérification quotidienne..."
+              value={measures}
+              onChange={(e) => setMeasures(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Gravité</LabelText>
+              <Select value={gravity} onValueChange={setGravity}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GRAVITY_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Fréquence</LabelText>
+              <Select value={frequency} onValueChange={setFrequency}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCY_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <LabelText className="text-xs text-muted-foreground mb-1.5 block">Maîtrise</LabelText>
+              <Select value={control} onValueChange={setControl}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONTROL_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={String(o.value)}>{o.label} ({o.value})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Score :</span>
+              <span className="text-sm font-mono font-bold">{score}</span>
+            </div>
+            <Badge className={`${PRIORITY_BADGE_COLORS[priority] || ''}`}>
+              <PIcon className="h-3 w-3 mr-1" />
+              {priority}
+            </Badge>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleCreate} disabled={isSaving || !situation.trim() || !description.trim()}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+            Créer et ajouter
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

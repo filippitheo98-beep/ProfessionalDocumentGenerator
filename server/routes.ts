@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, type Risk, type Site, type WorkUnit } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
 import { db } from "./db";
@@ -527,12 +527,14 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   app.put('/api/duerp/document/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { title, locations, workStations, finalRisks, preventionMeasures } = req.body;
+      const { title, workUnitsData, sites, locations, workStations, finalRisks, preventionMeasures } = req.body;
       
       const [updatedDocument] = await db
         .update(duerpDocuments)
         .set({
           title,
+          workUnitsData: workUnitsData || [],
+          sites: sites || [],
           locations,
           workStations,
           finalRisks,
@@ -1451,6 +1453,81 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     } catch (error) {
       console.error('Error suggesting risks:', error);
       res.status(500).json({ message: 'Failed to suggest risks' });
+    }
+  });
+
+  // ===== Custom risk creation (save to risk_library) =====
+  app.post('/api/risk-library/custom', async (req, res) => {
+    try {
+      const { family, sector, hierarchyLevel, situation, description, defaultGravity, defaultFrequency, defaultControl, measures, keywords } = req.body;
+      
+      if (!family || !situation || !description) {
+        return res.status(400).json({ message: 'Famille, situation et description sont requis' });
+      }
+
+      const [newRisk] = await db.insert(riskLibrary).values({
+        family,
+        sector: sector || 'TOUS',
+        hierarchyLevel: hierarchyLevel || 'Unité',
+        situation,
+        description,
+        defaultGravity: defaultGravity || 'Moyenne',
+        defaultFrequency: defaultFrequency || 'Mensuelle',
+        defaultControl: defaultControl || 'Moyenne',
+        measures: measures || '',
+        source: 'Personnalisé',
+        keywords: keywords || '',
+        isActive: true,
+      }).returning();
+
+      res.json(newRisk);
+    } catch (error) {
+      console.error('Error creating custom risk:', error);
+      res.status(500).json({ message: 'Failed to create custom risk' });
+    }
+  });
+
+  // ===== Custom measures =====
+  app.get('/api/custom-measures', async (req, res) => {
+    try {
+      const { family } = req.query;
+      let results;
+      if (family && family !== 'all') {
+        results = await db.select().from(customMeasures).where(eq(customMeasures.family, String(family))).orderBy(desc(customMeasures.createdAt));
+      } else {
+        results = await db.select().from(customMeasures).orderBy(desc(customMeasures.createdAt));
+      }
+      res.json(results);
+    } catch (error) {
+      console.error('Error fetching custom measures:', error);
+      res.status(500).json({ message: 'Failed to fetch custom measures' });
+    }
+  });
+
+  app.post('/api/custom-measures', async (req, res) => {
+    try {
+      const { family, measure } = req.body;
+      if (!family || !measure) {
+        return res.status(400).json({ message: 'Famille et mesure sont requis' });
+      }
+
+      const existing = await db.select().from(customMeasures)
+        .where(and(eq(customMeasures.family, family), eq(customMeasures.measure, measure)))
+        .limit(1);
+
+      if (existing.length > 0) {
+        return res.json(existing[0]);
+      }
+
+      const [newMeasure] = await db.insert(customMeasures).values({
+        family,
+        measure,
+      }).returning();
+
+      res.json(newMeasure);
+    } catch (error) {
+      console.error('Error creating custom measure:', error);
+      res.status(500).json({ message: 'Failed to create custom measure' });
     }
   });
 

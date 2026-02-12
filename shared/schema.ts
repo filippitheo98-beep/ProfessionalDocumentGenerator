@@ -160,6 +160,14 @@ export const riskFamilies = pgTable("risk_families", {
   isActive: boolean("is_active").default(true),
 });
 
+// Custom prevention measures saved by users
+export const customMeasures = pgTable("custom_measures", {
+  id: serial("id").primaryKey(),
+  family: varchar("family", { length: 100 }).notNull(),
+  measure: text("measure").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Comments and collaboration
 export const comments = pgTable("comments", {
   id: serial("id").primaryKey(),
@@ -314,6 +322,7 @@ export type RiskFamily =
   | 'Routier' 
   | 'Environnemental'
   | 'Organisationnel'
+  | 'Chutes'
   | 'Autre';
 
 // Niveau hiérarchique d'où provient le risque

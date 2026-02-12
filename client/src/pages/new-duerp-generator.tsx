@@ -44,12 +44,13 @@ export default function NewDuerpGenerator() {
   const [isGeneratingRisks, setIsGeneratingRisks] = useState(false);
   const [showSelectiveUpdateModal, setShowSelectiveUpdateModal] = useState(false);
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
+  const [savedDocumentId, setSavedDocumentId] = useState<number | null>(null);
   
   // Gestion du document (création/modification)
   const urlParams = new URLSearchParams(window.location.search);
   const editDocumentId = urlParams.get('edit') || urlParams.get('editDocumentId');
   const viewDocumentId = urlParams.get('view') || urlParams.get('viewDocumentId');
-  const documentId = editDocumentId || viewDocumentId;
+  const documentId = editDocumentId || viewDocumentId || (savedDocumentId ? String(savedDocumentId) : null);
   const isViewMode = !!viewDocumentId;
 
   // Types pour les résultats de requêtes
@@ -331,7 +332,10 @@ export default function NewDuerpGenerator() {
         return response;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      if (data?.id && !savedDocumentId) {
+        setSavedDocumentId(data.id);
+      }
       toast({
         title: "Document sauvegardé",
         description: "Votre DUERP a été sauvegardé avec succès",
@@ -511,6 +515,8 @@ export default function NewDuerpGenerator() {
 
   const handleSaveProgress = () => {
     if (company) {
+      const allRisksFromUnits = duerpWorkUnits.flatMap(u => (u.risks || []).map(r => ({ ...r, source: u.name, sourceType: 'Lieu' as const })));
+      const risksToSave = allRisksFromUnits.length > 0 ? allRisksFromUnits : finalRisks;
       saveDuerpMutation.mutate({
         companyId: company.id,
         title: `${company.name} - DUERP`,
@@ -518,7 +524,7 @@ export default function NewDuerpGenerator() {
         sites,
         locations,
         workStations,
-        finalRisks,
+        finalRisks: risksToSave,
         preventionMeasures,
       });
     }
