@@ -1,5 +1,22 @@
 import { execSync } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 import express, { type Request, Response, NextFunction } from "express";
+
+// Charger .env en local (Railway / production injecte les variables d'environnement)
+try {
+  const envPath = join(process.cwd(), ".env");
+  if (existsSync(envPath)) {
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+    }
+  }
+} catch {
+  // ignorer
+}
+
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

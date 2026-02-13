@@ -46,3 +46,13 @@ Avec `--replace`, la table est vidée avant import (utile si vous avez des doubl
 ```bash
 npm run db:seed-risk-library
 ```
+
+### Génération par IA (OpenAI / ChatGPT)
+
+Pour que la génération de risques par IA et le regroupement de postes fonctionnent (comme sur Replit) :
+
+- **En local** : ajoutez dans votre fichier `.env` :  
+  `OPENAI_API_KEY=votre-cle-openai`
+- **Sur Railway** : dans le projet Railway → Variables, ajoutez la variable `OPENAI_API_KEY` avec votre clé API OpenAI.
+
+Sans cette variable, l’application renverra un message explicite (503) invitant à configurer la clé ; le reste de l’app fonctionne sans IA.

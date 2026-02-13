@@ -306,6 +306,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json({ risks });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('OPENAI_API_KEY')) {
+        return res.status(503).json({ message: msg });
+      }
       res.status(400).json({ 
         message: error instanceof z.ZodError ? "Données invalides" : "Erreur lors de la génération des risques" 
       });
@@ -371,6 +375,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ risks });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('OPENAI_API_KEY')) {
+        return res.status(503).json({ message: msg });
+      }
       console.error("Error generating hierarchical risks:", error);
       res.status(500).json({ 
         message: "Erreur lors de la génération des risques" 
@@ -387,8 +395,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Workstations and company activity are required" });
       }
 
+      const apiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!apiKey) {
+        return res.status(503).json({
+          message: "OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d'environnement (ex. Railway) pour activer le regroupement par IA."
+        });
+      }
       const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({ apiKey });
 
       const prompt = `Tu es un expert en santé et sécurité au travail. Tu dois regrouper intelligemment des postes de travail en unités de travail cohérentes pour un DUERP.
 

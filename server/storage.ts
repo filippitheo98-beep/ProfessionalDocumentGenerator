@@ -254,6 +254,8 @@ export class DatabaseStorage implements IStorage {
         return aiRisks;
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('OPENAI_API_KEY')) throw error;
       console.error('Error generating AI risks:', error);
     }
 
@@ -289,7 +291,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d\'environnement (ex. Railway) pour activer la génération par IA.');
+    }
+    const openai = new OpenAI({ apiKey });
     
     const descriptionContext = companyDescription ? `
 
@@ -366,7 +372,11 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     companyActivity: string,
     context: string
   ): Promise<Risk[]> {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d\'environnement (ex. Railway) pour activer la génération par IA.');
+    }
+    const openai = new OpenAI({ apiKey });
     
     const levelRules: Record<string, { allowed: string; forbidden: string }> = {
       'Site': {
@@ -502,6 +512,8 @@ Répondez en JSON valide: { "risks": [...] }`;
         };
       });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('OPENAI_API_KEY')) throw error;
       console.error('Error generating hierarchical risks:', error);
       return [];
     }
