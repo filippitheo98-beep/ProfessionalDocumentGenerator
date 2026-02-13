@@ -10,7 +10,8 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:import-csv": "tsx scripts/import-csv.ts",
-    "db:fix-sequence": "tsx scripts/fix-sequence.ts"
+    "db:fix-sequence": "tsx scripts/fix-sequence.ts",
+    "db:seed-risk-library": "tsx scripts/seed-risk-library.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
