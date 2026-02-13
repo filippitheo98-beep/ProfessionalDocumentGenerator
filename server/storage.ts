@@ -18,7 +18,7 @@ import {
   type UploadedDocument,
   type InsertUploadedDocument
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
 import OpenAI from 'openai';
@@ -95,6 +95,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
+    // Resynchroniser la séquence (import CSV peut la désynchroniser)
+    try {
+      await pool.query(
+        "SELECT setval(pg_get_serial_sequence('companies', 'id'), COALESCE((SELECT MAX(id) FROM companies), 1), true)",
+      );
+    } catch {
+      // ignorer si la table n'existe pas encore
+    }
     const [company] = await db
       .insert(companies)
       .values(insertCompany)
