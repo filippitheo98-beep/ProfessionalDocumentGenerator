@@ -129,9 +129,11 @@ export class DatabaseStorage implements IStorage {
       JSON.stringify(insertCompany.existingPreventionMeasures ?? []),
     ];
     const doInsert = async () => {
+      // Requête brute (pas Drizzle) pour éviter la séquence désynchronisée après import CSV
       const { rows } = await pool.query(
         `INSERT INTO companies (id, name, activity, description, sector, address, siret, phone, email, employee_count, logo, existing_prevention_measures, created_at, updated_at)
-         SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM companies), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW(), NOW()
+         SELECT n.id, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW(), NOW()
+         FROM (SELECT COALESCE(MAX(id), 0) + 1 AS id FROM companies) n
          RETURNING *`,
         params,
       );
