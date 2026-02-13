@@ -27,9 +27,20 @@ Si après un import vous avez des erreurs « duplicate key » à la création (e
 npm run db:fix-sequence
 ```
 
-### Bibliothèque de risques (0 risque après vidage de la base)
+### Bibliothèque de risques
 
-- **Si vous avez** les CSV Replit : placez `risk_library.csv`, `risk_families.csv` et `sectors.csv` dans `data/`, puis `npm run db:import-csv` (puis `npm run db:fix-sequence`).
+Les risques ajoutés depuis l’application (générateur ou page Bibliothèque) sont enregistrés en base et **restent après redémarrage** : la base s’agrandit au fil du temps.
+
+- **Si vous avez** `risk_library.csv` et que le reste de la base est déjà rempli (sociétés, etc.), importez **uniquement** la bibliothèque pour éviter les conflits d’id :
+
+```bash
+npm run db:import-csv -- risk_library --replace
+npm run db:fix-sequence
+```
+
+Avec `--replace`, la table est vidée avant import (utile si vous avez des doublons). **Les risques ajoutés à la main depuis l’application seront supprimés** ; n’utilisez `--replace` que pour repartir du CSV. Sans `--replace`, les risques créés depuis l’app restent en base et persistent après redémarrage.
+
+- **Import complet** (base vide) : placez tous les CSV dans `data/`, puis `npm run db:import-csv` (puis `npm run db:fix-sequence`).
 - **Sans CSV** : exécutez une fois le seed pour réinstaller un jeu de base (familles, secteurs, ~15 risques type INRS) :
 
 ```bash
