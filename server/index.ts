@@ -1,6 +1,23 @@
+import { execSync } from "child_process";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+/** Push le schéma Drizzle vers la base (création des tables) au démarrage si DATABASE_URL est défini. */
+async function ensureDbSchema(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    log("Pushing database schema...");
+    execSync("npx drizzle-kit push", {
+      stdio: "inherit",
+      env: process.env,
+    });
+    log("Database schema up to date.");
+  } catch (err) {
+    log("drizzle-kit push failed: " + (err instanceof Error ? err.message : String(err)));
+    if (process.env.NODE_ENV === "production") throw err;
+  }
+}
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -37,6 +54,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await ensureDbSchema();
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
