@@ -8,6 +8,10 @@ import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUt
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql, ilike, or, and } from "drizzle-orm";
 
+// Indique si on est dans l'environnement Replit (auth OIDC activée)
+const isReplitEnv =
+  !!process.env.REPLIT_DOMAINS && !!process.env.REPL_ID;
+
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
   siteName?: string;
@@ -54,6 +58,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      // En dehors de Replit, on considère l'utilisateur toujours connecté
+      // et on renvoie un profil "local" par défaut.
+      if (!isReplitEnv) {
+        const user = {
+          id: "local-user",
+          email: "local@example.com",
+          firstName: "Utilisateur",
+          lastName: "Local",
+          profileImageUrl: null,
+        };
+        return res.json(user);
+      }
+
       const userClaims = req.user?.claims;
       if (!userClaims) {
         return res.status(401).json({ message: "Unauthorized" });
