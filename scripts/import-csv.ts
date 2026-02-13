@@ -54,7 +54,9 @@ function parseValue(val: string, key: string): unknown {
     const d = new Date(val);
     return isNaN(d.getTime()) ? null : d;
   }
-  if (key.endsWith("_data") || key.endsWith("measures") || key === "sites" || key === "locations" || key === "work_stations" || key === "final_risks" || key === "prevention_measures" || key === "work_units_data" || key === "global_prevention_measures" || key === "existing_prevention_measures") {
+  // Colonnes JSON (pas "measures" de risk_library qui est du texte)
+  const jsonKeys = ["work_units_data", "sites", "locations", "work_stations", "final_risks", "prevention_measures", "global_prevention_measures", "existing_prevention_measures"];
+  if (jsonKeys.includes(key) || key.endsWith("_data")) {
     try {
       return val ? JSON.parse(val) : null;
     } catch {
@@ -64,12 +66,18 @@ function parseValue(val: string, key: string): unknown {
   return val;
 }
 
+/** Retire les guillemets autour des noms de colonnes (CSV exporté avec "id","family",...) */
+function normalizeKey(key: string): string {
+  return key.replace(/^["']|["']$/g, "").trim();
+}
+
 function csvRowToRecord(row: Record<string, string>, tableColumns: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
-    const camel = snakeToCamel(k);
+    const rawKey = normalizeKey(k);
+    const camel = snakeToCamel(rawKey);
     if (!tableColumns.includes(camel)) continue;
-    out[camel] = parseValue(v, k);
+    out[camel] = parseValue(v, rawKey);
   }
   return out;
 }
