@@ -512,7 +512,10 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
       }
       
       const document = documents[0];
-      const docData = { ...document.duerp_documents, company: document.companies };
+      // Drizzle join result uses table variable names: duerpDocuments, companies (not SQL names)
+      const docRow = document.duerpDocuments ?? (document as any).duerp_documents;
+      const companyRow = document.companies;
+      const docData = { ...docRow, company: companyRow };
       
       // Recalculer les valeurs numériques et la priorité pour tous les risques
       if (docData.finalRisks) {
