@@ -95,19 +95,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
-    // Resynchroniser la séquence (import CSV peut la désynchroniser)
-    try {
+    const doInsert = async () => {
       await pool.query(
-        "SELECT setval(pg_get_serial_sequence('companies', 'id'), COALESCE((SELECT MAX(id) FROM companies), 1), true)",
+        "SELECT setval('companies_id_seq'::regclass, GREATEST(COALESCE((SELECT MAX(id) FROM companies), 0), 1), true)",
       );
-    } catch {
-      // ignorer si la table n'existe pas encore
+      const [company] = await db
+        .insert(companies)
+        .values(insertCompany)
+        .returning();
+      return company;
+    };
+    try {
+      return await doInsert();
+    } catch (err: unknown) {
+      const isDuplicate = err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505";
+      if (isDuplicate) {
+        return await doInsert();
+      }
+      throw err;
     }
-    const [company] = await db
-      .insert(companies)
-      .values(insertCompany)
-      .returning();
-    return company;
   }
 
   async updateCompany(id: number, updates: Partial<Company>): Promise<Company> {
