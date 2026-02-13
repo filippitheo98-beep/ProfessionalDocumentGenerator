@@ -4,14 +4,16 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig(async ({ command }) => {
-  const plugins = [react(), runtimeErrorOverlay()];
+  const plugins = [react()];
 
-  // Le plugin Cartographer de Replit suppose une racine de projet spécifique
-  // et peut casser le build de production lorsque la racine est "client".
-  // On ne l'active donc que pour le serveur de dev sur Replit.
-  if (command === "serve" && process.env.REPL_ID !== undefined) {
-    const m = await import("@replit/vite-plugin-cartographer");
-    plugins.push(m.cartographer());
+  // Plugins Replit uniquement en développement
+  if (command === "serve") {
+    plugins.push(runtimeErrorOverlay());
+
+    if (process.env.REPL_ID !== undefined) {
+      const m = await import("@replit/vite-plugin-cartographer");
+      plugins.push(m.cartographer());
+    }
   }
 
   return {
@@ -35,4 +37,4 @@ export default defineConfig(async ({ command }) => {
       },
     },
   };
--});
+});
