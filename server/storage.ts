@@ -20,6 +20,25 @@ import {
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
+
+function rowToCompany(row: Record<string, unknown>): Company {
+  return {
+    id: row.id as number,
+    name: row.name as string,
+    activity: row.activity as string,
+    description: (row.description as string) ?? null,
+    sector: (row.sector as string) ?? null,
+    address: (row.address as string) ?? null,
+    siret: (row.siret as string) ?? null,
+    phone: (row.phone as string) ?? null,
+    email: (row.email as string) ?? null,
+    employeeCount: (row.employee_count as number) ?? null,
+    logo: (row.logo as string) ?? null,
+    existingPreventionMeasures: (row.existing_prevention_measures as Company["existingPreventionMeasures"]) ?? [],
+    createdAt: row.created_at as Date,
+    updatedAt: row.updated_at as Date,
+  };
+}
 import crypto from 'crypto';
 import OpenAI from 'openai';
 
@@ -95,23 +114,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
+    // INSERT avec id explicite (SELECT MAX(id)+1) pour ne pas dépendre de la séquence (désynchronisée après import CSV)
+    const params = [
+      insertCompany.name,
+      insertCompany.activity,
+      insertCompany.description ?? null,
+      insertCompany.sector ?? null,
+      insertCompany.address ?? null,
+      insertCompany.siret ?? null,
+      insertCompany.phone ?? null,
+      insertCompany.email ?? null,
+      insertCompany.employeeCount ?? null,
+      insertCompany.logo ?? null,
+      JSON.stringify(insertCompany.existingPreventionMeasures ?? []),
+    ];
     const doInsert = async () => {
-      await pool.query(
-        "SELECT setval('companies_id_seq'::regclass, GREATEST(COALESCE((SELECT MAX(id) FROM companies), 0), 1), true)",
+      const { rows } = await pool.query(
+        `INSERT INTO companies (id, name, activity, description, sector, address, siret, phone, email, employee_count, logo, existing_prevention_measures, created_at, updated_at)
+         SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM companies), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW(), NOW()
+         RETURNING *`,
+        params,
       );
-      const [company] = await db
-        .insert(companies)
-        .values(insertCompany)
-        .returning();
-      return company;
+      if (!rows[0]) throw new Error("Insert company failed");
+      return rowToCompany(rows[0]);
     };
     try {
       return await doInsert();
     } catch (err: unknown) {
       const isDuplicate = err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505";
-      if (isDuplicate) {
-        return await doInsert();
-      }
+      if (isDuplicate) return await doInsert();
       throw err;
     }
   }
