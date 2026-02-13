@@ -26,14 +26,15 @@ async function syncSequences(): Promise<void> {
   const tables = ["companies", "sectors", "risk_families", "risk_library", "users", "duerp_documents", "actions", "comments", "risk_templates", "custom_measures", "uploaded_documents"];
   for (const table of tables) {
     try {
-      // Liste fixe, pas d'injection possible
+      // setval(seq, val, true) => le prochain nextval() renverra val+1
       await pool.query(
-        `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1))`,
+        `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1), true)`,
       );
-    } catch {
-      // table absente ou sans colonne id
+    } catch (e) {
+      log(`syncSequences: ${table} skipped (${e instanceof Error ? e.message : String(e)})`);
     }
   }
+  log("Sequences synced.");
 }
 
 const app = express();
