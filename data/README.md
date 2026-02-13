@@ -20,3 +20,9 @@ Ou en pointant un autre dossier :
 ```bash
 npm run db:import-csv ./mes-csv
 ```
+
+Si après un import vous avez des erreurs « duplicate key » à la création (ex. nouvelle société), resynchronisez les séquences :
+
+```bash
+npm run db:fix-sequence
+```
