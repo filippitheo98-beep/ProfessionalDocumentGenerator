@@ -1,5 +1,6 @@
 import { execSync } from "child_process";
 import express, { type Request, Response, NextFunction } from "express";
+import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -16,6 +17,22 @@ async function ensureDbSchema(): Promise<void> {
   } catch (err) {
     log("drizzle-kit push failed: " + (err instanceof Error ? err.message : String(err)));
     if (process.env.NODE_ENV === "production") throw err;
+  }
+}
+
+/** Réinitialise les séquences PostgreSQL après import CSV (évite "duplicate key" sur les nouveaux INSERT). */
+async function syncSequences(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const tables = ["companies", "sectors", "risk_families", "risk_library", "users", "duerp_documents", "actions", "comments", "risk_templates", "custom_measures", "uploaded_documents"];
+  for (const table of tables) {
+    try {
+      // Liste fixe, pas d'injection possible
+      await pool.query(
+        `SELECT setval(pg_get_serial_sequence('${table}', 'id'), COALESCE((SELECT MAX(id) FROM ${table}), 1))`,
+      );
+    } catch {
+      // table absente ou sans colonne id
+    }
   }
 }
 
@@ -55,6 +72,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await ensureDbSchema();
+  await syncSequences();
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
