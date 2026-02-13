@@ -8,9 +8,9 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// On ne considère l’auth Replit active que si les variables Replit sont présentes.
+const isReplitEnv =
+  !!process.env.REPLIT_DOMAINS && !!process.env.REPL_ID;
 
 const getOidcConfig = memoize(
   async () => {
@@ -69,6 +69,12 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
+  // Si on n’est pas dans un environnement Replit, on ne configure aucune auth
+  // spéciale et on laisse toutes les routes accessibles sans login.
+  if (!isReplitEnv) {
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -130,6 +136,11 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Hors Replit, on ne fait pas d’authentification : tout passe.
+  if (!isReplitEnv) {
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
