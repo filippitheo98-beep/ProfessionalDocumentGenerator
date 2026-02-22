@@ -46,6 +46,7 @@ export default function NewDuerpGenerator() {
   const [newGeneratedRisks, setNewGeneratedRisks] = useState<Risk[]>([]);
   const [savedDocumentId, setSavedDocumentId] = useState<number | null>(null);
   const [isFinalized, setIsFinalized] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const initialLoadDone = useRef<string | null>(null);
   
   // Gestion du document (création/modification)
@@ -628,36 +629,54 @@ export default function NewDuerpGenerator() {
   };
 
   const handleExportExcel = async () => {
+    setIsExportingExcel(true);
     try {
-      const response = await fetch('/api/export/excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          risks: finalRisks,
-          companyName: company?.name || 'Entreprise',
-        }),
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DUERP_${company?.name || 'Export'}.xlsx`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Export réussi",
-          description: "Le fichier Excel a été téléchargé",
+      const id = documentId ? parseInt(documentId, 10) : null;
+      let response: Response;
+      let filename: string;
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      if (id && !isNaN(id)) {
+        response = await fetch(`/api/duerp/document/${id}/risks/export.xlsx`, {
+          method: 'GET',
+          credentials: 'include',
         });
+        filename = `duerp_risques_${id}_${dateStr}.xlsx`;
+      } else {
+        response = await fetch('/api/export/excel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            risks: finalRisks,
+            companyName: company?.name || 'Entreprise',
+          }),
+          credentials: 'include',
+        });
+        filename = `DUERP_${company?.name || 'Export'}_${dateStr}.xlsx`;
       }
+
+      if (!response.ok) throw new Error('Export failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export réussi",
+        description: "Le fichier Excel a été téléchargé avec succès",
+      });
     } catch (error) {
       toast({
         title: "Erreur d'export",
-        description: "Impossible d'exporter le fichier",
+        description: "Impossible d'exporter le fichier Excel",
         variant: "destructive",
       });
+    } finally {
+      setIsExportingExcel(false);
     }
   };
 
@@ -772,6 +791,9 @@ export default function NewDuerpGenerator() {
                 companyName={company?.name || 'Entreprise'}
                 onSave={handleSaveProgress}
                 onGenerateWord={handleExportWord}
+                onExportExcel={handleExportExcel}
+                isExportingExcel={isExportingExcel}
+                documentId={documentId}
                 onFinalize={handleFinalize}
                 isFinalized={isFinalized}
                 isFinalizing={finalizeMutation.isPending}

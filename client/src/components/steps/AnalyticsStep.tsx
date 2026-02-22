@@ -22,6 +22,7 @@ import {
   Target,
   Activity,
   FileText,
+  FileSpreadsheet,
   CheckCircle,
   CheckSquare,
   Loader2
@@ -33,6 +34,9 @@ interface AnalyticsStepProps {
   companyName: string;
   onSave: () => void;
   onGenerateWord: () => void;
+  onExportExcel?: () => void;
+  isExportingExcel?: boolean;
+  documentId?: string | null;
   onFinalize?: () => void;
   isFinalized?: boolean;
   isFinalizing?: boolean;
@@ -67,7 +71,7 @@ const RISK_TYPE_COLORS = [
   '#14B8A6', '#A855F7', '#F43F5E', '#0EA5E9'
 ];
 
-export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, onFinalize, isFinalized, isFinalizing, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
+export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, onExportExcel, isExportingExcel, documentId, onFinalize, isFinalized, isFinalizing, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
   const totalRisks = risks.length;
 
   const highRisks = risks.filter(r => getRiskLevel(r) === 'Important').length;
@@ -395,6 +399,22 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                 <FileText className="h-4 w-4 mr-2" />
                 Exporter Word
               </Button>
+
+              {onExportExcel && (
+                <Button 
+                  onClick={onExportExcel} 
+                  variant="outline" 
+                  size="lg"
+                  disabled={isExportingExcel || (!documentId && risks.length === 0)}
+                >
+                  {isExportingExcel ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  )}
+                  {isExportingExcel ? 'Export...' : 'Exporter Excel'}
+                </Button>
+              )}
 
               {onFinalize && (
                 <Button 
