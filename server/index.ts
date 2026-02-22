@@ -19,7 +19,7 @@ try {
 
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { log, serveStatic } from "./static";
 
 /** Push le schéma Drizzle vers la base (création des tables) au démarrage si DATABASE_URL est défini. */
 async function ensureDbSchema(): Promise<void> {
@@ -105,6 +105,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    const { setupVite } = await import("./vite.js");
     await setupVite(app, server);
   } else {
     serveStatic(app);
