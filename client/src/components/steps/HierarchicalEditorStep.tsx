@@ -27,7 +27,8 @@ import {
   Filter,
   X,
   Plus,
-  PenLine
+  PenLine,
+  FileSpreadsheet
 } from "lucide-react";
 import type { WorkUnit, Risk, RiskFamily } from "@shared/schema";
 
@@ -38,6 +39,9 @@ interface HierarchicalEditorStepProps {
   workUnits: WorkUnit[];
   onUpdateWorkUnits: (units: WorkUnit[]) => void;
   onSave: () => void;
+  onExportExcel?: () => void;
+  isExportingExcel?: boolean;
+  documentId?: string | null;
 }
 
 const RISK_ROW_COLORS: Record<string, string> = {
@@ -73,7 +77,10 @@ export default function HierarchicalEditorStep({
   companyDescription,
   workUnits,
   onUpdateWorkUnits,
-  onSave
+  onSave,
+  onExportExcel,
+  isExportingExcel,
+  documentId
 }: HierarchicalEditorStepProps) {
   const { toast } = useToast();
 
@@ -217,12 +224,28 @@ export default function HierarchicalEditorStep({
   return (
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 rounded-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">Tableau des Risques Professionnels</h2>
             <p className="text-blue-100 text-sm mt-1">Ajoutez des risques pour vos unités de travail</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {onExportExcel && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-white/90 hover:bg-white text-blue-800 h-9"
+                onClick={onExportExcel}
+                disabled={isExportingExcel || (totalCount === 0 && !documentId)}
+              >
+                {isExportingExcel ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                )}
+                {isExportingExcel ? 'Export...' : 'Exporter Excel'}
+              </Button>
+            )}
             <Badge variant="secondary" className="bg-white/20 text-white">
               {totalCount} risque(s)
             </Badge>

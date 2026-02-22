@@ -123,10 +123,35 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
               Analyse des risques
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-center py-8">
-            <div className="text-muted-foreground">
+          <CardContent className="space-y-4">
+            <div className="text-muted-foreground text-center py-4">
               Aucun risque à analyser. Générez d'abord les risques à l'étape précédente.
             </div>
+            {(onExportExcel || onGenerateWord) && documentId && (
+              <div className="flex flex-wrap gap-3 justify-center pt-4 border-t">
+                {onExportExcel && (
+                  <Button 
+                    onClick={onExportExcel} 
+                    variant="outline" 
+                    size="lg"
+                    disabled={isExportingExcel}
+                  >
+                    {isExportingExcel ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    )}
+                    {isExportingExcel ? 'Export...' : 'Exporter Excel'}
+                  </Button>
+                )}
+                {onGenerateWord && (
+                  <Button onClick={onGenerateWord} variant="outline" size="lg">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Exporter Word
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

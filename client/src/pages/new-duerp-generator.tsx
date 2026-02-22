@@ -782,6 +782,9 @@ export default function NewDuerpGenerator() {
                 workUnits={duerpWorkUnits}
                 onUpdateWorkUnits={setDuerpWorkUnits}
                 onSave={handleSaveProgress}
+                onExportExcel={handleExportExcel}
+                isExportingExcel={isExportingExcel}
+                documentId={documentId}
               />
             )}
 
