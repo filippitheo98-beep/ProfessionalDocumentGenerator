@@ -86,6 +86,7 @@ export default function DuerpGenerator() {
   const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<number | null>(null);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   
   // Load existing document query
   const { data: existingDocument, isLoading: isLoadingDocument } = useQuery({
@@ -361,15 +362,33 @@ export default function DuerpGenerator() {
 
   // Export functions
   const exportToExcel = async () => {
+    setIsExportingExcel(true);
     try {
-      const response = await fetch('/api/export/excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          risks: finalRisks,
-          companyName: company?.name || 'Export'
-        })
-      });
+      const id = documentId ? parseInt(documentId, 10) : null;
+      let response: Response;
+      let filename: string;
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      if (id && !isNaN(id)) {
+        // Document sauvegardé : GET direct (fichier duerp_risques_<id>_<date>.xlsx)
+        response = await fetch(`/api/duerp/document/${id}/risks/export.xlsx`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+        filename = `duerp_risques_${id}_${dateStr}.xlsx`;
+      } else {
+        // Document non sauvegardé : POST avec risques en mémoire
+        response = await fetch('/api/export/excel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            risks: finalRisks,
+            companyName: company?.name || 'Export'
+          }),
+          credentials: 'include',
+        });
+        filename = `DUERP_${company?.name || 'Export'}_${dateStr}.xlsx`;
+      }
 
       if (!response.ok) throw new Error('Export failed');
 
@@ -377,7 +396,7 @@ export default function DuerpGenerator() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `DUERP_${company?.name || 'Export'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -393,6 +412,8 @@ export default function DuerpGenerator() {
         description: "Impossible d'exporter en Excel.",
         variant: "destructive",
       });
+    } finally {
+      setIsExportingExcel(false);
     }
   };
 
@@ -680,11 +701,21 @@ export default function DuerpGenerator() {
                       <div className="space-y-2">
                         <Button
                           onClick={exportToExcel}
+                          disabled={isExportingExcel}
                           variant="outline"
                           className="w-full transition-all hover:scale-105"
                         >
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Exporter Excel
+                          {isExportingExcel ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                              Export...
+                            </>
+                          ) : (
+                            <>
+                              <FileSpreadsheet className="h-4 w-4 mr-2" />
+                              Exporter Excel
+                            </>
+                          )}
                         </Button>
                         
                         <Button
@@ -752,11 +783,21 @@ export default function DuerpGenerator() {
                           <div className="space-y-2">
                             <Button
                               onClick={exportToExcel}
+                              disabled={isExportingExcel}
                               variant="outline"
                               className="w-full border-2 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all hover-lift py-4"
                             >
-                              <FileSpreadsheet className="h-5 w-5 mr-2" />
-                              <span className="font-medium">Exporter Excel</span>
+                              {isExportingExcel ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2" />
+                                  <span className="font-medium">Export...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FileSpreadsheet className="h-5 w-5 mr-2" />
+                                  <span className="font-medium">Exporter Excel</span>
+                                </>
+                              )}
                             </Button>
                             
                             <Button

@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, HeadingLevel, Media } from 'docx';
@@ -78,6 +79,70 @@ export async function generateExcelFile(risks: any[], companyName: string): Prom
   const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   
   return excelBuffer;
+}
+
+const RISKS_EXPORT_HEADERS = [
+  'Lieu / Unité de travail',
+  'Danger',
+  'Situation dangereuse',
+  'Risque',
+  'Gravité',
+  'Fréquence/Probabilité',
+  'Maîtrise',
+  'Score',
+  'Mesures existantes',
+  'Mesures à mettre en place',
+  'Responsable',
+  'Échéance',
+  'Statut',
+  'Commentaires'
+] as const;
+
+export async function generateRisksExportExcel(
+  risks: Array<Record<string, string | number>>,
+  documentId: number
+): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Risques', {
+    views: [{ state: 'frozen', ySplit: 1 }]
+  });
+
+  // Headers row (bold, grey fill)
+  const headerRow = sheet.addRow([...RISKS_EXPORT_HEADERS]);
+  headerRow.font = { bold: true };
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+  });
+
+  // Data rows
+  for (const r of risks) {
+    const row = RISKS_EXPORT_HEADERS.map((h) => {
+      const v = r[h];
+      if (h === 'Échéance' && typeof v === 'string' && v) {
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? v : d;
+      }
+      return v ?? '';
+    });
+    sheet.addRow(row);
+  }
+
+  // Auto-filter on header row
+  const lastCol = String.fromCharCode(64 + RISKS_EXPORT_HEADERS.length);
+  sheet.autoFilter = { from: 'A1', to: `${lastCol}1` };
+
+  // Column widths (reasonable)
+  const widths = [25, 35, 30, 18, 12, 18, 15, 8, 35, 40, 15, 12, 12, 25];
+  sheet.columns = RISKS_EXPORT_HEADERS.map((_, i) => ({
+    width: Math.min(50, Math.max(widths[i] || 12, 10))
+  }));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 }
 
 export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {

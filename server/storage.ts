@@ -9,6 +9,7 @@ import {
   type InsertCompany, 
   type Location, 
   type WorkUnit, 
+  type Site,
   type Risk, 
   type PreventionMeasure, 
   type DuerpDocument,
@@ -31,7 +32,9 @@ export interface IStorage {
   
   // DUERP document operations
   getDuerpDocument(companyId: number): Promise<DuerpDocument | undefined>;
+  getDuerpDocumentById(id: number): Promise<DuerpDocument | undefined>;
   getDuerpDocuments(companyId: number): Promise<DuerpDocument[]>;
+  getRisksForExport(documentId: number): Promise<{ risks: Array<Record<string, string | number>>; documentId: number }>;
   createDuerpDocument(data: {
     companyId: number;
     title: string;
@@ -146,6 +149,75 @@ export class DatabaseStorage implements IStorage {
     }
     
     return document;
+  }
+
+  async getDuerpDocumentById(id: number): Promise<DuerpDocument | undefined> {
+    const [document] = await db
+      .select()
+      .from(duerpDocuments)
+      .where(eq(duerpDocuments.id, id))
+      .limit(1);
+    
+    if (document && document.finalRisks) {
+      document.finalRisks = (document.finalRisks as Risk[]).map(risk => this.recalculateRiskValues(risk));
+    }
+    
+    return document;
+  }
+
+  async getRisksForExport(documentId: number): Promise<{ risks: Array<Record<string, string | number>>; documentId: number }> {
+    const doc = await this.getDuerpDocumentById(documentId);
+    if (!doc) throw new Error(`Document ${documentId} non trouvé`);
+    
+    const flatRisks: Array<Record<string, string | number>> = [];
+    
+    const toRow = (risk: Risk, lieuUnite: string) => ({
+      'Lieu / Unité de travail': lieuUnite,
+      'Danger': risk.danger || '',
+      'Situation dangereuse': risk.type || '',
+      'Risque': (risk as Risk & { family?: string }).family || '',
+      'Gravité': risk.gravity || '',
+      'Fréquence/Probabilité': risk.frequency || '',
+      'Maîtrise': risk.control || '',
+      'Score': risk.riskScore ?? 0,
+      'Mesures existantes': Array.isArray(risk.existingMeasures) ? risk.existingMeasures.join(' ; ') : '',
+      'Mesures à mettre en place': risk.measures || '',
+      'Responsable': '',
+      'Échéance': '',
+      'Statut': (risk as Risk & { isValidated?: boolean }).isValidated ? 'Validé' : 'Non validé',
+      'Commentaires': ''
+    });
+    
+    // 1. Risks from work_units_data
+    const workUnits = (doc.workUnitsData as WorkUnit[]) || [];
+    for (const unit of workUnits) {
+      for (const risk of (unit.risks || [])) {
+        flatRisks.push(toRow(this.recalculateRiskValues(risk), unit.name));
+      }
+    }
+    
+    // 2. Risks from sites (legacy)
+    const sites = (doc.sites as Site[]) || [];
+    for (const site of sites) {
+      for (const risk of (site.risks || [])) {
+        flatRisks.push(toRow(this.recalculateRiskValues(risk), site.name));
+      }
+      for (const unit of site.workUnits || []) {
+        for (const risk of (unit.risks || [])) {
+          flatRisks.push(toRow(this.recalculateRiskValues(risk), `${site.name} > ${unit.name}`));
+        }
+      }
+    }
+    
+    // 3. If no risks from hierarchy, use final_risks
+    if (flatRisks.length === 0) {
+      const finalRisks = (doc.finalRisks as Risk[]) || [];
+      for (const risk of finalRisks) {
+        flatRisks.push(toRow(risk, risk.source || '-'));
+      }
+    }
+    
+    return { risks: flatRisks, documentId };
   }
 
   async getDuerpDocuments(companyId: number): Promise<DuerpDocument[]> {

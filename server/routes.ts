@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { z } from "zod";
-import { generateExcelFile, generatePDFFile, generateWordFile } from './exportUtils';
+import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel } from './exportUtils';
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql, ilike, or, and } from "drizzle-orm";
 
@@ -894,6 +894,26 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     } catch (error) {
       console.error('Error removing risks from document:', error);
       res.status(500).json({ message: error.message || 'Failed to remove risks' });
+    }
+  });
+
+  // Export risks to Excel (GET, document-based)
+  app.get('/api/duerp/document/:id/risks/export.xlsx', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const { risks, documentId: docId } = await storage.getRisksForExport(documentId);
+      const buffer = await generateRisksExportExcel(risks, docId);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `duerp_risques_${docId}_${dateStr}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('Error exporting risks to Excel:', error);
+      if (error.message?.includes('non trouvé')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Erreur lors de l\'export Excel' });
     }
   });
 
