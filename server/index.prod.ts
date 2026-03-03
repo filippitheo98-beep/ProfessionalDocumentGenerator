@@ -109,7 +109,7 @@ app.use((req, res, next) => {
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port} (PORT=${process.env.PORT})`);
   });
-}).catch((err) => {
+})().catch((err) => {
   console.error("Fatal startup error:", err);
   process.exit(1);
 });
