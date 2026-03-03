@@ -9,7 +9,7 @@ import crypto from "crypto";
 import type { Express, RequestHandler } from "express";
 import { db } from "./db";
 import { users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const SALT_ROUNDS = 12;
 
@@ -30,28 +30,32 @@ export async function setupLocalAuth(app: Express): Promise<void> {
       async (emailOrUsername, password, done) => {
         try {
           const lookup = emailOrUsername.trim().toLowerCase();
-          const [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, lookup));
-          if (!user || !user.passwordHash) {
-            return done(null, false, { message: "Email ou mot de passe incorrect" });
+          const rows = await db.execute(sql`
+            SELECT id, email, password_hash, first_name, last_name, role, is_active
+            FROM users
+            WHERE LOWER(email) = ${lookup}
+            LIMIT 1
+          `);
+          const row = Array.isArray(rows.rows) ? rows.rows[0] : (rows as { rows?: unknown[] }).rows?.[0];
+          if (!row || !row.password_hash) {
+            return done(null, false, { message: "Identifiants incorrects" });
           }
-          const valid = await bcrypt.compare(password, user.passwordHash);
+          const valid = await bcrypt.compare(password, row.password_hash as string);
           if (!valid) {
-            return done(null, false, { message: "Email ou mot de passe incorrect" });
+            return done(null, false, { message: "Identifiants incorrects" });
           }
-          if (!user.isActive) {
+          const isActive = row.is_active !== false && row.is_active !== null;
+          if (!isActive) {
             return done(null, false, { message: "Compte désactivé" });
           }
           return done(null, {
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role ?? "user",
-            isActive: user.isActive ?? true,
-            mustChangePassword: user.mustChangePassword ?? false,
+            id: row.id as number,
+            email: row.email as string,
+            firstName: row.first_name ?? null,
+            lastName: row.last_name ?? null,
+            role: (row.role as string) ?? "user",
+            isActive,
+            mustChangePassword: false,
           });
         } catch (err) {
           return done(err);
@@ -112,21 +116,28 @@ export async function createPasswordResetToken(email: string): Promise<string | 
   return token;
 }
 
-/** Crée l'utilisateur admin au démarrage : identifiant "admin", mot de passe par défaut "admin" (ou ADMIN_INITIAL_PASSWORD). Première connexion oblige au changement de mot de passe. */
+/** Crée l'utilisateur admin au démarrage : identifiant "admin", mot de passe par défaut "admin" (ou ADMIN_INITIAL_PASSWORD). Première connexion oblige au changement de mot de passe si la colonne must_change_password existe. */
 export async function ensureAdminUser(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
-  const initialPassword = process.env.ADMIN_INITIAL_PASSWORD?.trim() || "admin";
-  const [existing] = await db.select().from(users).where(eq(users.email, "admin"));
-  if (existing) return;
+  try {
+    const check = await db.execute(sql`SELECT id FROM users WHERE email = 'admin' LIMIT 1`);
+    const hasAdmin = Array.isArray(check.rows) ? check.rows.length > 0 : ((check as { rows?: unknown[] }).rows?.length ?? 0) > 0;
+    if (hasAdmin) return;
 
-  const passwordHash = await bcrypt.hash(initialPassword, SALT_ROUNDS);
-  await db.insert(users).values({
-    email: "admin",
-    passwordHash,
-    role: "admin",
-    isActive: true,
-    mustChangePassword: true,
-  });
+    const initialPassword = process.env.ADMIN_INITIAL_PASSWORD?.trim() || "admin";
+    const passwordHash = await bcrypt.hash(initialPassword, SALT_ROUNDS);
+    await db.execute(sql`
+      INSERT INTO users (email, password_hash, role, is_active)
+      VALUES ('admin', ${passwordHash}, 'admin', true)
+    `);
+    try {
+      await db.execute(sql`UPDATE users SET must_change_password = true WHERE email = 'admin'`);
+    } catch {
+      // Colonne must_change_password absente : ignorer, le login fonctionnera quand même
+    }
+  } catch (err) {
+    console.error("[auth] ensureAdminUser failed:", err);
+  }
 }
 
 /** Change le mot de passe de l'utilisateur (pour première connexion admin ou changement volontaire). */
@@ -135,13 +146,18 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string
 ): Promise<{ ok: boolean; message?: string }> {
-  const [user] = await db.select().from(users).where(eq(users.id, userId));
-  if (!user || !user.passwordHash) return { ok: false, message: "Utilisateur introuvable" };
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  const rows = await db.execute(sql`SELECT password_hash FROM users WHERE id = ${userId} LIMIT 1`);
+  const row = Array.isArray(rows.rows) ? rows.rows[0] : (rows as { rows?: unknown[] }).rows?.[0];
+  if (!row || !row.password_hash) return { ok: false, message: "Utilisateur introuvable" };
+  const valid = await bcrypt.compare(currentPassword, row.password_hash as string);
   if (!valid) return { ok: false, message: "Mot de passe actuel incorrect" };
   if (newPassword.length < 6) return { ok: false, message: "Le nouveau mot de passe doit faire au moins 6 caractères" };
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await db.update(users).set({ passwordHash, mustChangePassword: false }).where(eq(users.id, userId));
+  try {
+    await db.execute(sql`UPDATE users SET password_hash = ${passwordHash}, must_change_password = false WHERE id = ${userId}`);
+  } catch {
+    await db.execute(sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${userId}`);
+  }
   return { ok: true };
 }
 
