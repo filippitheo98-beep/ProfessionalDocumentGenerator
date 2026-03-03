@@ -473,6 +473,6 @@ export default function DuerpGenerator() {
           </div>
         )}
       </div>
+      </div>
     );
-  }
 }

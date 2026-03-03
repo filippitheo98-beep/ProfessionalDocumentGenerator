@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building, FileText, Home, LogOut, Settings, User, Shield, Library, Menu, X } from 'lucide-react';
+import { Building, FileText, Home, LogOut, Settings, User, Shield, Library, Menu, X, ShieldCheck } from 'lucide-react';
 import { RevisionNotifications } from './RevisionNotifications';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
@@ -14,17 +14,19 @@ import {
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 
-const navItems = [
+const navItems = (isAdmin: boolean) => [
   { path: '/', label: 'Accueil', icon: Home },
   { path: '/duerp-generator', label: 'Générateur', icon: Shield },
   { path: '/documents', label: 'Mes DUERP', icon: FileText },
   { path: '/revisions', label: 'Révisions', icon: Shield },
   { path: '/risk-library', label: 'Bibliothèque', icon: Library },
+  ...(isAdmin ? [{ path: '/admin', label: 'Administration', icon: ShieldCheck }] : []),
 ];
 
 export function Header() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
+  const isAdmin = (user as { role?: string })?.role === 'admin';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -58,7 +60,7 @@ export function Header() {
           </div>
 
           <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
+            {navItems(isAdmin).map((item) => {
               const Icon = item.icon;
               return (
                 <Button
@@ -110,7 +112,7 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t bg-background">
           <nav className="container py-2 space-y-1">
-            {navItems.map((item) => {
+            {navItems(isAdmin).map((item) => {
               const Icon = item.icon;
               return (
                 <Button

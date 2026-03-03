@@ -18,6 +18,8 @@ export interface LocalUser {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  role?: string;
+  isActive?: boolean;
 }
 
 export async function setupLocalAuth(app: Express): Promise<void> {
@@ -45,6 +47,8 @@ export async function setupLocalAuth(app: Express): Promise<void> {
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
+            role: user.role ?? "user",
+            isActive: user.isActive ?? true,
           });
         } catch (err) {
           return done(err);
@@ -62,6 +66,7 @@ export async function createUser(data: {
   password: string;
   firstName?: string;
   lastName?: string;
+  role?: string;
 }): Promise<LocalUser> {
   const email = data.email.toLowerCase().trim();
   const [existing] = await db.select().from(users).where(eq(users.email, email));
@@ -76,6 +81,7 @@ export async function createUser(data: {
       passwordHash,
       firstName: data.firstName ?? null,
       lastName: data.lastName ?? null,
+      role: data.role ?? "user",
     })
     .returning();
   if (!user) throw new Error("Création utilisateur échouée");
@@ -84,6 +90,7 @@ export async function createUser(data: {
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
+    role: user.role ?? "user",
   };
 }
 
@@ -100,6 +107,25 @@ export async function createPasswordResetToken(email: string): Promise<string | 
     })
     .where(eq(users.id, user.id));
   return token;
+}
+
+/** Crée l'utilisateur admin au démarrage si ADMIN_EMAIL et ADMIN_PASSWORD sont définis. */
+export async function ensureAdminUser(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) return;
+
+  const [existing] = await db.select().from(users).where(eq(users.email, adminEmail.toLowerCase()));
+  if (existing) return;
+
+  const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+  await db.insert(users).values({
+    email: adminEmail.toLowerCase(),
+    passwordHash,
+    role: "admin",
+    isActive: true,
+  });
 }
 
 export async function resetPasswordWithToken(

@@ -19,6 +19,7 @@ try {
 
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
+import { ensureAdminUser } from "./localAuth";
 import { log, serveStatic } from "./static";
 
 /** Push le schéma Drizzle vers la base (création des tables) au démarrage si DATABASE_URL est défini. */
@@ -91,6 +92,7 @@ app.use((req, res, next) => {
 (async () => {
   await ensureDbSchema();
   await syncSequences();
+  await ensureAdminUser();
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

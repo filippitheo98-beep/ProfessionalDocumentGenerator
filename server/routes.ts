@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isReplitEnv } from "./replitAuth";
 import { createUser, createPasswordResetToken, resetPasswordWithToken } from "./localAuth";
+import type { RequestHandler } from "express";
+import bcrypt from "bcrypt";
 import passport from "passport";
-import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
+import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, users, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel } from './exportUtils';
 import { db } from "./db";
@@ -108,6 +110,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ok = await resetPasswordWithToken(token, password);
       if (!ok) return res.status(400).json({ message: "Lien invalide ou expiré" });
       res.json({ message: "Mot de passe réinitialisé" });
+    });
+  }
+
+  const isAdmin: RequestHandler = (req: any, res, next) => {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Accès réservé aux administrateurs" });
+    }
+    next();
+  };
+
+  // Admin routes (auth locale uniquement)
+  if (!isReplitEnv) {
+    app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req: any, res) => {
+      try {
+        const all = await db.select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+        }).from(users).orderBy(users.createdAt);
+        res.json(all);
+      } catch (e) {
+        res.status(500).json({ message: "Erreur serveur" });
+      }
+    });
+
+    app.post("/api/admin/users", isAuthenticated, isAdmin, async (req: any, res) => {
+      try {
+        const { email, password, firstName, lastName, role } = req.body;
+        if (!email || !password) return res.status(400).json({ message: "Email et mot de passe requis" });
+        const user = await createUser({ email, password, firstName, lastName, role: role || "user" });
+        res.status(201).json(user);
+      } catch (e) {
+        res.status(400).json({ message: e instanceof Error ? e.message : "Erreur" });
+      }
+    });
+
+    app.put("/api/admin/users/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        const { role, isActive, firstName, lastName } = req.body;
+        const updates: Record<string, unknown> = {};
+        if (typeof role === "string") updates.role = role;
+        if (typeof isActive === "boolean") updates.isActive = isActive;
+        if (typeof firstName === "string") updates.firstName = firstName;
+        if (typeof lastName === "string") updates.lastName = lastName;
+        const [u] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+        if (!u) return res.status(404).json({ message: "Utilisateur introuvable" });
+        res.json({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role, isActive: u.isActive });
+      } catch (e) {
+        res.status(500).json({ message: "Erreur serveur" });
+      }
+    });
+
+    app.post("/api/admin/users/:id/reset-password", isAuthenticated, isAdmin, async (req: any, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        const { password } = req.body;
+        if (!password || password.length < 6) return res.status(400).json({ message: "Mot de passe requis (min. 6 caractères)" });
+        const [u] = await db.select().from(users).where(eq(users.id, id));
+        if (!u) return res.status(404).json({ message: "Utilisateur introuvable" });
+        const passwordHash = await bcrypt.hash(password, 12);
+        await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+        res.json({ message: "Mot de passe réinitialisé" });
+      } catch (e) {
+        res.status(500).json({ message: "Erreur serveur" });
+      }
     });
   }
 

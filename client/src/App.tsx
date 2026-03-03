@@ -10,12 +10,14 @@ import Landing from "@/pages/landing";
 import Documents from "@/pages/documents";
 import Revisions from "@/pages/revisions";
 import RiskLibraryManagement from "@/pages/RiskLibraryManagement";
+import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthGuard } from "./components/AuthGuard";
+import { AdminGuard } from "./components/AdminGuard";
 
 function Router() {
   return (
@@ -52,6 +54,11 @@ function Router() {
         <AuthGuard>
           <RiskLibraryManagement />
         </AuthGuard>
+      </Route>
+      <Route path="/admin">
+        <AdminGuard>
+          <Admin />
+        </AdminGuard>
       </Route>
 
       <Route component={NotFound} />
