@@ -1,16 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isReplitEnv } from "./replitAuth";
+import { createUser, createPasswordResetToken, resetPasswordWithToken } from "./localAuth";
+import passport from "passport";
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel } from './exportUtils';
 import { db } from "./db";
-import { eq, desc, count, lt, ne, sql, ilike, or, and } from "drizzle-orm";
-
-// Indique si on est dans l'environnement Replit (auth OIDC activée)
-const isReplitEnv =
-  !!process.env.REPLIT_DOMAINS && !!process.env.REPL_ID;
+import { eq, desc, count, lt, ne, sql, ilike, or, and, inArray } from "drizzle-orm";
 
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
@@ -55,20 +53,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Auth locale : routes publiques (register, login, forgot, reset, logout)
+  if (!isReplitEnv) {
+    app.post("/api/auth/register", async (req, res) => {
+      try {
+        const { email, password, firstName, lastName } = req.body;
+        if (!email || !password) {
+          return res.status(400).json({ message: "Email et mot de passe requis" });
+        }
+        const user = await createUser({ email, password, firstName, lastName });
+        req.login(user, (err) => {
+          if (err) return res.status(500).json({ message: "Erreur de session" });
+          res.json(user);
+        });
+      } catch (e) {
+        res.status(400).json({ message: e instanceof Error ? e.message : "Erreur" });
+      }
+    });
+
+    app.post("/api/auth/login", (req, res, next) => {
+      passport.authenticate("local", (err: any, user: any, info: any) => {
+        if (err) return res.status(500).json({ message: "Erreur serveur" });
+        if (!user) return res.status(401).json({ message: info?.message || "Identifiants incorrects" });
+        req.login(user, (e) => {
+          if (e) return res.status(500).json({ message: "Erreur de session" });
+          res.json(user);
+        });
+      })(req, res, next);
+    });
+
+    app.get("/api/auth/logout", (req, res) => {
+      req.logout(() => res.redirect("/login"));
+    });
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => res.redirect("/login"));
+    });
+
+    app.post("/api/auth/forgot-password", async (req, res) => {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email requis" });
+      const token = await createPasswordResetToken(email);
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const resetUrl = token ? `${baseUrl}/reset-password?token=${token}` : null;
+      if (resetUrl) console.log("[auth] Reset link (dev):", resetUrl);
+      res.json({
+        message: "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.",
+        resetUrl: process.env.NODE_ENV === "development" && resetUrl ? resetUrl : undefined,
+      });
+    });
+
+    app.post("/api/auth/reset-password", async (req, res) => {
+      const { token, password } = req.body;
+      if (!token || !password) return res.status(400).json({ message: "Token et mot de passe requis" });
+      const ok = await resetPasswordWithToken(token, password);
+      if (!ok) return res.status(400).json({ message: "Lien invalide ou expiré" });
+      res.json({ message: "Mot de passe réinitialisé" });
+    });
+  }
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      // En dehors de Replit, on considère l'utilisateur toujours connecté
-      // et on renvoie un profil "local" par défaut.
       if (!isReplitEnv) {
-        const user = {
-          id: "local-user",
-          email: "local@example.com",
-          firstName: "Utilisateur",
-          lastName: "Local",
-          profileImageUrl: null,
-        };
-        return res.json(user);
+        return res.json(req.user);
       }
 
       const userClaims = req.user?.claims;
@@ -92,11 +139,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard routes
-  app.get('/api/dashboard/stats', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      // Calculate real stats from database
-      const [companiesCount] = await db.select({ count: count() }).from(companies);
-      const [documentsCount] = await db.select({ count: count() }).from(duerpDocuments);
+      let companiesCount = { count: 0 };
+      let documentsCount = { count: 0 };
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length > 0) {
+          const [cc] = await db.select({ count: count() }).from(companies).where(eq(companies.ownerId, req.user.id));
+          const [dc] = await db.select({ count: count() }).from(duerpDocuments).where(inArray(duerpDocuments.companyId, ids));
+          companiesCount = cc || { count: 0 };
+          documentsCount = dc || { count: 0 };
+        }
+      } else {
+        const [cc] = await db.select({ count: count() }).from(companies);
+        const [dc] = await db.select({ count: count() }).from(duerpDocuments);
+        companiesCount = cc || { count: 0 };
+        documentsCount = dc || { count: 0 };
+      }
       
       const stats = {
         totalCompanies: companiesCount?.count || 0,
@@ -113,20 +174,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/activity', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/activity', isAuthenticated, async (req: any, res) => {
     try {
-      // Get recent activity from database
-      const activities = await db
-        .select({
-          id: duerpDocuments.id,
-          title: duerpDocuments.title,
-          companyName: companies.name,
-          timestamp: duerpDocuments.updatedAt
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .orderBy(desc(duerpDocuments.updatedAt))
-        .limit(5);
+      let activities;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) {
+          activities = [];
+        } else {
+          activities = await db
+            .select({
+              id: duerpDocuments.id,
+              title: duerpDocuments.title,
+              companyName: companies.name,
+              timestamp: duerpDocuments.updatedAt
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(inArray(duerpDocuments.companyId, ids))
+            .orderBy(desc(duerpDocuments.updatedAt))
+            .limit(5);
+        }
+      } else {
+        activities = await db
+          .select({
+            id: duerpDocuments.id,
+            title: duerpDocuments.title,
+            companyName: companies.name,
+            timestamp: duerpDocuments.updatedAt
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .orderBy(desc(duerpDocuments.updatedAt))
+          .limit(5);
+      }
       
       const formattedActivities = activities.map(activity => ({
         id: activity.id.toString(),
@@ -144,20 +226,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents/expiring', isAuthenticated, async (req, res) => {
+  app.get('/api/documents/expiring', isAuthenticated, async (req: any, res) => {
     try {
-      // Get documents expiring within 30 days
       const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      const expiring = await db
-        .select({
-          id: duerpDocuments.id,
-          companyName: companies.name,
-          nextReviewDate: duerpDocuments.nextReviewDate
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow))
-        .orderBy(duerpDocuments.nextReviewDate);
+      let expiring;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) expiring = [];
+        else {
+          expiring = await db
+            .select({
+              id: duerpDocuments.id,
+              companyName: companies.name,
+              nextReviewDate: duerpDocuments.nextReviewDate
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(and(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow), inArray(duerpDocuments.companyId, ids)))
+            .orderBy(duerpDocuments.nextReviewDate);
+        }
+      } else {
+        expiring = await db
+          .select({
+            id: duerpDocuments.id,
+            companyName: companies.name,
+            nextReviewDate: duerpDocuments.nextReviewDate
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .where(lt(duerpDocuments.nextReviewDate, thirtyDaysFromNow))
+          .orderBy(duerpDocuments.nextReviewDate);
+      }
       
       res.json(expiring);
     } catch (error) {
@@ -165,14 +265,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch expiring documents" });
     }
   });
+  // List companies (pour l'utilisateur connecté en mode local)
+  if (!isReplitEnv) {
+    app.get("/api/companies", isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ message: "Non authentifié" });
+        const list = await storage.getCompaniesByOwner(userId);
+        res.json(list);
+      } catch (error) {
+        res.status(500).json({ message: "Erreur lors de la récupération des entreprises" });
+      }
+    });
+  }
+
   // Create or get company
-  app.post("/api/companies", async (req, res) => {
+  app.post("/api/companies", isAuthenticated, async (req: any, res) => {
     try {
-      console.log("Creating company with data:", req.body);
       const validatedData = insertCompanySchema.parse(req.body);
-      console.log("Validated data:", validatedData);
-      const company = await storage.createCompany(validatedData);
-      console.log("Created company:", company);
+      const ownerId = !isReplitEnv ? req.user?.id : undefined;
+      const company = await storage.createCompany({ ...validatedData, ownerId: ownerId ?? undefined });
       res.json(company);
     } catch (error) {
       console.error("Error creating company:", error);
@@ -182,14 +294,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper: vérifier qu'une company appartient à l'utilisateur (hors Replit)
+  function canAccessCompany(company: { ownerId: number | null } | undefined, userId: number | undefined): boolean {
+    if (isReplitEnv) return true;
+    if (!company || userId == null) return false;
+    return company.ownerId === userId;
+  }
+
   // Get company by ID
-  app.get("/api/companies/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/companies/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const company = await storage.getCompany(id);
       if (!company) {
         res.status(404).json({ message: "Entreprise non trouvée" });
         return;
+      }
+      if (!canAccessCompany(company, req.user?.id)) {
+        return res.status(403).json({ message: "Accès refusé" });
       }
       res.json(company);
     } catch (error) {
@@ -198,21 +320,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update company
-  app.put("/api/companies/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/companies/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const company = await storage.getCompany(id);
+      if (!company) return res.status(404).json({ message: "Entreprise non trouvée" });
+      if (!canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const updates = req.body;
-      const company = await storage.updateCompany(id, updates);
-      res.json(company);
+      const updated = await storage.updateCompany(id, updates);
+      res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Erreur lors de la mise à jour de l'entreprise" });
     }
   });
 
   // Uploaded documents for AI context
-  app.get("/api/companies/:companyId/documents", isAuthenticated, async (req, res) => {
+  app.get("/api/companies/:companyId/documents", isAuthenticated, async (req: any, res) => {
     try {
       const companyId = parseInt(req.params.companyId);
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const documents = await storage.getUploadedDocuments(companyId);
       res.json(documents);
     } catch (error) {
@@ -221,9 +348,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/companies/:companyId/documents", isAuthenticated, async (req, res) => {
+  app.post("/api/companies/:companyId/documents", isAuthenticated, async (req: any, res) => {
     try {
       const companyId = parseInt(req.params.companyId);
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const { fileName, fileType, fileSize, extractedText, description } = req.body;
       
       const document = await storage.createUploadedDocument({
@@ -242,11 +371,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req, res) => {
+  app.patch("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req: any, res) => {
     try {
+      const companyId = parseInt(req.params.companyId);
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const documentId = parseInt(req.params.documentId);
       const { description } = req.body;
-      
       const document = await storage.updateUploadedDocument(documentId, { description });
       res.json(document);
     } catch (error) {
@@ -255,8 +386,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req, res) => {
+  app.delete("/api/companies/:companyId/documents/:documentId", isAuthenticated, async (req: any, res) => {
     try {
+      const companyId = parseInt(req.params.companyId);
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const documentId = parseInt(req.params.documentId);
       await storage.deleteUploadedDocument(documentId);
       res.json({ success: true });
@@ -468,9 +602,11 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   });
 
   // DUERP Documents API
-  app.get('/api/duerp/:companyId', async (req, res) => {
+  app.get('/api/duerp/:companyId', isAuthenticated, async (req: any, res) => {
     try {
       const companyId = parseInt(req.params.companyId);
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const documents = await storage.getDuerpDocuments(companyId);
       res.json(documents);
     } catch (error) {
@@ -479,7 +615,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
-  app.post('/api/duerp/save', async (req, res) => {
+  app.post('/api/duerp/save', isAuthenticated, async (req: any, res) => {
     try {
       const { companyId, title, workUnitsData, sites, locations, workStations, finalRisks, preventionMeasures } = req.body;
       console.log(`[SAVE POST] companyId=${companyId} title=${title} workUnitsData=${(workUnitsData||[]).length} finalRisks=${(finalRisks||[]).length}`);
@@ -487,6 +623,8 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
       if (!companyId || !title) {
         return res.status(400).json({ message: 'Company ID and title are required' });
       }
+      const company = await storage.getCompany(companyId);
+      if (!company || !canAccessCompany(company, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
 
       const document = await storage.createDuerpDocument({
         companyId,
@@ -512,7 +650,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
-  app.get('/api/duerp/document/:id', async (req, res) => {
+  app.get('/api/duerp/document/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const documents = await db
@@ -529,6 +667,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
       // Drizzle join result uses table variable names: duerpDocuments, companies (not SQL names)
       const docRow = document.duerpDocuments ?? (document as any).duerp_documents;
       const companyRow = document.companies;
+      if (!canAccessCompany(companyRow, req.user?.id)) return res.status(403).json({ message: "Accès refusé" });
       const docData = { ...docRow, company: companyRow };
       
       // Recalculer les valeurs numériques et la priorité pour tous les risques
@@ -998,25 +1137,46 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   });
 
   // Revision tracking routes
-  app.get("/api/revisions/needed", async (req, res) => {
+  app.get("/api/revisions/needed", isAuthenticated, async (req: any, res) => {
     try {
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
       
-      // Get documents that need revision (past due or due soon)
-      const documents = await db
-        .select({
-          id: duerpDocuments.id,
-          title: duerpDocuments.title,
-          companyName: companies.name,
-          nextReviewDate: duerpDocuments.nextReviewDate,
-          status: duerpDocuments.status,
-          createdAt: duerpDocuments.createdAt,
-          updatedAt: duerpDocuments.updatedAt
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(ne(duerpDocuments.status, 'archived'));
+      let documents;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) documents = [];
+        else {
+          documents = await db
+            .select({
+              id: duerpDocuments.id,
+              title: duerpDocuments.title,
+              companyName: companies.name,
+              nextReviewDate: duerpDocuments.nextReviewDate,
+              status: duerpDocuments.status,
+              createdAt: duerpDocuments.createdAt,
+              updatedAt: duerpDocuments.updatedAt
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(and(ne(duerpDocuments.status, 'archived'), inArray(duerpDocuments.companyId, ids)));
+        }
+      } else {
+        documents = await db
+          .select({
+            id: duerpDocuments.id,
+            title: duerpDocuments.title,
+            companyName: companies.name,
+            nextReviewDate: duerpDocuments.nextReviewDate,
+            status: duerpDocuments.status,
+            createdAt: duerpDocuments.createdAt,
+            updatedAt: duerpDocuments.updatedAt
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .where(ne(duerpDocuments.status, 'archived'));
+      }
 
       // Filter and categorize documents
       const overdue = [];
@@ -1062,24 +1222,42 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
-  app.get("/api/revisions/notifications", async (req, res) => {
+  app.get("/api/revisions/notifications", isAuthenticated, async (req: any, res) => {
     try {
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
       
-      // Get documents that need notification (due within 30 days and not yet notified)
-      const documents = await db
-        .select({
-          id: duerpDocuments.id,
-          title: duerpDocuments.title,
-          companyName: companies.name,
-          nextReviewDate: duerpDocuments.nextReviewDate
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(ne(duerpDocuments.status, 'archived'));
+      let documents;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) documents = [];
+        else {
+          documents = await db
+            .select({
+              id: duerpDocuments.id,
+              title: duerpDocuments.title,
+              companyName: companies.name,
+              nextReviewDate: duerpDocuments.nextReviewDate
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(and(ne(duerpDocuments.status, 'archived'), inArray(duerpDocuments.companyId, ids)));
+        }
+      } else {
+        documents = await db
+          .select({
+            id: duerpDocuments.id,
+            title: duerpDocuments.title,
+            companyName: companies.name,
+            nextReviewDate: duerpDocuments.nextReviewDate
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .where(ne(duerpDocuments.status, 'archived'));
+      }
 
-      const notifications = documents.filter(doc => {
+      const notifications = documents.filter((doc: { nextReviewDate: string | null }) => {
         if (!doc.nextReviewDate) return false;
         const reviewDate = new Date(doc.nextReviewDate);
         return reviewDate <= thirtyDaysFromNow && reviewDate >= today;
@@ -1092,9 +1270,17 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
-  app.post("/api/revisions/:id/notify", async (req, res) => {
+  app.post("/api/revisions/:id/notify", isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
+      if (!isReplitEnv && req.user?.id) {
+        const doc = await storage.getDuerpDocumentById(documentId);
+        if (!doc) return res.status(404).json({ error: "Document introuvable" });
+        const company = await storage.getCompany(doc.companyId);
+        if (!company || !canAccessCompany(company, req.user.id)) {
+          return res.status(403).json({ error: "Accès non autorisé" });
+        }
+      }
       await storage.markRevisionNotified(documentId);
       res.json({ success: true });
     } catch (error) {
@@ -1103,9 +1289,17 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
-  app.post("/api/revisions/:id/update", async (req, res) => {
+  app.post("/api/revisions/:id/update", isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.id);
+      if (!isReplitEnv && req.user?.id) {
+        const doc = await storage.getDuerpDocumentById(documentId);
+        if (!doc) return res.status(404).json({ error: "Document introuvable" });
+        const company = await storage.getCompany(doc.companyId);
+        if (!company || !canAccessCompany(company, req.user.id)) {
+          return res.status(403).json({ error: "Accès non autorisé" });
+        }
+      }
       const document = await storage.updateRevisionDate(documentId);
       res.json(document);
     } catch (error) {
@@ -1115,23 +1309,47 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   });
 
   // Documents API (non-archived)
-  app.get('/api/documents', async (req, res) => {
+  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
     try {
-      const documents = await db
-        .select({
-          id: duerpDocuments.id,
-          companyName: companies.name,
-          title: duerpDocuments.title,
-          createdAt: duerpDocuments.createdAt,
-          updatedAt: duerpDocuments.updatedAt,
-          status: duerpDocuments.status,
-          nextReviewDate: duerpDocuments.nextReviewDate,
-          riskCount: duerpDocuments.finalRisks
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(ne(duerpDocuments.status, 'archived'))
-        .orderBy(desc(duerpDocuments.updatedAt));
+      let documents;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) documents = [];
+        else {
+          documents = await db
+            .select({
+              id: duerpDocuments.id,
+              companyName: companies.name,
+              title: duerpDocuments.title,
+              createdAt: duerpDocuments.createdAt,
+              updatedAt: duerpDocuments.updatedAt,
+              status: duerpDocuments.status,
+              nextReviewDate: duerpDocuments.nextReviewDate,
+              riskCount: duerpDocuments.finalRisks
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(and(ne(duerpDocuments.status, 'archived'), inArray(duerpDocuments.companyId, ids)))
+            .orderBy(desc(duerpDocuments.updatedAt));
+        }
+      } else {
+        documents = await db
+          .select({
+            id: duerpDocuments.id,
+            companyName: companies.name,
+            title: duerpDocuments.title,
+            createdAt: duerpDocuments.createdAt,
+            updatedAt: duerpDocuments.updatedAt,
+            status: duerpDocuments.status,
+            nextReviewDate: duerpDocuments.nextReviewDate,
+            riskCount: duerpDocuments.finalRisks
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .where(ne(duerpDocuments.status, 'archived'))
+          .orderBy(desc(duerpDocuments.updatedAt));
+      }
       
       const formattedDocuments = documents.map(doc => ({
         ...doc,
@@ -1161,24 +1379,45 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   });
 
   // Reports API
-  app.get('/api/reports/:period?', async (req, res) => {
+  app.get('/api/reports/:period?', isAuthenticated, async (req: any, res) => {
     try {
       const period = req.params.period || 'month';
       
-      // Get all documents with their risks
-      const documents = await db
-        .select({
-          id: duerpDocuments.id,
-          title: duerpDocuments.title,
-          companyName: companies.name,
-          finalRisks: duerpDocuments.finalRisks,
-          createdAt: duerpDocuments.createdAt,
-          updatedAt: duerpDocuments.updatedAt,
-          status: duerpDocuments.status
-        })
-        .from(duerpDocuments)
-        .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
-        .where(ne(duerpDocuments.status, 'archived'));
+      let documents;
+      if (!isReplitEnv && req.user?.id) {
+        const userCompanies = await storage.getCompaniesByOwner(req.user.id);
+        const ids = userCompanies.map((c: { id: number }) => c.id);
+        if (ids.length === 0) documents = [];
+        else {
+          documents = await db
+            .select({
+              id: duerpDocuments.id,
+              title: duerpDocuments.title,
+              companyName: companies.name,
+              finalRisks: duerpDocuments.finalRisks,
+              createdAt: duerpDocuments.createdAt,
+              updatedAt: duerpDocuments.updatedAt,
+              status: duerpDocuments.status
+            })
+            .from(duerpDocuments)
+            .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+            .where(and(ne(duerpDocuments.status, 'archived'), inArray(duerpDocuments.companyId, ids)));
+        }
+      } else {
+        documents = await db
+          .select({
+            id: duerpDocuments.id,
+            title: duerpDocuments.title,
+            companyName: companies.name,
+            finalRisks: duerpDocuments.finalRisks,
+            createdAt: duerpDocuments.createdAt,
+            updatedAt: duerpDocuments.updatedAt,
+            status: duerpDocuments.status
+          })
+          .from(duerpDocuments)
+          .leftJoin(companies, eq(duerpDocuments.companyId, companies.id))
+          .where(ne(duerpDocuments.status, 'archived'));
+      }
 
       // Calculate real statistics from actual risks
       let totalRisks = 0;

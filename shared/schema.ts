@@ -6,6 +6,7 @@ import { relations } from "drizzle-orm";
 // Companies table
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").references(() => users.id),
   name: text("name").notNull(),
   activity: text("activity").notNull(),
   description: text("description"),
@@ -21,14 +22,17 @@ export const companies = pgTable("companies", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Users table for multi-user collaboration
+// Users table for multi-user collaboration + auth locale
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).unique().notNull(),
+  passwordHash: text("password_hash"),
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
   role: varchar("role", { length: 50 }).default("user"), // admin, editor, viewer
   companyId: integer("company_id").references(() => companies.id),
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
 });
@@ -180,7 +184,11 @@ export const comments = pgTable("comments", {
 });
 
 // Relations
-export const companiesRelations = relations(companies, ({ many }) => ({
+export const companiesRelations = relations(companies, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [companies.ownerId],
+    references: [users.id],
+  }),
   users: many(users),
   duerpDocuments: many(duerpDocuments),
 }));

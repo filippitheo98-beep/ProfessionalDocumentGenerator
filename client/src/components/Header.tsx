@@ -28,7 +28,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    window.location.href = '/api/auth/logout';
+    window.location.href = '/api/logout';
   };
 
   const handleNavigate = (path: string) => {

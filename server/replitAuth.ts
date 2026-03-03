@@ -6,10 +6,10 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
-import { storage } from "./storage";
+import { setupLocalAuth } from "./localAuth";
 
 // On ne considère l’auth Replit active que si les variables Replit sont présentes.
-const isReplitEnv =
+export const isReplitEnv =
   !!process.env.REPLIT_DOMAINS && !!process.env.REPL_ID;
 
 const getOidcConfig = memoize(
@@ -71,14 +71,15 @@ async function upsertUser(
 export async function setupAuth(app: Express) {
   // Si on n’est pas dans un environnement Replit, on ne configure aucune auth
   // spéciale et on laisse toutes les routes accessibles sans login.
-  if (!isReplitEnv) {
-    return;
-  }
-
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  if (!isReplitEnv) {
+    await setupLocalAuth(app);
+    return;
+  }
 
   const config = await getOidcConfig();
 
@@ -135,9 +136,14 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Pour l'auth locale : routes register, login, logout (ajoutées dans routes.ts)
+
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // Hors Replit, on ne fait pas d’authentification : tout passe.
   if (!isReplitEnv) {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Non authentifié" });
+    }
     return next();
   }
 

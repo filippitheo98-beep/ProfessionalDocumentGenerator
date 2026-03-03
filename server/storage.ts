@@ -27,7 +27,8 @@ import OpenAI from 'openai';
 export interface IStorage {
   // Company operations
   getCompany(id: number): Promise<Company | undefined>;
-  createCompany(company: InsertCompany): Promise<Company>;
+  getCompaniesByOwner(ownerId: number): Promise<Company[]>;
+  createCompany(company: InsertCompany & { ownerId?: number }): Promise<Company>;
   updateCompany(id: number, company: Partial<Company>): Promise<Company>;
   
   // DUERP document operations
@@ -97,10 +98,15 @@ export class DatabaseStorage implements IStorage {
     return company;
   }
 
-  async createCompany(insertCompany: InsertCompany): Promise<Company> {
+  async getCompaniesByOwner(ownerId: number): Promise<Company[]> {
+    return db.select().from(companies).where(eq(companies.ownerId, ownerId));
+  }
+
+  async createCompany(insertCompany: InsertCompany & { ownerId?: number }): Promise<Company> {
     const [company] = await db
       .insert(companies)
       .values({
+        ownerId: insertCompany.ownerId ?? null,
         name: insertCompany.name,
         activity: insertCompany.activity,
         description: insertCompany.description,
