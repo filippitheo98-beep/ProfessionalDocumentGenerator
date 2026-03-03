@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   companyId: integer("company_id").references(() => companies.id),
   passwordResetToken: text("password_reset_token"),
   passwordResetExpires: timestamp("password_reset_expires"),
+  mustChangePassword: boolean("must_change_password").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   isActive: boolean("is_active").default(true),
 });

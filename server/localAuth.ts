@@ -20,18 +20,20 @@ export interface LocalUser {
   lastName: string | null;
   role?: string;
   isActive?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export async function setupLocalAuth(app: Express): Promise<void> {
   passport.use(
     new LocalStrategy(
       { usernameField: "email", passwordField: "password" },
-      async (email, password, done) => {
+      async (emailOrUsername, password, done) => {
         try {
+          const lookup = emailOrUsername.trim().toLowerCase();
           const [user] = await db
             .select()
             .from(users)
-            .where(eq(users.email, email.toLowerCase().trim()));
+            .where(eq(users.email, lookup));
           if (!user || !user.passwordHash) {
             return done(null, false, { message: "Email ou mot de passe incorrect" });
           }
@@ -49,6 +51,7 @@ export async function setupLocalAuth(app: Express): Promise<void> {
             lastName: user.lastName,
             role: user.role ?? "user",
             isActive: user.isActive ?? true,
+            mustChangePassword: user.mustChangePassword ?? false,
           });
         } catch (err) {
           return done(err);
@@ -109,23 +112,37 @@ export async function createPasswordResetToken(email: string): Promise<string | 
   return token;
 }
 
-/** Crée l'utilisateur admin au démarrage si ADMIN_EMAIL et ADMIN_PASSWORD sont définis. */
+/** Crée l'utilisateur admin au démarrage : identifiant "admin", mot de passe par défaut "admin" (ou ADMIN_INITIAL_PASSWORD). Première connexion oblige au changement de mot de passe. */
 export async function ensureAdminUser(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
-  const adminEmail = process.env.ADMIN_EMAIL?.trim();
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminEmail || !adminPassword) return;
-
-  const [existing] = await db.select().from(users).where(eq(users.email, adminEmail.toLowerCase()));
+  const initialPassword = process.env.ADMIN_INITIAL_PASSWORD?.trim() || "admin";
+  const [existing] = await db.select().from(users).where(eq(users.email, "admin"));
   if (existing) return;
 
-  const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+  const passwordHash = await bcrypt.hash(initialPassword, SALT_ROUNDS);
   await db.insert(users).values({
-    email: adminEmail.toLowerCase(),
+    email: "admin",
     passwordHash,
     role: "admin",
     isActive: true,
+    mustChangePassword: true,
   });
+}
+
+/** Change le mot de passe de l'utilisateur (pour première connexion admin ou changement volontaire). */
+export async function changePassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ ok: boolean; message?: string }> {
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || !user.passwordHash) return { ok: false, message: "Utilisateur introuvable" };
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) return { ok: false, message: "Mot de passe actuel incorrect" };
+  if (newPassword.length < 6) return { ok: false, message: "Le nouveau mot de passe doit faire au moins 6 caractères" };
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await db.update(users).set({ passwordHash, mustChangePassword: false }).where(eq(users.id, userId));
+  return { ok: true };
 }
 
 export async function resetPasswordWithToken(

@@ -17,19 +17,19 @@ export default function Login() {
   useEffect(() => {
     if (!isLoading && user) navigate("/", { replace: true });
   }, [user, isLoading, navigate]);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
   const loginMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+        body: JSON.stringify({ email: identifier, password }),
+      }) as Promise<{ mustChangePassword?: boolean }>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      navigate("/");
+      navigate(data?.mustChangePassword ? "/change-password" : "/", { replace: true });
     },
     onError: (e: Error) => {
       setError(e.message);
@@ -41,8 +41,8 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email || !password) {
-      setError("Email et mot de passe requis");
+    if (!identifier || !password) {
+      setError("Identifiant et mot de passe requis");
       return;
     }
     loginMutation.mutate();
@@ -76,14 +76,14 @@ export default function Login() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="identifier">Identifiant</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="vous@exemple.fr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                id="identifier"
+                type="text"
+                placeholder="admin"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
                 disabled={loginMutation.isPending}
               />
             </div>

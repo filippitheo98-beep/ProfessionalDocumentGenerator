@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isReplitEnv } from "./replitAuth";
-import { createUser, createPasswordResetToken, resetPasswordWithToken } from "./localAuth";
+import { createUser, createPasswordResetToken, resetPasswordWithToken, changePassword } from "./localAuth";
 import type { RequestHandler } from "express";
 import bcrypt from "bcrypt";
 import passport from "passport";
@@ -110,6 +110,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ok = await resetPasswordWithToken(token, password);
       if (!ok) return res.status(400).json({ message: "Lien invalide ou expiré" });
       res.json({ message: "Mot de passe réinitialisé" });
+    });
+
+    app.post("/api/auth/change-password", isAuthenticated, async (req: any, res) => {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) return res.status(400).json({ message: "Mot de passe actuel et nouveau requis" });
+      const result = await changePassword(req.user.id, currentPassword, newPassword);
+      if (!result.ok) return res.status(400).json({ message: result.message || "Erreur" });
+      res.json({ message: "Mot de passe modifié" });
     });
   }
 

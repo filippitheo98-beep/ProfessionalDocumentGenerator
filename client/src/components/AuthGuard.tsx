@@ -4,22 +4,28 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface AuthGuardProps {
   children: React.ReactNode;
+  /** Si true, autorise l'accès même quand mustChangePassword (pour la page /change-password) */
+  allowIfMustChangePassword?: boolean;
 }
 
 /**
  * Redirige vers /login si l'utilisateur n'est pas connecté.
- * Utilisé pour protéger les routes de l'application.
+ * Si mustChangePassword, redirige vers /change-password (sauf si allowIfMustChangePassword).
  */
-export function AuthGuard({ children }: AuthGuardProps) {
+export function AuthGuard({ children, allowIfMustChangePassword }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const [path, navigate] = useLocation();
 
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
       navigate("/login", { replace: true });
+      return;
     }
-  }, [user, isLoading, navigate]);
+    if (!allowIfMustChangePassword && (user as { mustChangePassword?: boolean }).mustChangePassword && path !== "/change-password") {
+      navigate("/change-password", { replace: true });
+    }
+  }, [user, isLoading, navigate, allowIfMustChangePassword, path]);
 
   if (isLoading) {
     return (
