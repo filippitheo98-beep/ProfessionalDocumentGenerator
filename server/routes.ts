@@ -75,7 +75,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.post("/api/auth/login", (req, res, next) => {
       passport.authenticate("local", (err: any, user: any, info: any) => {
-        if (err) return res.status(500).json({ message: "Erreur serveur" });
+        if (err) {
+          console.error("[auth] Login error:", err);
+          return res.status(500).json({ message: "Erreur serveur" });
+        }
         if (!user) return res.status(401).json({ message: info?.message || "Identifiants incorrects" });
         req.login(user, (e) => {
           if (e) return res.status(500).json({ message: "Erreur de session" });
