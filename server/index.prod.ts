@@ -34,8 +34,8 @@ async function ensureDbSchema(): Promise<void> {
     });
     log("Database schema up to date.");
   } catch (err) {
-    log("drizzle-kit push failed: " + (err instanceof Error ? err.message : String(err)));
-    if (process.env.NODE_ENV === "production") throw err;
+    log("drizzle-kit push failed (continuing): " + (err instanceof Error ? err.message : String(err)));
+    log("Run 'npm run db:push' locally or in a migration step to sync schema. App may work if schema exists.");
   }
 }
 
