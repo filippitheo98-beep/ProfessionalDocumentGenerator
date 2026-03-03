@@ -14,18 +14,21 @@ export function log(message: string, source = "express") {
 }
 
 export function serveStatic(app: express.Express) {
+  // En prod, le serveur est dans dist/index.js donc public = dist/public
   const distPath = path.resolve(import.meta.dirname, "public");
+  const fallbackPath = path.join(process.cwd(), "dist", "public");
+  const resolvedPath = fs.existsSync(distPath) ? distPath : fallbackPath;
 
-  if (!fs.existsSync(distPath)) {
+  if (!fs.existsSync(resolvedPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory (tried ${distPath} and ${fallbackPath}), make sure to build the client first`,
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(resolvedPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // fall through to index.html if the file doesn't exist (SPA routing)
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(resolvedPath, "index.html"));
   });
 }
