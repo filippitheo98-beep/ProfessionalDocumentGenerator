@@ -25,10 +25,12 @@ export function serveStatic(app: express.Express) {
     );
   }
 
-  app.use(express.static(resolvedPath));
+  app.use(express.static(resolvedPath, { index: "index.html" }));
 
-  // fall through to index.html if the file doesn't exist (SPA routing)
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(resolvedPath, "index.html"));
+  // SPA fallback : tout chemin non géré par static → index.html
+  app.use((req, res) => {
+    res.sendFile(path.join(resolvedPath, "index.html"), (err) => {
+      if (err && !res.headersSent) res.status(500).send("Erreur serveur");
+    });
   });
 }
