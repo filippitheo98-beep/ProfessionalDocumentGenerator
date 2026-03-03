@@ -1,11 +1,12 @@
 /**
  * Point d'entrée production — n'importe jamais vite.
  * Utilisé pour le build Docker/Railway.
+ * Migrations : exécuter `railway run npx drizzle-kit push` manuellement.
  */
-import { execSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 
 try {
   const envPath = join(process.cwd(), ".env");
@@ -23,21 +24,6 @@ try {
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { log, serveStatic } from "./static";
-
-async function ensureDbSchema(): Promise<void> {
-  if (!process.env.DATABASE_URL) return;
-  try {
-    log("Pushing database schema...");
-    execSync("npx drizzle-kit push", {
-      stdio: "inherit",
-      env: process.env,
-    });
-    log("Database schema up to date.");
-  } catch (err) {
-    log("drizzle-kit push failed (continuing): " + (err instanceof Error ? err.message : String(err)));
-    log("Run 'npm run db:push' locally or in a migration step to sync schema. App may work if schema exists.");
-  }
-}
 
 async function syncSequences(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
@@ -59,8 +45,17 @@ const app = express();
 // Trust proxy (Railway, load balancers)
 app.set("trust proxy", 1);
 
+app.use(helmet({ contentSecurityPolicy: false }));
+
 // Health check — avant tout le reste, pour Railway / load balancers
-app.get("/health", (_req, res) => res.sendStatus(200));
+app.get("/health", async (_req, res) => {
+  try {
+    if (process.env.DATABASE_URL) await pool.query("SELECT 1");
+    res.sendStatus(200);
+  } catch {
+    res.status(503).send("DB unreachable");
+  }
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
@@ -92,7 +87,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await ensureDbSchema();
   await syncSequences();
   const server = await registerRoutes(app);
 
@@ -109,6 +103,19 @@ app.use((req, res, next) => {
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port} (PORT=${process.env.PORT})`);
   });
+
+  function shutdown(signal: string) {
+    log(`${signal} received, shutting down gracefully`);
+    server.close(() => {
+      if (process.env.DATABASE_URL) {
+        pool.end().then(() => process.exit(0)).catch(() => process.exit(1));
+      } else {
+        process.exit(0);
+      }
+    });
+  }
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 })().catch((err) => {
   console.error("Fatal startup error:", err);
   process.exit(1);
