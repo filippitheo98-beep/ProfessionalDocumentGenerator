@@ -812,9 +812,17 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   });
 
   // Delete document permanently
-  app.delete('/api/duerp-documents/:id', async (req, res) => {
+  app.delete('/api/duerp-documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (!isReplitEnv && req.user?.id) {
+        const doc = await storage.getDuerpDocumentById(id);
+        if (!doc) return res.status(404).json({ message: 'Document not found' });
+        const company = await storage.getCompany(doc.companyId);
+        if (!company || !canAccessCompany(company, req.user.id)) {
+          return res.status(403).json({ error: "Accès non autorisé" });
+        }
+      }
       
       const [deletedDocument] = await db
         .delete(duerpDocuments)

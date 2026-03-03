@@ -21,6 +21,7 @@ interface StepperDuerpProps {
   onSave: () => void;
   isSaving?: boolean;
   completedSteps: number[];
+  readOnly?: boolean;
 }
 
 const steps = [
@@ -56,7 +57,8 @@ export default function StepperDuerp({
   onStepChange, 
   onSave, 
   isSaving = false,
-  completedSteps = []
+  completedSteps = [],
+  readOnly = false
 }: StepperDuerpProps) {
   const progress = (currentStep / totalSteps) * 100;
 
@@ -65,18 +67,20 @@ export default function StepperDuerp({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl">
-            Générateur DUERP - Étape {currentStep} sur {totalSteps}
+            {readOnly ? 'Visualisation du DUERP' : 'Générateur DUERP'} - Étape {currentStep} sur {totalSteps}
           </CardTitle>
-          <Button
-            onClick={onSave}
-            disabled={isSaving}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </Button>
+          {!readOnly && (
+            <Button
+              onClick={onSave}
+              disabled={isSaving}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </Button>
+          )}
         </div>
         <Progress value={progress} className="mt-2" />
       </CardHeader>

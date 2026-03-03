@@ -43,6 +43,7 @@ interface AnalyticsStepProps {
   locations: any[];
   workStations: any[];
   preventionMeasures: any[];
+  readOnly?: boolean;
 }
 
 function getRiskLevel(risk: Risk): 'Important' | 'Moyen' | 'Faible' {
@@ -71,7 +72,7 @@ const RISK_TYPE_COLORS = [
   '#14B8A6', '#A855F7', '#F43F5E', '#0EA5E9'
 ];
 
-export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, onExportExcel, isExportingExcel, documentId, onFinalize, isFinalized, isFinalizing, locations, workStations, preventionMeasures }: AnalyticsStepProps) {
+export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWord, onExportExcel, isExportingExcel, documentId, onFinalize, isFinalized, isFinalizing, locations, workStations, preventionMeasures, readOnly = false }: AnalyticsStepProps) {
   const totalRisks = risks.length;
 
   const highRisks = risks.filter(r => getRiskLevel(r) === 'Important').length;
@@ -416,9 +417,11 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-wrap gap-3">
-              <Button onClick={onSave} variant="outline" size="lg">
-                Sauvegarder le brouillon
-              </Button>
+              {!readOnly && (
+                <Button onClick={onSave} variant="outline" size="lg">
+                  Sauvegarder le brouillon
+                </Button>
+              )}
 
               <Button onClick={onGenerateWord} variant="outline" size="lg">
                 <FileText className="h-4 w-4 mr-2" />
@@ -441,7 +444,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
                 </Button>
               )}
 
-              {onFinalize && (
+              {onFinalize && !readOnly && (
                 <Button 
                   onClick={onFinalize} 
                   size="lg" 
@@ -469,7 +472,7 @@ export default function AnalyticsStep({ risks, companyName, onSave, onGenerateWo
               </div>
             )}
 
-            {!isFinalized && onFinalize && (
+            {!isFinalized && onFinalize && !readOnly && (
               <p className="text-sm text-muted-foreground">
                 Finalisez le DUERP pour l'enregistrer officiellement et démarrer le suivi de révision annuelle.
                 Vous pourrez toujours le modifier ou le mettre à jour ultérieurement.

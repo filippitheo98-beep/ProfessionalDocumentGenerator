@@ -20,9 +20,20 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Header } from '@/components/Header';
 import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +53,7 @@ interface Document {
 export default function Documents() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'draft'>('all');
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -50,6 +62,30 @@ export default function Documents() {
   const { data: documents, isLoading } = useQuery({
     queryKey: ['/api/documents'],
     queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      await apiRequest(`/api/duerp-documents/${documentId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/revisions/needed'] });
+      setDeleteConfirmId(null);
+      toast({
+        title: "Document supprimé",
+        description: "Le DUERP a été supprimé définitivement.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le document",
+        variant: "destructive",
+      });
+    },
   });
 
   const annualUpdateMutation = useMutation({
@@ -272,6 +308,39 @@ export default function Documents() {
                             Mise à jour annuelle
                           </Button>
                         )}
+                        <AlertDialog open={deleteConfirmId === doc.id} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteConfirmId(doc.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1.5" />
+                            Supprimer
+                          </Button>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Êtes-vous sûr de vouloir supprimer définitivement le document « {doc.title} » ? 
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    deleteDocumentMutation.mutate(doc.id);
+                                  }}
+                                  disabled={deleteDocumentMutation.isPending}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deleteDocumentMutation.isPending ? 'Suppression...' : 'Supprimer définitivement'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </CardContent>

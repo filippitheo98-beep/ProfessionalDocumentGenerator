@@ -32,6 +32,7 @@ interface CompanyInfoStepProps {
   initialData?: Company | null;
   isLoading?: boolean;
   companyId?: number;
+  readOnly?: boolean;
 }
 
 interface UploadedFile {
@@ -50,7 +51,8 @@ export default function CompanyInfoStep({
   onSave, 
   initialData, 
   isLoading = false,
-  companyId
+  companyId,
+  readOnly = false
 }: CompanyInfoStepProps) {
   const { toast } = useToast();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -279,7 +281,7 @@ export default function CompanyInfoStep({
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            <form onSubmit={readOnly ? (e) => e.preventDefault() : form.handleSubmit(handleSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -294,6 +296,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Entrez le nom de la société"
                           data-testid="input-company-name"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -312,6 +315,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="123 456 789 00012"
                           data-testid="input-siret"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -333,6 +337,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Ex: Commerce de détail, Services informatiques, BTP..."
                           data-testid="input-activity"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -351,6 +356,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="Ex: Industrie, Services, Agriculture..."
                           data-testid="input-sector"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -372,6 +378,7 @@ export default function CompanyInfoStep({
                         <Textarea 
                           placeholder="123 Rue de la Paix, 75001 Paris"
                           data-testid="input-address"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -393,6 +400,7 @@ export default function CompanyInfoStep({
                         <Input 
                           placeholder="01 23 45 67 89"
                           data-testid="input-phone"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -415,6 +423,7 @@ export default function CompanyInfoStep({
                           placeholder="contact@entreprise.com"
                           type="email"
                           data-testid="input-email"
+                          disabled={readOnly}
                           {...field}
                         />
                       </FormControl>
@@ -438,6 +447,7 @@ export default function CompanyInfoStep({
                           type="number"
                           min="0"
                           data-testid="input-employee-count"
+                          disabled={readOnly}
                           {...field}
                           value={field.value || 0}
                           onChange={(e) => {
@@ -451,16 +461,18 @@ export default function CompanyInfoStep({
                 />
               </div>
 
-              <div className="flex justify-end pt-4">
-                <Button 
-                  type="submit" 
-                  disabled={isLoading}
-                  className="min-w-32"
-                  data-testid="button-continue"
-                >
-                  {isLoading ? 'Sauvegarde...' : 'Continuer'}
-                </Button>
-              </div>
+              {!readOnly && (
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="min-w-32"
+                    data-testid="button-continue"
+                  >
+                    {isLoading ? 'Sauvegarde...' : 'Continuer'}
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>
@@ -479,6 +491,7 @@ export default function CompanyInfoStep({
         <CardContent>
           <div className="space-y-2">
             <Textarea 
+              disabled={readOnly}
               placeholder={`Décrivez votre entreprise en détail pour aider l'IA à identifier les risques pertinents :
 
 • Quelles sont les principales activités de votre entreprise ?
@@ -519,17 +532,18 @@ Exemple : "Notre entreprise de menuiserie emploie 15 personnes réparties sur 3 
         </CardHeader>
         <CardContent className="space-y-4">
           <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={readOnly ? undefined : handleDragOver}
+            onDragLeave={readOnly ? undefined : handleDragLeave}
+            onDrop={readOnly ? undefined : handleDrop}
             className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer
-              ${isDragging 
+              border-2 border-dashed rounded-lg p-8 text-center transition-all
+              ${readOnly ? 'cursor-default opacity-75' : 'cursor-pointer'}
+              ${isDragging && !readOnly
                 ? 'border-primary bg-primary/10' 
                 : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
               }
             `}
-            onClick={() => document.getElementById('file-upload')?.click()}
+            onClick={readOnly ? undefined : () => document.getElementById('file-upload')?.click()}
             data-testid="dropzone-documents"
           >
             <input
@@ -538,6 +552,7 @@ Exemple : "Notre entreprise de menuiserie emploie 15 personnes réparties sur 3 
               multiple
               accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
               className="hidden"
+              disabled={readOnly}
               onChange={(e) => handleFileUpload(e.target.files)}
             />
             <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -576,21 +591,24 @@ Exemple : "Notre entreprise de menuiserie emploie 15 personnes réparties sur 3 
                     <Textarea
                       placeholder="Décrivez le contenu de ce document pour aider l'IA (ex: 'Ancien DUERP de 2022 avec focus sur les risques chimiques')"
                       className="mt-2 text-sm min-h-[60px]"
+                      disabled={readOnly}
                       value={file.description || ''}
                       onChange={(e) => handleDescriptionChange(file.id, e.target.value)}
                       data-testid={`document-description-${file.id}`}
                     />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveFile(file.id)}
-                    className="flex-shrink-0"
-                    data-testid={`button-remove-document-${file.id}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveFile(file.id)}
+                      className="flex-shrink-0"
+                      data-testid={`button-remove-document-${file.id}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

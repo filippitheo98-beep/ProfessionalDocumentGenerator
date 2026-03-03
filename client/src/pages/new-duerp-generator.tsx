@@ -745,6 +745,7 @@ export default function NewDuerpGenerator() {
           onSave={handleSaveProgress}
           isSaving={saveDuerpMutation.isPending}
           completedSteps={completedSteps}
+          readOnly={isViewMode}
         />
 
         {isLoading ? (
@@ -760,6 +761,7 @@ export default function NewDuerpGenerator() {
                 onSave={handleSaveCompanyInfo}
                 initialData={company}
                 isLoading={createCompanyMutation.isPending || updateCompanyMutation.isPending}
+                readOnly={isViewMode}
               />
             )}
 
@@ -771,6 +773,7 @@ export default function NewDuerpGenerator() {
                 workUnits={duerpWorkUnits}
                 onUpdateWorkUnits={setDuerpWorkUnits}
                 onSave={handleSaveProgress}
+                readOnly={isViewMode}
               />
             )}
 
@@ -785,6 +788,7 @@ export default function NewDuerpGenerator() {
                 onExportExcel={handleExportExcel}
                 isExportingExcel={isExportingExcel}
                 documentId={documentId}
+                readOnly={isViewMode}
               />
             )}
 
@@ -803,6 +807,7 @@ export default function NewDuerpGenerator() {
                 locations={locations}
                 workStations={workStations}
                 preventionMeasures={preventionMeasures}
+                readOnly={isViewMode}
               />
             )}
           </>

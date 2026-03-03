@@ -42,6 +42,7 @@ interface HierarchicalEditorStepProps {
   onExportExcel?: () => void;
   isExportingExcel?: boolean;
   documentId?: string | null;
+  readOnly?: boolean;
 }
 
 const RISK_ROW_COLORS: Record<string, string> = {
@@ -80,7 +81,8 @@ export default function HierarchicalEditorStep({
   onSave,
   onExportExcel,
   isExportingExcel,
-  documentId
+  documentId,
+  readOnly = false
 }: HierarchicalEditorStepProps) {
   const { toast } = useToast();
 
@@ -256,7 +258,7 @@ export default function HierarchicalEditorStep({
         </div>
       </div>
 
-      {workUnits.length > 0 && (
+      {workUnits.length > 0 && !readOnly && (
         <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
           <CardContent className="py-3 px-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -440,17 +442,21 @@ export default function HierarchicalEditorStep({
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setReviewingRisk(tr)} title="Voir détails">
                               <Eye className="h-3 w-3" />
                             </Button>
-                            {!tr.risk.isValidated && (
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
-                                const unit = workUnits.find(u => u.id === tr.unitId);
-                                if (unit) updateUnit(tr.unitId, { risks: (unit.risks || []).map(r => r.id === tr.risk.id ? { ...r, isValidated: true } : r) });
-                              }} title="Valider">
-                                <Check className="h-3 w-3 text-green-600" />
-                              </Button>
+                            {!readOnly && (
+                              <>
+                                {!tr.risk.isValidated && (
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => {
+                                    const unit = workUnits.find(u => u.id === tr.unitId);
+                                    if (unit) updateUnit(tr.unitId, { risks: (unit.risks || []).map(r => r.id === tr.risk.id ? { ...r, isValidated: true } : r) });
+                                  }} title="Valider">
+                                    <Check className="h-3 w-3 text-green-600" />
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => removeRisk(tr)} title="Supprimer">
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </>
                             )}
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => removeRisk(tr)} title="Supprimer">
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -533,6 +539,7 @@ export default function HierarchicalEditorStep({
       {reviewingRisk && (
         <RiskEditDialog
           tableRisk={reviewingRisk}
+          readOnly={readOnly}
           onClose={() => setReviewingRisk(null)}
           onSave={(updated) => {
             const unit = workUnits.find(u => u.id === reviewingRisk.unitId);
@@ -723,10 +730,11 @@ function calcPriority(score: number): Risk['priority'] {
   return 'Priorité 4 (Faible)';
 }
 
-function RiskEditDialog({ tableRisk, onClose, onSave }: {
+function RiskEditDialog({ tableRisk, onClose, onSave, readOnly = false }: {
   tableRisk: TableRisk;
   onClose: () => void;
   onSave: (risk: Risk) => void;
+  readOnly?: boolean;
 }) {
   const r = tableRisk.risk;
   const [gravity, setGravity] = useState(String(r.gravityValue));
@@ -800,7 +808,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le risque</DialogTitle>
+          <DialogTitle>{readOnly ? "Détails du risque" : "Modifier le risque"}</DialogTitle>
           <DialogDescription>{tableRisk.unitName}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -822,7 +830,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <LabelText className="text-xs text-muted-foreground mb-1.5 block">Gravité</LabelText>
-              <Select value={gravity} onValueChange={setGravity}>
+              <Select value={gravity} onValueChange={setGravity} disabled={readOnly}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
@@ -835,7 +843,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
             </div>
             <div>
               <LabelText className="text-xs text-muted-foreground mb-1.5 block">Fréquence</LabelText>
-              <Select value={frequency} onValueChange={setFrequency}>
+              <Select value={frequency} onValueChange={setFrequency} disabled={readOnly}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
@@ -848,7 +856,7 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
             </div>
             <div>
               <LabelText className="text-xs text-muted-foreground mb-1.5 block">Maîtrise</LabelText>
-              <Select value={control} onValueChange={setControl}>
+              <Select value={control} onValueChange={setControl} disabled={readOnly}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
@@ -889,28 +897,32 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
                   <div key={idx} className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
                     <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
                     <span className="text-sm flex-1">{measure}</span>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0" onClick={() => removeMeasure(idx)}>
-                      <X className="h-3 w-3 text-muted-foreground" />
-                    </Button>
+                    {!readOnly && (
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0" onClick={() => removeMeasure(idx)}>
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Input
-                placeholder="Ajouter une mesure manuellement..."
-                value={newMeasure}
-                onChange={(e) => setNewMeasure(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddManual(); } }}
-                className="h-9 text-sm"
-              />
-              <Button variant="outline" size="sm" className="h-9 px-3 flex-shrink-0" onClick={handleAddManual} disabled={!newMeasure.trim()}>
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ajouter une mesure manuellement..."
+                  value={newMeasure}
+                  onChange={(e) => setNewMeasure(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddManual(); } }}
+                  className="h-9 text-sm"
+                />
+                <Button variant="outline" size="sm" className="h-9 px-3 flex-shrink-0" onClick={handleAddManual} disabled={!newMeasure.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
-            {allSuggestedMeasures.length > 0 && (
+            {!readOnly && allSuggestedMeasures.length > 0 && (
               <div>
                 <Button
                   variant="ghost"
@@ -939,11 +951,17 @@ function RiskEditDialog({ tableRisk, onClose, onSave }: {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSave}>
-            <Check className="h-4 w-4 mr-2" />
-            Enregistrer
-          </Button>
+          {readOnly ? (
+            <Button onClick={onClose}>Fermer</Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>Annuler</Button>
+              <Button onClick={handleSave}>
+                <Check className="h-4 w-4 mr-2" />
+                Enregistrer
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

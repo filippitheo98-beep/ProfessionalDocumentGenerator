@@ -24,6 +24,7 @@ interface WorkstationSetupStepProps {
   workUnits: WorkUnit[];
   onUpdateWorkUnits: (units: WorkUnit[]) => void;
   onSave: () => void;
+  readOnly?: boolean;
 }
 
 export default function WorkstationSetupStep({
@@ -32,7 +33,8 @@ export default function WorkstationSetupStep({
   companyDescription,
   workUnits,
   onUpdateWorkUnits,
-  onSave
+  onSave,
+  readOnly = false
 }: WorkstationSetupStepProps) {
   const { toast } = useToast();
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set(workUnits.map(u => u.id)));
@@ -142,29 +144,31 @@ export default function WorkstationSetupStep({
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Ajouter une unité de travail
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nom de l'unité (ex: Bureau administratif, Atelier mécanique, Zone de stockage...)"
-              value={newUnitName}
-              onChange={(e) => setNewUnitName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addUnit()}
-              className="flex-1"
-            />
-            <Button onClick={addUnit} disabled={!newUnitName.trim()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {!readOnly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Ajouter une unité de travail
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nom de l'unité (ex: Bureau administratif, Atelier mécanique, Zone de stockage...)"
+                value={newUnitName}
+                onChange={(e) => setNewUnitName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addUnit()}
+                className="flex-1"
+              />
+              <Button onClick={addUnit} disabled={!newUnitName.trim()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {workUnits.length === 0 && (
         <Card className="border-dashed">
@@ -195,9 +199,11 @@ export default function WorkstationSetupStep({
                   </CardDescription>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); removeUnit(unit.id); }}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              {!readOnly && (
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); removeUnit(unit.id); }}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              )}
             </div>
           </CardHeader>
 
@@ -208,17 +214,19 @@ export default function WorkstationSetupStep({
                   <Briefcase className="h-4 w-4 inline mr-1" />
                   Postes de travail
                 </Label>
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    placeholder="Nom du poste (ex: Soudeur, Cariste, Secrétaire...)"
-                    value={newWorkstationInputs[unit.id] || ''}
-                    onChange={(e) => setNewWorkstationInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && addWorkstation(unit.id)}
-                  />
-                  <Button variant="outline" onClick={() => addWorkstation(unit.id)} disabled={!newWorkstationInputs[unit.id]?.trim()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex gap-2 mb-3">
+                    <Input
+                      placeholder="Nom du poste (ex: Soudeur, Cariste, Secrétaire...)"
+                      value={newWorkstationInputs[unit.id] || ''}
+                      onChange={(e) => setNewWorkstationInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addWorkstation(unit.id)}
+                    />
+                    <Button variant="outline" onClick={() => addWorkstation(unit.id)} disabled={!newWorkstationInputs[unit.id]?.trim()}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {unit.workstations.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic">Aucun poste ajouté</p>
@@ -227,12 +235,14 @@ export default function WorkstationSetupStep({
                       <Badge key={ws.id} variant="secondary" className="py-1.5 px-3 text-sm flex items-center gap-2">
                         <Briefcase className="h-3 w-3" />
                         {ws.name}
-                        <button
-                          onClick={() => removeWorkstation(unit.id, ws.id)}
-                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            onClick={() => removeWorkstation(unit.id, ws.id)}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </button>
+                        )}
                       </Badge>
                     ))
                   )}
@@ -244,17 +254,19 @@ export default function WorkstationSetupStep({
                   <MapPin className="h-4 w-4 inline mr-1" />
                   Sites / Lieux
                 </Label>
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    placeholder="Nom du site (ex: Entrepôt Nord, Bureau 2ème étage, Chantier A...)"
-                    value={newSiteInputs[unit.id] || ''}
-                    onChange={(e) => setNewSiteInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && addSite(unit.id)}
-                  />
-                  <Button variant="outline" onClick={() => addSite(unit.id)} disabled={!newSiteInputs[unit.id]?.trim()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex gap-2 mb-3">
+                    <Input
+                      placeholder="Nom du site (ex: Entrepôt Nord, Bureau 2ème étage, Chantier A...)"
+                      value={newSiteInputs[unit.id] || ''}
+                      onChange={(e) => setNewSiteInputs(prev => ({ ...prev, [unit.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addSite(unit.id)}
+                    />
+                    <Button variant="outline" onClick={() => addSite(unit.id)} disabled={!newSiteInputs[unit.id]?.trim()}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {(unit.unitSites || []).length === 0 ? (
                     <p className="text-sm text-muted-foreground italic">Aucun site ajouté</p>
@@ -263,12 +275,14 @@ export default function WorkstationSetupStep({
                       <Badge key={site.id} variant="outline" className="py-1.5 px-3 text-sm flex items-center gap-2">
                         <MapPin className="h-3 w-3 text-blue-500" />
                         {site.name}
-                        <button
-                          onClick={() => removeSite(unit.id, site.id)}
-                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            onClick={() => removeSite(unit.id, site.id)}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </button>
+                        )}
                       </Badge>
                     ))
                   )}
