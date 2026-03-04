@@ -179,9 +179,6 @@ export default function PlanActionStep({
     Array<{ id: number; measures: string; family?: string }>
   >([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
-  const [manualMeasureInput, setManualMeasureInput] = useState("");
-  const [showSuggestionsPlan, setShowSuggestionsPlan] = useState(false);
-  const [suggestionFamily, setSuggestionFamily] = useState("Ergonomique");
   const [measuresDialogRow, setMeasuresDialogRow] = useState<(TableRisk & { action?: ActionRow }) | null>(null);
   const [editingMeasuresList, setEditingMeasuresList] = useState<string[]>([]);
   const [newMeasureInDialog, setNewMeasureInDialog] = useState("");
@@ -217,14 +214,6 @@ export default function PlanActionStep({
       ),
     }));
   }, [allRisks, actions]);
-
-  const complementaryActions = useMemo(
-    () => actions.filter((a) => a.sourceType !== "risk"),
-    [actions]
-  );
-
-  const suggestedMeasuresList = SUGGESTED_MEASURES[suggestionFamily] || [];
-  const familiesWithSuggestions = Object.keys(SUGGESTED_MEASURES);
 
   const invalidateActions = () =>
     queryClient.invalidateQueries({
@@ -296,8 +285,9 @@ export default function PlanActionStep({
   ) => {
     const trimmed = value.trim();
     if (row.action) {
-      if (trimmed !== (row.action.title || ""))
-        updateMeasuresMutation.mutate({ actionId: row.action.id, title: trimmed || row.risk.measures || "—" });
+      const newTitle = trimmed || "—";
+      if (newTitle !== (row.action.title || ""))
+        updateMeasuresMutation.mutate({ actionId: row.action.id, title: newTitle });
     } else if (trimmed && docIdNum) {
       createActionForRiskMutation.mutate({
         riskId: row.risk.id,
@@ -416,7 +406,6 @@ export default function PlanActionStep({
       setNewTitle("");
       setNewDescription("");
       setNewPriority("medium");
-      setManualMeasureInput("");
       toast({ title: "Action créée" });
     },
     onError: (e: Error) => {
@@ -503,63 +492,6 @@ export default function PlanActionStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => generateMutation.mutate()}
-                disabled={generateMutation.isPending || readOnly}
-              >
-                {generateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ListTodo className="h-4 w-4 mr-2" />
-                )}
-                Générer à partir du DUERP
-              </Button>
-              {!readOnly && (
-                <div className="flex gap-2 flex-1 min-w-[280px] max-w-md">
-                  <Input
-                    placeholder="Ajouter une mesure manuellement..."
-                    value={manualMeasureInput}
-                    onChange={(e) => setManualMeasureInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (manualMeasureInput.trim()) {
-                          createActionMutation.mutate({
-                            title: manualMeasureInput.trim(),
-                            description: undefined,
-                            priority: "medium",
-                          });
-                        }
-                      }
-                    }}
-                    className="h-9 text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 flex-shrink-0"
-                    onClick={() => {
-                      if (manualMeasureInput.trim()) {
-                        createActionMutation.mutate({
-                          title: manualMeasureInput.trim(),
-                          description: undefined,
-                          priority: "medium",
-                        });
-                      }
-                    }}
-                    disabled={!manualMeasureInput.trim() || createActionMutation.isPending}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
           <div className="rounded-md border overflow-hidden">
             {actionsLoading ? (
               <div className="flex justify-center py-8">
@@ -575,7 +507,7 @@ export default function PlanActionStep({
             ) : planRows.length === 0 ? (
               <div className="text-center text-muted-foreground py-8 px-4">
                 <p className="mb-2">Aucun risque dans les unités de travail.</p>
-                <p className="text-sm">Complétez l’étape « Risques et mesures » puis cliquez sur « Générer à partir du DUERP » pour remplir le plan d’action.</p>
+                <p className="text-sm">Complétez l’étape « Risques et mesures » pour afficher le plan d’action.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -600,8 +532,10 @@ export default function PlanActionStep({
                       const PIcon = PRIORITY_ICONS[row.risk.priority || ""] || Info;
                       const priority = row.risk.priority || "Priorité 4 (Faible)";
                       const rowClass = RISK_ROW_COLORS[priority] || "";
-                      const measuresPreview = (row.action?.title ?? "").trim();
-                      const previewText = measuresPreview ? (measuresPreview.length > 50 ? measuresPreview.slice(0, 50) + "…" : measuresPreview) : "—";
+                      const rawTitle = (row.action?.title ?? "").trim();
+                      const hasContent = rawTitle && rawTitle !== "—";
+                      const oneLine = hasContent ? rawTitle.replace(/\n/g, " · ") : "";
+                      const previewText = oneLine ? (oneLine.length > 55 ? oneLine.slice(0, 55) + "…" : oneLine) : "—";
                       return (
                         <TableRow key={row.risk.id} className={`${rowClass} hover:bg-muted/40`}>
                           <TableCell className="text-center">
@@ -643,7 +577,7 @@ export default function PlanActionStep({
                             )}
                           </TableCell>
                           <TableCell className="text-xs py-2 max-w-[200px]">
-                            <span className="text-muted-foreground block truncate" title={measuresPreview || undefined}>
+                            <span className="text-muted-foreground block truncate" title={hasContent ? rawTitle : undefined}>
                               {previewText}
                             </span>
                           </TableCell>
@@ -656,7 +590,9 @@ export default function PlanActionStep({
                                   className="h-8 w-8 p-0"
                                   onClick={() => {
                                     setMeasuresDialogRow(row);
-                                    setEditingMeasuresList((row.action?.title ?? "").split("\n").filter(Boolean));
+                                    const raw = (row.action?.title ?? "").trim();
+                                    const list = raw && raw !== "—" ? raw.split("\n").filter((s) => s.trim()) : [];
+                                    setEditingMeasuresList(list);
                                     setNewMeasureInDialog("");
                                     setShowSuggestionsInDialog(false);
                                   }}
@@ -686,106 +622,6 @@ export default function PlanActionStep({
                     })}
                   </TableBody>
                 </Table>
-              </div>
-            )}
-          </div>
-
-          {/* Mesures de prévention existantes (complémentaires) — à la fin des risques */}
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Mesures de prévention existantes</h3>
-              <Badge variant="outline" className="text-xs">{complementaryActions.length} mesure(s)</Badge>
-            </div>
-            {complementaryActions.length > 0 && (
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="text-xs">Mesure</TableHead>
-                      {!readOnly && (
-                        <TableHead className="w-[100px] text-right text-xs">Actions</TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {complementaryActions.map((action) => (
-                      <TableRow key={action.id}>
-                        <TableCell className="text-sm py-2">{action.title}</TableCell>
-                        {!readOnly && (
-                          <TableCell className="text-right py-2">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setEditAction(action)}
-                                title="Voir / Modifier"
-                              >
-                                <Eye className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                onClick={() => deleteActionMutation.mutate(action.id)}
-                                title="Supprimer"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            {!readOnly && suggestedMeasuresList.length > 0 && (
-              <div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-blue-600 dark:text-blue-400 h-7 px-2"
-                  onClick={() => setShowSuggestionsPlan(!showSuggestionsPlan)}
-                >
-                  {showSuggestionsPlan ? "Masquer les suggestions" : `Voir ${suggestedMeasuresList.length} suggestion(s) pour « ${suggestionFamily} »`}
-                </Button>
-                {showSuggestionsPlan && (
-                  <div className="space-y-2 mt-2 p-3 border rounded-md bg-muted/30 max-h-[220px] overflow-y-auto">
-                    <Select value={suggestionFamily} onValueChange={setSuggestionFamily}>
-                      <SelectTrigger className="h-8 w-48 text-xs">
-                        <SelectValue placeholder="Famille" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {familiesWithSuggestions.map((f) => (
-                          <SelectItem key={f} value={f}>
-                            {f}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="space-y-1">
-                      {(SUGGESTED_MEASURES[suggestionFamily] || []).map((measure, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          className="w-full text-left text-sm p-2 rounded hover:bg-muted transition-colors flex items-center gap-2"
-                          onClick={() => {
-                            createActionMutation.mutate({
-                              title: measure,
-                              description: undefined,
-                              priority: "medium",
-                            });
-                          }}
-                        >
-                          <Plus className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span>{measure}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
