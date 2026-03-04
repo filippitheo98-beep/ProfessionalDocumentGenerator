@@ -7,6 +7,7 @@ import type { RequestHandler } from "express";
 import bcrypt from "bcrypt";
 import passport from "passport";
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, users, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
+import { isAdminEmail } from "@shared/adminConfig";
 import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel } from './exportUtils';
 import { db } from "./db";
@@ -125,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   const isAdmin: RequestHandler = (req: any, res, next) => {
-    if (req.user?.role !== "admin") {
+    if (!isAdminEmail(req.user?.email)) {
       return res.status(403).json({ message: "Accès réservé aux administrateurs" });
     }
     next();

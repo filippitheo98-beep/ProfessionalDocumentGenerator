@@ -3,23 +3,26 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthGuard } from "./AuthGuard";
 import { useToast } from "@/hooks/use-toast";
+import { isAdminEmail } from "@shared/adminConfig";
 
 interface AdminGuardProps {
   children: React.ReactNode;
 }
 
 /**
- * Protège les routes admin : doit être connecté ET avoir le rôle admin.
- * Utilise AuthGuard en interne, puis vérifie le rôle.
+ * Protège les routes admin : doit être connecté ET être l'utilisateur admin défini par email.
+ * Seul l'email configuré dans shared/adminConfig a accès.
  */
 export function AdminGuard({ children }: AdminGuardProps) {
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const email = (user as { email?: string })?.email;
+  const canAccessAdmin = isAdminEmail(email);
 
   useEffect(() => {
     if (isLoading) return;
-    if (user && (user as { role?: string }).role !== "admin") {
+    if (user && !canAccessAdmin) {
       toast({
         title: "Accès refusé",
         description: "Cette page est réservée aux administrateurs.",
@@ -27,11 +30,11 @@ export function AdminGuard({ children }: AdminGuardProps) {
       });
       navigate("/", { replace: true });
     }
-  }, [user, isLoading, navigate, toast]);
+  }, [user, isLoading, canAccessAdmin, navigate, toast]);
 
   return (
     <AuthGuard>
-      {user && (user as { role?: string }).role === "admin" ? children : null}
+      {user && canAccessAdmin ? children : null}
     </AuthGuard>
   );
 }

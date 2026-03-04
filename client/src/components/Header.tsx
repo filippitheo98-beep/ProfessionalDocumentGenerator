@@ -13,20 +13,21 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
+import { isAdminEmail } from '@shared/adminConfig';
 
-const navItems = (isAdmin: boolean) => [
+const navItems = (showAdmin: boolean) => [
   { path: '/', label: 'Accueil', icon: Home },
   { path: '/duerp-generator', label: 'Générateur', icon: Shield },
   { path: '/documents', label: 'Mes DUERP', icon: FileText },
   { path: '/revisions', label: 'Révisions', icon: Shield },
   { path: '/risk-library', label: 'Bibliothèque', icon: Library },
-  ...(isAdmin ? [{ path: '/admin', label: 'Administration', icon: ShieldCheck }] : []),
+  ...(showAdmin ? [{ path: '/admin', label: 'Administration', icon: ShieldCheck }] : []),
 ];
 
 export function Header() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
-  const isAdmin = (user as { role?: string })?.role === 'admin';
+  const showAdmin = isAdminEmail((user as { email?: string })?.email);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -60,7 +61,7 @@ export function Header() {
           </div>
 
           <nav className="hidden md:flex items-center gap-1">
-            {navItems(isAdmin).map((item) => {
+            {navItems(showAdmin).map((item) => {
               const Icon = item.icon;
               return (
                 <Button
@@ -112,7 +113,7 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t bg-background">
           <nav className="container py-2 space-y-1">
-            {navItems(isAdmin).map((item) => {
+            {navItems(showAdmin).map((item) => {
               const Icon = item.icon;
               return (
                 <Button
