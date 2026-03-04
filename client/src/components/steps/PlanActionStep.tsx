@@ -104,13 +104,16 @@ export default function PlanActionStep({
   const [libraryLoading, setLibraryLoading] = useState(false);
 
   const {
-    data: actions = [],
+    data: actionsData,
     isLoading: actionsLoading,
+    isError: actionsError,
   } = useQuery<ActionRow[]>({
-    queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
-    queryFn: getQueryFn(),
+    queryKey: docIdNum ? [`/api/duerp-documents/${docIdNum}/actions`] : [],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!docIdNum,
+    retry: false,
   });
+  const actions = Array.isArray(actionsData) ? actionsData : [];
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -378,6 +381,13 @@ export default function PlanActionStep({
             {actionsLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : actionsError ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground text-sm">
+                <p>Impossible de charger les actions.</p>
+                <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: docIdNum ? [`/api/duerp-documents/${docIdNum}/actions`] : [] })}>
+                  Réessayer
+                </Button>
               </div>
             ) : (
               <Table>

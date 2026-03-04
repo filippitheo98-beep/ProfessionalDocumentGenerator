@@ -113,9 +113,13 @@ export default function NewDuerpGenerator() {
   }, [existingDocument, existingCompany]);
 
   // Ouvrir directement sur l'étape demandée par l'URL (?step=4)
+  const stepFromUrlRef = useRef<number | null>(null);
+  if (stepFromUrlRef.current === null && initialStep != null && initialStep >= 1 && initialStep <= 5) {
+    stepFromUrlRef.current = initialStep;
+  }
   useEffect(() => {
-    if (initialStep != null && initialStep >= 1 && initialStep <= 5) {
-      setCurrentStep(initialStep);
+    if (stepFromUrlRef.current != null) {
+      setCurrentStep(stepFromUrlRef.current);
     }
   }, []);
 
