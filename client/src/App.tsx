@@ -16,6 +16,7 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ChangePassword from "@/pages/ChangePassword";
+import Parametres from "@/pages/Parametres";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthGuard } from "./components/AuthGuard";
 import { AdminGuard } from "./components/AdminGuard";
@@ -59,6 +60,11 @@ function Router() {
       <Route path="/risk-library">
         <AuthGuard>
           <RiskLibraryManagement />
+        </AuthGuard>
+      </Route>
+      <Route path="/parametres">
+        <AuthGuard>
+          <Parametres />
         </AuthGuard>
       </Route>
       <Route path="/admin">

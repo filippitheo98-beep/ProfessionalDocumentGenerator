@@ -97,7 +97,7 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigate('/parametres')}>
                 <Settings className="h-4 w-4 mr-2" />
                 Paramètres
               </DropdownMenuItem>
