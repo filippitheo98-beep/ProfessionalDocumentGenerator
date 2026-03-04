@@ -44,6 +44,7 @@ import {
   AlertCircle,
   Info,
   Eye,
+  X,
 } from "lucide-react";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -178,10 +179,13 @@ export default function PlanActionStep({
     Array<{ id: number; measures: string; family?: string }>
   >([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
-  const [editingMeasures, setEditingMeasures] = useState<Record<string, string>>({});
   const [manualMeasureInput, setManualMeasureInput] = useState("");
   const [showSuggestionsPlan, setShowSuggestionsPlan] = useState(false);
   const [suggestionFamily, setSuggestionFamily] = useState("Ergonomique");
+  const [measuresDialogRow, setMeasuresDialogRow] = useState<(TableRisk & { action?: ActionRow }) | null>(null);
+  const [editingMeasuresList, setEditingMeasuresList] = useState<string[]>([]);
+  const [newMeasureInDialog, setNewMeasureInDialog] = useState("");
+  const [showSuggestionsInDialog, setShowSuggestionsInDialog] = useState(false);
 
   const allRisks = useMemo((): TableRisk[] => {
     const list: TableRisk[] = [];
@@ -585,7 +589,10 @@ export default function PlanActionStep({
                       <TableHead className="text-xs">Danger identifié</TableHead>
                       <TableHead className="w-[110px] text-xs">Priorité</TableHead>
                       <TableHead className="text-xs max-w-[200px]">Complété (mesures existantes)</TableHead>
-                      <TableHead className="min-w-[220px] text-xs">Mesures à mettre en place</TableHead>
+                      <TableHead className="min-w-[180px] text-xs">Mesures à mettre en place</TableHead>
+                      {!readOnly && (
+                        <TableHead className="w-[90px] text-center text-xs">Actions</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -593,7 +600,8 @@ export default function PlanActionStep({
                       const PIcon = PRIORITY_ICONS[row.risk.priority || ""] || Info;
                       const priority = row.risk.priority || "Priorité 4 (Faible)";
                       const rowClass = RISK_ROW_COLORS[priority] || "";
-                      const measuresValue = row.action?.title ?? "";
+                      const measuresPreview = (row.action?.title ?? "").trim();
+                      const previewText = measuresPreview ? (measuresPreview.length > 50 ? measuresPreview.slice(0, 50) + "…" : measuresPreview) : "—";
                       return (
                         <TableRow key={row.risk.id} className={`${rowClass} hover:bg-muted/40`}>
                           <TableCell className="text-center">
@@ -634,33 +642,45 @@ export default function PlanActionStep({
                               <span className="text-muted-foreground italic">Aucune</span>
                             )}
                           </TableCell>
-                          <TableCell className="p-1 align-top">
-                            {readOnly ? (
-                              <span className="text-xs block py-2 px-2">{measuresValue || "—"}</span>
-                            ) : (
-                              <Textarea
-                                className="min-h-[60px] text-xs resize-y border-muted bg-background"
-                                placeholder="Saisir les mesures à mettre en place…"
-                                value={editingMeasures[row.risk.id] ?? measuresValue}
-                                onChange={(e) =>
-                                  setEditingMeasures((prev) => ({ ...prev, [row.risk.id]: e.target.value }))
-                                }
-                                onBlur={(e) => {
-                                  const value = e.target.value;
-                                  const current = editingMeasures[row.risk.id] ?? measuresValue;
-                                  if (value.trim() !== (row.action?.title ?? "").trim()) {
-                                    saveMeasuresToImplement(row, value);
-                                  }
-                                  setEditingMeasures((prev) => {
-                                    const next = { ...prev };
-                                    delete next[row.risk.id];
-                                    return next;
-                                  });
-                                }}
-                                disabled={updateMeasuresMutation.isPending || createActionForRiskMutation.isPending}
-                              />
-                            )}
+                          <TableCell className="text-xs py-2 max-w-[200px]">
+                            <span className="text-muted-foreground block truncate" title={measuresPreview || undefined}>
+                              {previewText}
+                            </span>
                           </TableCell>
+                          {!readOnly && (
+                            <TableCell className="text-center py-2">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => {
+                                    setMeasuresDialogRow(row);
+                                    setEditingMeasuresList((row.action?.title ?? "").split("\n").filter(Boolean));
+                                    setNewMeasureInDialog("");
+                                    setShowSuggestionsInDialog(false);
+                                  }}
+                                  title="Voir / Éditer les mesures"
+                                >
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    if (row.action) {
+                                      deleteActionMutation.mutate(row.action.id);
+                                    }
+                                  }}
+                                  disabled={!row.action}
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -771,6 +791,144 @@ export default function PlanActionStep({
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog Mesures à mettre en place (menu comme image 3) */}
+      {measuresDialogRow && (
+        <Dialog
+          open={!!measuresDialogRow}
+          onOpenChange={(open) => {
+            if (!open) setMeasuresDialogRow(null);
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Mesures à mettre en place</DialogTitle>
+              <p className="text-sm text-muted-foreground">{measuresDialogRow.unitName} — {measuresDialogRow.risk.danger}</p>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Mesures de prévention recommandées</Label>
+                <p className="text-sm text-muted-foreground italic mt-1 bg-muted/50 p-2 rounded">
+                  {measuresDialogRow.risk.measures || "—"}
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Mesures à mettre en place</Label>
+                  <Badge variant="outline" className="text-xs">{editingMeasuresList.length} mesure(s)</Badge>
+                </div>
+                {editingMeasuresList.length > 0 && (
+                  <div className="space-y-1.5">
+                    {editingMeasuresList.map((measure, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-2 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                        <span className="text-sm flex-1">{measure}</span>
+                        {!readOnly && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 flex-shrink-0"
+                            onClick={() => setEditingMeasuresList((prev) => prev.filter((_, i) => i !== idx))}
+                          >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!readOnly && (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Ajouter une mesure manuellement..."
+                        value={newMeasureInDialog}
+                        onChange={(e) => setNewMeasureInDialog(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (newMeasureInDialog.trim()) {
+                              setEditingMeasuresList((prev) => [...prev, newMeasureInDialog.trim()]);
+                              setNewMeasureInDialog("");
+                            }
+                          }
+                        }}
+                        className="h-9 text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 flex-shrink-0"
+                        onClick={() => {
+                          if (newMeasureInDialog.trim()) {
+                            setEditingMeasuresList((prev) => [...prev, newMeasureInDialog.trim()]);
+                            setNewMeasureInDialog("");
+                          }
+                        }}
+                        disabled={!newMeasureInDialog.trim()}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {(() => {
+                      const family = measuresDialogRow.risk.family || "Ergonomique";
+                      const suggestions = SUGGESTED_MEASURES[family] || [];
+                      return suggestions.length > 0 ? (
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-blue-600 dark:text-blue-400 h-7 px-2"
+                            onClick={() => setShowSuggestionsInDialog(!showSuggestionsInDialog)}
+                          >
+                            {showSuggestionsInDialog ? "Masquer les suggestions" : `Voir ${suggestions.length} suggestion(s) pour « ${family} »`}
+                          </Button>
+                          {showSuggestionsInDialog && (
+                            <div className="space-y-1 mt-2 max-h-[200px] overflow-y-auto border rounded-md p-2 bg-blue-50/50 dark:bg-blue-950/10">
+                              {suggestions.map((measure, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  className="w-full text-left text-sm p-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                                  onClick={() => {
+                                    setEditingMeasuresList((prev) => [...prev, measure]);
+                                  }}
+                                >
+                                  <Plus className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                                  <span>{measure}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
+                  </>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMeasuresDialogRow(null)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={() => {
+                  const value = editingMeasuresList.join("\n");
+                  saveMeasuresToImplement(measuresDialogRow, value);
+                  setMeasuresDialogRow(null);
+                }}
+                disabled={updateMeasuresMutation.isPending || createActionForRiskMutation.isPending}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Enregistrer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal Ajouter */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
