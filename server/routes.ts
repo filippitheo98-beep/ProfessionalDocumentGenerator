@@ -1039,17 +1039,19 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   app.post('/api/duerp-documents/:documentId/actions/generate-from-duerp', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.documentId);
+      if (Number.isNaN(documentId)) return res.status(400).json({ message: 'ID document invalide' });
       const access = await ensureDocumentAccess(documentId, req.user?.id);
       if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
       if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
       const doc = 'doc' in access ? access.doc : await storage.getDuerpDocumentById(documentId);
       if (!doc) return res.status(404).json({ message: 'Document non trouvé' });
       const { risks, measures } = storage.extractRisksAndMeasuresFromDuerp(doc);
-      const existingTitles = new Set((await storage.getActionsByDuerp(documentId)).map((a: any) => a.title?.toLowerCase()));
+      const existingTitles = new Set((await storage.getActionsByDuerp(documentId)).map((a: any) => (a.title && String(a.title).toLowerCase()) || ''));
       const created: any[] = [];
       for (const r of risks) {
-        const title = r.measures.slice(0, 200);
-        if (!existingTitles.has(title.toLowerCase())) {
+        const title = (r.measures || '').slice(0, 200).trim() || `Risque ${r.id || created.length + 1}`;
+        const titleLower = title.toLowerCase();
+        if (!existingTitles.has(titleLower)) {
           const action = await storage.createAction({
             duerpId: documentId,
             title,
@@ -1057,15 +1059,16 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
             priority: riskPriorityToActionPriority(r.priority),
             status: 'pending',
             sourceType: 'risk',
-            sourceId: r.id,
+            sourceId: r.id || null,
           });
           created.push(action);
-          existingTitles.add(title.toLowerCase());
+          existingTitles.add(titleLower);
         }
       }
       for (const m of measures) {
-        const title = m.description.slice(0, 200);
-        if (!existingTitles.has(title.toLowerCase())) {
+        const title = (m.description || '').slice(0, 200).trim() || `Mesure ${m.id || created.length + 1}`;
+        const titleLower = title.toLowerCase();
+        if (!existingTitles.has(titleLower)) {
           const action = await storage.createAction({
             duerpId: documentId,
             title,
@@ -1074,16 +1077,17 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
             status: 'pending',
             dueDate: m.deadline ? new Date(m.deadline) : null,
             sourceType: 'measure',
-            sourceId: m.id,
+            sourceId: m.id || null,
           });
           created.push(action);
-          existingTitles.add(title.toLowerCase());
+          existingTitles.add(titleLower);
         }
       }
       res.json(created);
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ message: 'Erreur lors de la génération du plan d\'action' });
+    } catch (e: any) {
+      console.error('generate-from-duerp error:', e?.message || e, e?.stack);
+      const msg = e?.message && typeof e.message === 'string' ? e.message : 'Erreur lors de la génération du plan d\'action';
+      res.status(500).json({ message: msg });
     }
   });
 

@@ -868,25 +868,29 @@ Répondez en JSON valide: { "risks": [...] }`;
   extractRisksAndMeasuresFromDuerp(doc: DuerpDocument): { risks: Array<{ id: string; type?: string; danger: string; measures: string; priority?: string; family?: string }>; measures: Array<{ id: string; description: string; priority?: string; responsible?: string; deadline?: string }> } {
     const risks: Array<{ id: string; type?: string; danger: string; measures: string; priority?: string; family?: string }> = [];
     const measures: Array<{ id: string; description: string; priority?: string; responsible?: string; deadline?: string }> = [];
-    const workUnits = (doc.workUnitsData as WorkUnit[]) || [];
+    const workUnits = Array.isArray(doc.workUnitsData) ? (doc.workUnitsData as WorkUnit[]) : [];
     for (const unit of workUnits) {
-      for (const risk of (unit.risks || [])) {
-        if (risk.measures && risk.measures.trim()) {
+      const unitRisks = Array.isArray(unit.risks) ? unit.risks : [];
+      for (const risk of unitRisks) {
+        const measuresStr = typeof risk.measures === 'string' ? risk.measures : String(risk.measures ?? '').trim();
+        if (measuresStr) {
           risks.push({
-            id: risk.id,
+            id: risk.id != null ? String(risk.id) : '',
             type: risk.type,
-            danger: risk.danger || '',
-            measures: risk.measures,
+            danger: typeof risk.danger === 'string' ? risk.danger : '',
+            measures: measuresStr,
             priority: risk.priority,
             family: typeof risk.family === 'string' ? risk.family : undefined,
           });
         }
       }
-      for (const measure of (unit.preventionMeasures || [])) {
-        if (measure.description?.trim()) {
+      const unitMeasures = Array.isArray(unit.preventionMeasures) ? unit.preventionMeasures : [];
+      for (const measure of unitMeasures) {
+        const desc = typeof measure.description === 'string' ? measure.description : String(measure.description ?? '').trim();
+        if (desc) {
           measures.push({
-            id: measure.id,
-            description: measure.description,
+            id: measure.id != null ? String(measure.id) : '',
+            description: desc,
             priority: measure.priority,
             responsible: measure.responsible,
             deadline: measure.deadline,
@@ -894,26 +898,30 @@ Répondez en JSON valide: { "risks": [...] }`;
         }
       }
     }
-    const finalRisks = (doc.finalRisks as Risk[]) || [];
+    const finalRisks = Array.isArray(doc.finalRisks) ? (doc.finalRisks as Risk[]) : [];
     for (const risk of finalRisks) {
-      if (risk.measures && risk.measures.trim() && !risks.some(r => r.id === risk.id)) {
+      const measuresStr = typeof risk.measures === 'string' ? risk.measures : String(risk.measures ?? '').trim();
+      const riskId = risk.id != null ? String(risk.id) : '';
+      if (measuresStr && !risks.some(r => r.id === riskId)) {
         risks.push({
-          id: risk.id,
+          id: riskId,
           type: risk.type,
-          danger: risk.danger || '',
-          measures: risk.measures,
+          danger: typeof risk.danger === 'string' ? risk.danger : '',
+          measures: measuresStr,
           priority: risk.priority,
           family: typeof risk.family === 'string' ? risk.family : undefined,
         });
       }
     }
-    const globalMeasures = (doc.globalPreventionMeasures as PreventionMeasure[]) || [];
-    const legacyMeasures = (doc.preventionMeasures as PreventionMeasure[]) || [];
+    const globalMeasures = Array.isArray(doc.globalPreventionMeasures) ? (doc.globalPreventionMeasures as PreventionMeasure[]) : [];
+    const legacyMeasures = Array.isArray(doc.preventionMeasures) ? (doc.preventionMeasures as PreventionMeasure[]) : [];
     for (const measure of [...globalMeasures, ...legacyMeasures]) {
-      if (measure.description?.trim() && !measures.some(m => m.id === measure.id)) {
+      const desc = typeof measure.description === 'string' ? measure.description : String(measure.description ?? '').trim();
+      const measureId = measure.id != null ? String(measure.id) : '';
+      if (desc && !measures.some(m => m.id === measureId)) {
         measures.push({
-          id: measure.id,
-          description: measure.description,
+          id: measureId,
+          description: desc,
           priority: measure.priority,
           responsible: measure.responsible,
           deadline: measure.deadline,
