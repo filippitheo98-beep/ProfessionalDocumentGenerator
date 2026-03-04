@@ -9,7 +9,7 @@ import passport from "passport";
 import { generateRisksRequestSchema, insertCompanySchema, duerpDocuments, companies, users, riskLibrary, sectors, riskFamilies, customMeasures, type Risk, type Site, type WorkUnit } from "@shared/schema";
 import { isAdminEmail } from "@shared/adminConfig";
 import { z } from "zod";
-import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel } from './exportUtils';
+import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel, generateRisksAndPlanActionExportExcel } from './exportUtils';
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql, ilike, or, and, inArray } from "drizzle-orm";
 
@@ -1033,6 +1033,36 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     } catch (e) {
       console.error(e);
       res.status(500).json({ message: 'Erreur lors de la suppression de l\'action' });
+    }
+  });
+
+  // Export combiné : tableau des risques + plan d'action (2 feuilles)
+  app.get('/api/duerp-documents/:documentId/export-risques-plan.xlsx', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const [risksData, planData] = await Promise.all([
+        storage.getRisksForExport(documentId),
+        storage.getPlanActionForExport(documentId),
+      ]);
+      const buffer = await generateRisksAndPlanActionExportExcel(
+        risksData.risks,
+        planData.risks,
+        risksData.documentId
+      );
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `duerp_risques_plan_${risksData.documentId}_${dateStr}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('Error exporting risks + plan action to Excel:', error);
+      if (error.message?.includes('non trouvé')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Erreur lors de l\'export Excel (risques et plan d\'action)' });
     }
   });
 

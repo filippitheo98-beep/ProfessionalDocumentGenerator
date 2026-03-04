@@ -48,6 +48,7 @@ export default function NewDuerpGenerator() {
   const [savedDocumentId, setSavedDocumentId] = useState<number | null>(null);
   const [isFinalized, setIsFinalized] = useState(false);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [isExportingPlanExcel, setIsExportingPlanExcel] = useState(false);
   const initialLoadDone = useRef<string | null>(null);
   
   // Gestion du document (création/modification)
@@ -694,6 +695,46 @@ export default function NewDuerpGenerator() {
     }
   };
 
+  const handleExportPlanExcel = async () => {
+    const id = documentId ? parseInt(documentId, 10) : null;
+    if (!id || isNaN(id)) {
+      toast({
+        title: "Export impossible",
+        description: "Sauvegardez le DUERP pour exporter le plan d'action.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsExportingPlanExcel(true);
+    try {
+      const dateStr = new Date().toISOString().split('T')[0];
+      const response = await fetch(`/api/duerp-documents/${id}/actions/export.xlsx`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plan_action_${id}_${dateStr}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "Export réussi",
+        description: "Le plan d'action a été téléchargé.",
+      });
+    } catch {
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter le plan d'action en Excel",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingPlanExcel(false);
+    }
+  };
+
   const handleExportWord = async () => {
     try {
       toast({
@@ -811,6 +852,8 @@ export default function NewDuerpGenerator() {
                 documentId={documentId}
                 workUnits={duerpWorkUnits}
                 onSave={handleSaveProgress}
+                onExportExcel={handleExportPlanExcel}
+                isExportingExcel={isExportingPlanExcel}
                 readOnly={isViewMode}
               />
             )}

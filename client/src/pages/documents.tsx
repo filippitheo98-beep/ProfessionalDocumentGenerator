@@ -61,10 +61,10 @@ export default function Documents() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
-  const exportPlanActionExcel = async (documentId: number) => {
+  const exportRisquesEtPlanExcel = async (documentId: number) => {
     setExportingPlanId(documentId);
     try {
-      const response = await fetch(`/api/duerp-documents/${documentId}/actions/export.xlsx`, {
+      const response = await fetch(`/api/duerp-documents/${documentId}/export-risques-plan.xlsx`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -74,16 +74,16 @@ export default function Documents() {
       const a = document.createElement('a');
       a.href = url;
       const dateStr = new Date().toISOString().split('T')[0];
-      a.download = `plan_action_${documentId}_${dateStr}.xlsx`;
+      a.download = `duerp_risques_plan_${documentId}_${dateStr}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       a.remove();
-      toast({ title: 'Export réussi', description: 'Le plan d\'action a été téléchargé.' });
+      toast({ title: 'Export réussi', description: 'Tableau des risques et plan d\'action ont été téléchargés.' });
     } catch (e: any) {
       toast({
         title: 'Erreur',
-        description: e?.message || 'Impossible d\'exporter le plan d\'action.',
+        description: e?.message || 'Impossible d\'exporter.',
         variant: 'destructive',
       });
     } finally {
@@ -332,7 +332,7 @@ export default function Documents() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => exportPlanActionExcel(doc.id)}
+                          onClick={() => exportRisquesEtPlanExcel(doc.id)}
                           disabled={exportingPlanId === doc.id}
                         >
                           {exportingPlanId === doc.id ? (
@@ -340,7 +340,7 @@ export default function Documents() {
                           ) : (
                             <FileSpreadsheet className="h-4 w-4 mr-1.5" />
                           )}
-                          Export Excel (plan d&apos;action)
+                          Export Excel (risques et plan d&apos;action)
                         </Button>
                         {doc.status === 'active' && (
                           <Button 

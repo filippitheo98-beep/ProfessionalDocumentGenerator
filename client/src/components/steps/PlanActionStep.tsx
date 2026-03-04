@@ -45,6 +45,7 @@ import {
   Info,
   Eye,
   X,
+  FileSpreadsheet,
 } from "lucide-react";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -150,6 +151,8 @@ interface PlanActionStepProps {
   documentId: string | null;
   workUnits?: WorkUnit[];
   onSave: () => void;
+  onExportExcel?: () => void;
+  isExportingExcel?: boolean;
   readOnly?: boolean;
 }
 
@@ -157,6 +160,8 @@ export default function PlanActionStep({
   documentId,
   workUnits = [],
   onSave,
+  onExportExcel,
+  isExportingExcel = false,
   readOnly = false,
 }: PlanActionStepProps) {
   const docIdNum = documentId ? parseInt(documentId, 10) : null;
@@ -485,11 +490,26 @@ export default function PlanActionStep({
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2">
             <ListTodo className="h-5 w-5" />
             Plan d&apos;action
           </CardTitle>
+          {onExportExcel && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportExcel}
+              disabled={isExportingExcel || planRows.length === 0}
+            >
+              {isExportingExcel ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+              )}
+              {isExportingExcel ? "Export…" : "Exporter Excel"}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-md border overflow-hidden">

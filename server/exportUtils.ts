@@ -145,6 +145,53 @@ export async function generateRisksExportExcel(
   return Buffer.from(buffer);
 }
 
+/** Génère un classeur Excel avec 2 feuilles : Tableau des risques + Plan d'action */
+export async function generateRisksAndPlanActionExportExcel(
+  risksRows: Array<Record<string, string | number>>,
+  planActionRows: Array<Record<string, string | number>>,
+  documentId: number
+): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const lastCol = String.fromCharCode(64 + RISKS_EXPORT_HEADERS.length);
+  const widths = [25, 35, 30, 18, 12, 18, 15, 8, 35, 40, 15, 12, 12, 25];
+
+  const addSheet = (name: string, rows: Array<Record<string, string | number>>) => {
+    const sheet = workbook.addWorksheet(name, {
+      views: [{ state: 'frozen', ySplit: 1 }]
+    });
+    const headerRow = sheet.addRow([...RISKS_EXPORT_HEADERS]);
+    headerRow.font = { bold: true };
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+    });
+    for (const r of rows) {
+      const row = RISKS_EXPORT_HEADERS.map((h) => {
+        const v = r[h];
+        if (h === 'Échéance' && typeof v === 'string' && v) {
+          const d = new Date(v);
+          return isNaN(d.getTime()) ? v : d;
+        }
+        return v ?? '';
+      });
+      sheet.addRow(row);
+    }
+    sheet.autoFilter = { from: 'A1', to: `${lastCol}1` };
+    sheet.columns = RISKS_EXPORT_HEADERS.map((_, i) => ({
+      width: Math.min(50, Math.max(widths[i] || 12, 10))
+    }));
+  };
+
+  addSheet('Tableau des risques', risksRows);
+  addSheet('Plan d\'action', planActionRows);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
 export async function generatePDFFile(risks: any[], companyName: string, companyActivity: string, companyData?: any, locations?: any[], workStations?: any[], preventionMeasures?: any[], chartImages?: any): Promise<Buffer> {
   const doc = new jsPDF('landscape', 'mm', 'a4');
   
