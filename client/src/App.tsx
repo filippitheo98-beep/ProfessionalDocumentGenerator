@@ -29,7 +29,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/change-password">
-        <AuthGuard allowIfMustChangePassword>
+        <AuthGuard>
           <ChangePassword />
         </AuthGuard>
       </Route>

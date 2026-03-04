@@ -957,6 +957,7 @@ export default function DuerpGenerator() {
               onChange={setDuerpTitle}
               onValidation={setIsTitleValid}
               companyName={company?.name}
+              companyId={company?.id}
               placeholder="Ex: DUERP Mars 2024"
             />
           </div>

@@ -1039,13 +1039,14 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
   // Generate unique document title
   app.post('/api/duerp/generate-title', async (req, res) => {
     try {
-      const { baseTitle } = req.body;
+      const { baseTitle, companyId } = req.body;
       
       if (!baseTitle) {
         return res.status(400).json({ message: 'Base title is required' });
       }
 
-      const uniqueTitle = await storage.generateUniqueDocumentTitle(baseTitle);
+      const companyIdNum = companyId != null ? parseInt(companyId, 10) : undefined;
+      const uniqueTitle = await storage.generateUniqueDocumentTitle(baseTitle, Number.isNaN(companyIdNum) ? undefined : companyIdNum);
       res.json({ title: uniqueTitle });
     } catch (error) {
       console.error('Error generating unique title:', error);

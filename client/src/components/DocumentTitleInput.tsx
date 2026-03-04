@@ -11,6 +11,7 @@ interface DocumentTitleInputProps {
   onChange: (value: string) => void;
   onValidation?: (isValid: boolean) => void;
   companyName?: string;
+  companyId?: number;
   disabled?: boolean;
   placeholder?: string;
 }
@@ -20,6 +21,7 @@ export function DocumentTitleInput({
   onChange,
   onValidation,
   companyName = '',
+  companyId,
   disabled = false,
   placeholder = 'Nom du document DUERP'
 }: DocumentTitleInputProps) {
@@ -56,7 +58,7 @@ export function DocumentTitleInput({
       // Simuler une vérification d'unicité
       const response = await apiRequest('/api/duerp/generate-title', {
         method: 'POST',
-        body: JSON.stringify({ baseTitle: title }),
+        body: JSON.stringify({ baseTitle: title, ...(companyId != null && { companyId }) }),
       });
 
       if (response.title === title) {
@@ -92,7 +94,7 @@ export function DocumentTitleInput({
       const baseTitle = `${companyName} - DUERP`;
       const response = await apiRequest('/api/duerp/generate-title', {
         method: 'POST',
-        body: JSON.stringify({ baseTitle }),
+        body: JSON.stringify({ baseTitle, ...(companyId != null && { companyId }) }),
       });
 
       onChange(response.title);

@@ -82,7 +82,7 @@ export interface IStorage {
   updateRevisionDate(documentId: number): Promise<DuerpDocument>;
   
   // Utility operations
-  generateUniqueDocumentTitle(baseTitle: string): Promise<string>;
+  generateUniqueDocumentTitle(baseTitle: string, companyId?: number): Promise<string>;
   
   // Uploaded document operations
   getUploadedDocuments(companyId: number): Promise<UploadedDocument[]>;
@@ -257,6 +257,7 @@ export class DatabaseStorage implements IStorage {
       .from(duerpDocuments)
       .where(
         and(
+          eq(duerpDocuments.companyId, data.companyId),
           eq(duerpDocuments.title, data.title),
           ne(duerpDocuments.status, 'archived')
         )
@@ -264,7 +265,7 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     if (existingDocument.length > 0) {
-      throw new Error(`Un document avec le titre "${data.title}" existe déjà. Veuillez choisir un autre nom.`);
+      throw new Error(`Un document avec ce titre existe déjà pour cette société. Veuillez choisir un autre nom.`);
     }
 
     const [document] = await db
@@ -1001,6 +1002,25 @@ Répondez en JSON valide: { "risks": [...] }`;
       finalRisks = updates.finalRisks.map(risk => this.recalculateRiskValues(risk));
     }
 
+    // Si le titre est modifié, vérifier l'unicité (companyId, title) pour cette société
+    if (updates.title) {
+      const [duplicate] = await db
+        .select()
+        .from(duerpDocuments)
+        .where(
+          and(
+            eq(duerpDocuments.companyId, existingDoc.companyId),
+            eq(duerpDocuments.title, updates.title),
+            ne(duerpDocuments.id, id),
+            ne(duerpDocuments.status, 'archived')
+          )
+        )
+        .limit(1);
+      if (duplicate) {
+        throw new Error('Un autre document de cette société porte déjà ce titre.');
+      }
+    }
+
     // Préparer les données de mise à jour
     const updateData: any = {
       updatedAt: new Date()
@@ -1028,20 +1048,26 @@ Répondez en JSON valide: { "risks": [...] }`;
   }
 
   // Utility operations
-  async generateUniqueDocumentTitle(baseTitle: string): Promise<string> {
+  async generateUniqueDocumentTitle(baseTitle: string, companyId?: number): Promise<string> {
     let counter = 1;
     let uniqueTitle = baseTitle;
 
     while (true) {
-      const existingDocument = await db
-        .select()
-        .from(duerpDocuments)
-        .where(
-          and(
+      const titleConflictCondition = companyId !== undefined
+        ? and(
+            eq(duerpDocuments.companyId, companyId),
             eq(duerpDocuments.title, uniqueTitle),
             ne(duerpDocuments.status, 'archived')
           )
-        )
+        : and(
+            eq(duerpDocuments.title, uniqueTitle),
+            ne(duerpDocuments.status, 'archived')
+          );
+
+      const existingDocument = await db
+        .select()
+        .from(duerpDocuments)
+        .where(titleConflictCondition)
         .limit(1);
 
       if (existingDocument.length === 0) {

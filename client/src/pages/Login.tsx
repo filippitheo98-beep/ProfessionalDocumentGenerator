@@ -25,11 +25,11 @@ export default function Login() {
       return apiRequest("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: identifier, password }),
-      }) as Promise<{ mustChangePassword?: boolean }>;
+      });
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      navigate(data?.mustChangePassword ? "/change-password" : "/", { replace: true });
+      navigate("/", { replace: true });
     },
     onError: (e: Error) => {
       setError(e.message);

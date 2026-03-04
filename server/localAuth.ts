@@ -20,7 +20,6 @@ export interface LocalUser {
   lastName: string | null;
   role?: string;
   isActive?: boolean;
-  mustChangePassword?: boolean;
 }
 
 export async function setupLocalAuth(app: Express): Promise<void> {
@@ -55,7 +54,6 @@ export async function setupLocalAuth(app: Express): Promise<void> {
             lastName: row.last_name ?? null,
             role: (row.role as string) ?? "user",
             isActive,
-            mustChangePassword: false,
           });
         } catch (err) {
           return done(err);
@@ -81,7 +79,7 @@ export async function createUser(data: {
     throw new Error("Un compte existe déjà avec cet email");
   }
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
-  // Insert avec colonnes explicites pour éviter l'erreur si must_change_password / is_active n'existent pas encore en base
+  // Insert avec colonnes explicites pour compatibilité schéma minimal
   const result = await db.execute(sql`
     INSERT INTO users (email, password_hash, first_name, last_name, role)
     VALUES (${email}, ${passwordHash}, ${data.firstName ?? null}, ${data.lastName ?? null}, ${data.role ?? "user"})
@@ -113,7 +111,7 @@ export async function createPasswordResetToken(email: string): Promise<string | 
   return token;
 }
 
-/** Crée l'utilisateur admin au démarrage : identifiant "admin", mot de passe par défaut "admin" (ou ADMIN_INITIAL_PASSWORD). Première connexion oblige au changement de mot de passe si la colonne must_change_password existe. */
+/** Crée l'utilisateur admin au démarrage : identifiant "admin", mot de passe par défaut "admin" (ou ADMIN_INITIAL_PASSWORD). */
 export async function ensureAdminUser(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   try {
@@ -127,17 +125,12 @@ export async function ensureAdminUser(): Promise<void> {
       INSERT INTO users (email, password_hash, role, is_active)
       VALUES ('admin', ${passwordHash}, 'admin', true)
     `);
-    try {
-      await db.execute(sql`UPDATE users SET must_change_password = true WHERE email = 'admin'`);
-    } catch {
-      // Colonne must_change_password absente : ignorer, le login fonctionnera quand même
-    }
   } catch (err) {
     console.error("[auth] ensureAdminUser failed:", err);
   }
 }
 
-/** Change le mot de passe de l'utilisateur (pour première connexion admin ou changement volontaire). */
+/** Change le mot de passe de l'utilisateur (changement volontaire). */
 export async function changePassword(
   userId: number,
   currentPassword: string,
@@ -150,11 +143,7 @@ export async function changePassword(
   if (!valid) return { ok: false, message: "Mot de passe actuel incorrect" };
   if (newPassword.length < 6) return { ok: false, message: "Le nouveau mot de passe doit faire au moins 6 caractères" };
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  try {
-    await db.execute(sql`UPDATE users SET password_hash = ${passwordHash}, must_change_password = false WHERE id = ${userId}`);
-  } catch {
-    await db.execute(sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${userId}`);
-  }
+  await db.execute(sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${userId}`);
   return { ok: true };
 }
 

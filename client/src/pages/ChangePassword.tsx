@@ -61,7 +61,7 @@ export default function ChangePassword() {
           </div>
           <CardTitle className="text-2xl">Changer le mot de passe</CardTitle>
           <CardDescription>
-            Première connexion : définissez votre nouveau mot de passe admin.
+            Définissez un nouveau mot de passe pour votre compte.
           </CardDescription>
         </CardHeader>
         <CardContent>
