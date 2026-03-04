@@ -809,6 +809,7 @@ export default function NewDuerpGenerator() {
             {currentStep === 4 && (
               <PlanActionStep
                 documentId={documentId}
+                workUnits={duerpWorkUnits}
                 onSave={handleSaveProgress}
                 readOnly={isViewMode}
               />

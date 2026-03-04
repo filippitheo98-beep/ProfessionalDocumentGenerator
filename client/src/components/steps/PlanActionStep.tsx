@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -38,9 +39,14 @@ import {
   CheckCircle,
   Loader2,
   Save,
+  Users,
+  AlertTriangle,
+  AlertCircle,
+  Info,
 } from "lucide-react";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { WorkUnit, Risk } from "@shared/schema";
 
 export interface ActionRow {
   id: number;
@@ -71,14 +77,41 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Annulée",
 };
 
+const RISK_ROW_COLORS: Record<string, string> = {
+  "Priorité 1 (Forte)": "bg-red-50 dark:bg-red-950/30 border-l-4 border-l-red-500",
+  "Priorité 2 (Moyenne)": "bg-orange-50 dark:bg-orange-950/30 border-l-4 border-l-orange-500",
+  "Priorité 3 (Modéré)": "bg-yellow-50 dark:bg-yellow-950/30 border-l-4 border-l-yellow-500",
+  "Priorité 4 (Faible)": "bg-green-50 dark:bg-green-950/30 border-l-4 border-l-green-500",
+};
+const PRIORITY_BADGE_COLORS: Record<string, string> = {
+  "Priorité 1 (Forte)": "bg-red-500 text-white",
+  "Priorité 2 (Moyenne)": "bg-orange-500 text-white",
+  "Priorité 3 (Modéré)": "bg-yellow-500 text-black",
+  "Priorité 4 (Faible)": "bg-green-500 text-white",
+};
+const PRIORITY_ICONS: Record<string, typeof AlertTriangle> = {
+  "Priorité 1 (Forte)": AlertTriangle,
+  "Priorité 2 (Moyenne)": AlertCircle,
+  "Priorité 3 (Modéré)": Info,
+  "Priorité 4 (Faible)": CheckCircle,
+};
+
+interface TableRisk {
+  risk: Risk;
+  unitName: string;
+  unitId: string;
+}
+
 interface PlanActionStepProps {
   documentId: string | null;
+  workUnits?: WorkUnit[];
   onSave: () => void;
   readOnly?: boolean;
 }
 
 export default function PlanActionStep({
   documentId,
+  workUnits = [],
   onSave,
   readOnly = false,
 }: PlanActionStepProps) {
@@ -102,6 +135,17 @@ export default function PlanActionStep({
     Array<{ id: number; measures: string; family?: string }>
   >([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
+  const [editingMeasures, setEditingMeasures] = useState<Record<string, string>>({});
+
+  const allRisks = useMemo((): TableRisk[] => {
+    const list: TableRisk[] = [];
+    for (const unit of workUnits) {
+      for (const risk of unit.risks || []) {
+        list.push({ risk, unitName: unit.name, unitId: unit.id });
+      }
+    }
+    return list;
+  }, [workUnits]);
 
   const {
     data: actionsData,
@@ -115,15 +159,27 @@ export default function PlanActionStep({
   });
   const actions = Array.isArray(actionsData) ? actionsData : [];
 
+  const planRows = useMemo(() => {
+    return allRisks.map((tr) => ({
+      ...tr,
+      action: actions.find(
+        (a) => a.sourceType === "risk" && String(a.sourceId) === tr.risk.id
+      ),
+    }));
+  }, [allRisks, actions]);
+
+  const invalidateActions = () =>
+    queryClient.invalidateQueries({
+      queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
+    });
+
   const generateMutation = useMutation({
     mutationFn: () =>
       apiRequest(`/api/duerp-documents/${docIdNum}/actions/generate-from-duerp`, {
         method: "POST",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
-      });
+      invalidateActions();
       toast({ title: "Plan généré", description: "Actions créées à partir du DUERP." });
     },
     onError: (e: Error) => {
@@ -134,6 +190,65 @@ export default function PlanActionStep({
       });
     },
   });
+
+  const updateMeasuresMutation = useMutation({
+    mutationFn: ({
+      actionId,
+      title,
+    }: { actionId: number; title: string }) =>
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions/${actionId}`, {
+        method: "PUT",
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => invalidateActions(),
+    onError: (e: Error) =>
+      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const createActionForRiskMutation = useMutation({
+    mutationFn: ({
+      riskId,
+      title,
+      riskDanger,
+      priority,
+    }: {
+      riskId: string;
+      title: string;
+      riskDanger?: string;
+      priority?: string;
+    }) =>
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions`, {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          description: riskDanger ? `Risque: ${riskDanger}` : undefined,
+          priority: priority?.includes("Priorité 1") ? "critical" : priority?.includes("Priorité 2") ? "high" : "medium",
+          sourceType: "risk",
+          sourceId: riskId,
+        }),
+      }),
+    onSuccess: () => invalidateActions(),
+    onError: (e: Error) =>
+      toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  const saveMeasuresToImplement = (
+    row: TableRisk & { action?: ActionRow },
+    value: string
+  ) => {
+    const trimmed = value.trim();
+    if (row.action) {
+      if (trimmed !== (row.action.title || ""))
+        updateMeasuresMutation.mutate({ actionId: row.action.id, title: trimmed || row.risk.measures || "—" });
+    } else if (trimmed && docIdNum) {
+      createActionForRiskMutation.mutate({
+        riskId: row.risk.id,
+        title: trimmed,
+        riskDanger: row.risk.danger,
+        priority: row.risk.priority,
+      });
+    }
+  };
 
   const fetchAiSuggestions = async () => {
     setAiLoading(true);
@@ -329,7 +444,7 @@ export default function PlanActionStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-4">
             <Button
               variant="outline"
               size="sm"
@@ -343,41 +458,15 @@ export default function PlanActionStep({
               )}
               Générer à partir du DUERP
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAiSuggestions}
-              disabled={aiLoading || readOnly}
-            >
-              {aiLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              Suggérer par IA
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchLibrarySuggestions}
-              disabled={libraryLoading || readOnly}
-            >
-              {libraryLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Library className="h-4 w-4 mr-2" />
-              )}
-              Suggérer depuis la bibliothèque
-            </Button>
             {!readOnly && (
-              <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Button size="sm" variant="ghost" onClick={() => setAddOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Ajouter une action
+                Ajouter une action manuelle
               </Button>
             )}
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-hidden">
             {actionsLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -389,108 +478,105 @@ export default function PlanActionStep({
                   Réessayer
                 </Button>
               </div>
+            ) : planRows.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 px-4">
+                <p className="mb-2">Aucun risque dans les unités de travail.</p>
+                <p className="text-sm">Complétez l’étape « Risques et mesures » puis cliquez sur « Générer à partir du DUERP » pour remplir le plan d’action.</p>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Titre</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Priorité</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Échéance</TableHead>
-                    <TableHead>Origine</TableHead>
-                    {!readOnly && (
-                      <TableHead className="text-right">Actions</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {actions.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={readOnly ? 6 : 7}
-                        className="text-center text-muted-foreground py-8"
-                      >
-                        Aucune action. Générez à partir du DUERP ou ajoutez des actions.
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-[60px] text-center text-xs">Statut</TableHead>
+                      <TableHead className="w-[160px] text-xs">Unité de travail</TableHead>
+                      <TableHead className="w-[100px] text-xs">Famille</TableHead>
+                      <TableHead className="w-[140px] text-xs">Situation</TableHead>
+                      <TableHead className="text-xs">Danger identifié</TableHead>
+                      <TableHead className="w-[110px] text-xs">Priorité</TableHead>
+                      <TableHead className="text-xs max-w-[200px]">Complété (mesures existantes)</TableHead>
+                      <TableHead className="min-w-[220px] text-xs">Mesures à mettre en place</TableHead>
                     </TableRow>
-                  ) : (
-                    actions.map((action) => (
-                      <TableRow key={action.id}>
-                        <TableCell className="font-medium">{action.title}</TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {action.description || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {PRIORITY_LABELS[action.priority] ?? action.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              action.status === "completed" ? "default" : "outline"
-                            }
-                          >
-                            {STATUS_LABELS[action.status] ?? action.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {action.dueDate
-                            ? new Date(action.dueDate).toLocaleDateString("fr-FR")
-                            : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {action.sourceType === "risk" && "Risque"}
-                          {action.sourceType === "measure" && "Mesure"}
-                          {action.sourceType === "ai" && "IA"}
-                          {action.sourceType === "library" && "Bibliothèque"}
-                          {action.sourceType === "manual" && "Manuelle"}
-                          {!action.sourceType && "—"}
-                        </TableCell>
-                        {!readOnly && (
-                          <TableCell className="text-right">
-                            {action.status !== "completed" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  toggleStatusMutation.mutate({
-                                    actionId: action.id,
-                                    status: "completed",
-                                  })
-                                }
-                                title="Marquer terminée"
-                              >
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                              </Button>
+                  </TableHeader>
+                  <TableBody>
+                    {planRows.map((row) => {
+                      const PIcon = PRIORITY_ICONS[row.risk.priority || ""] || Info;
+                      const priority = row.risk.priority || "Priorité 4 (Faible)";
+                      const rowClass = RISK_ROW_COLORS[priority] || "";
+                      const measuresValue = row.action?.title ?? "";
+                      return (
+                        <TableRow key={row.risk.id} className={`${rowClass} hover:bg-muted/40`}>
+                          <TableCell className="text-center">
+                            {(row.risk as Risk & { isValidated?: boolean }).isValidated ? (
+                              <CheckCircle className="h-4 w-4 text-green-600 mx-auto" />
+                            ) : (
+                              <Badge variant="outline" className="text-[9px]">En attente</Badge>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditAction(action)}
-                              title="Modifier"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() =>
-                                deleteActionMutation.mutate(action.id)
-                              }
-                              title="Supprimer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          <TableCell className="text-xs">
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                              <span className="font-medium truncate">{row.unitName}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">{row.risk.family || "Autre"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs">{row.risk.type || "—"}</TableCell>
+                          <TableCell className="text-xs">{row.risk.danger || "—"}</TableCell>
+                          <TableCell>
+                            <Badge className={`text-[10px] ${PRIORITY_BADGE_COLORS[priority] || ""}`}>
+                              <PIcon className="h-3 w-3 mr-1 inline" />
+                              P{priority?.match(/\d/)?.[0] || "?"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[300px]">
+                            {(row.risk.existingMeasures?.length || 0) > 0 ? (
+                              <ul className="list-none space-y-0.5">
+                                {row.risk.existingMeasures?.map((m: string, idx: number) => (
+                                  <li key={idx} className="flex items-start gap-1">
+                                    <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-green-700 dark:text-green-400 leading-tight">{m}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-muted-foreground italic">Aucune</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="p-1 align-top">
+                            {readOnly ? (
+                              <span className="text-xs block py-2 px-2">{measuresValue || "—"}</span>
+                            ) : (
+                              <Textarea
+                                className="min-h-[60px] text-xs resize-y border-muted bg-background"
+                                placeholder="Saisir les mesures à mettre en place…"
+                                value={editingMeasures[row.risk.id] ?? measuresValue}
+                                onChange={(e) =>
+                                  setEditingMeasures((prev) => ({ ...prev, [row.risk.id]: e.target.value }))
+                                }
+                                onBlur={(e) => {
+                                  const value = e.target.value;
+                                  const current = editingMeasures[row.risk.id] ?? measuresValue;
+                                  if (value.trim() !== (row.action?.title ?? "").trim()) {
+                                    saveMeasuresToImplement(row, value);
+                                  }
+                                  setEditingMeasures((prev) => {
+                                    const next = { ...prev };
+                                    delete next[row.risk.id];
+                                    return next;
+                                  });
+                                }}
+                                disabled={updateMeasuresMutation.isPending || createActionForRiskMutation.isPending}
+                              />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </div>
         </CardContent>
