@@ -43,6 +43,7 @@ import {
   AlertTriangle,
   AlertCircle,
   Info,
+  Eye,
 } from "lucide-react";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -96,6 +97,48 @@ const PRIORITY_ICONS: Record<string, typeof AlertTriangle> = {
   "Priorité 4 (Faible)": CheckCircle,
 };
 
+const SUGGESTED_MEASURES: Record<string, string[]> = {
+  Ergonomique: [
+    "Formation aux gestes et postures",
+    "Mise à disposition d'aides à la manutention",
+    "Aménagement ergonomique des postes de travail",
+    "Alternance des tâches et pauses régulières",
+    "Mobilier réglable (bureau, siège, écran)",
+    "Limitation du port de charges lourdes",
+    "Évaluation ergonomique des postes",
+  ],
+  Psychosocial: [
+    "Mise en place d'un dispositif d'écoute",
+    "Organisation du travail équilibrée",
+    "Prévention du harcèlement et des violences",
+    "Formation des managers à la prévention des RPS",
+    "Entretiens individuels réguliers",
+    "Aménagement des horaires de travail",
+    "Plan de prévention du stress au travail",
+  ],
+  Mécanique: [
+    "Port des EPI adaptés (gants, lunettes, casque)",
+    "Vérification périodique des équipements de travail",
+    "Mise en place de protecteurs sur les machines",
+    "Formation à l'utilisation des machines",
+    "Consignation des équipements avant intervention",
+  ],
+  Organisationnel: [
+    "Mise à jour du document unique",
+    "Plan de prévention pour les entreprises extérieures",
+    "Accueil sécurité des nouveaux arrivants",
+    "Procédures de travail formalisées",
+    "Réunions sécurité périodiques (quart d'heure sécurité)",
+    "Registre des accidents et presqu'accidents",
+  ],
+  Chimique: [
+    "Stockage des produits chimiques dans des armoires ventilées",
+    "Port des EPI chimiques (gants, masque, lunettes)",
+    "Fiches de données de sécurité (FDS) accessibles",
+    "Ventilation et aspiration à la source",
+  ],
+};
+
 interface TableRisk {
   risk: Risk;
   unitName: string;
@@ -136,6 +179,9 @@ export default function PlanActionStep({
   >([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [editingMeasures, setEditingMeasures] = useState<Record<string, string>>({});
+  const [manualMeasureInput, setManualMeasureInput] = useState("");
+  const [showSuggestionsPlan, setShowSuggestionsPlan] = useState(false);
+  const [suggestionFamily, setSuggestionFamily] = useState("Ergonomique");
 
   const allRisks = useMemo((): TableRisk[] => {
     const list: TableRisk[] = [];
@@ -167,6 +213,14 @@ export default function PlanActionStep({
       ),
     }));
   }, [allRisks, actions]);
+
+  const complementaryActions = useMemo(
+    () => actions.filter((a) => a.sourceType !== "risk"),
+    [actions]
+  );
+
+  const suggestedMeasuresList = SUGGESTED_MEASURES[suggestionFamily] || [];
+  const familiesWithSuggestions = Object.keys(SUGGESTED_MEASURES);
 
   const invalidateActions = () =>
     queryClient.invalidateQueries({
@@ -358,6 +412,7 @@ export default function PlanActionStep({
       setNewTitle("");
       setNewDescription("");
       setNewPriority("medium");
+      setManualMeasureInput("");
       toast({ title: "Action créée" });
     },
     onError: (e: Error) => {
@@ -444,26 +499,61 @@ export default function PlanActionStep({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => generateMutation.mutate()}
-              disabled={generateMutation.isPending || readOnly}
-            >
-              {generateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ListTodo className="h-4 w-4 mr-2" />
-              )}
-              Générer à partir du DUERP
-            </Button>
-            {!readOnly && (
-              <Button size="sm" variant="ghost" onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter une action manuelle
+          <div className="space-y-3 mb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateMutation.mutate()}
+                disabled={generateMutation.isPending || readOnly}
+              >
+                {generateMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ListTodo className="h-4 w-4 mr-2" />
+                )}
+                Générer à partir du DUERP
               </Button>
-            )}
+              {!readOnly && (
+                <div className="flex gap-2 flex-1 min-w-[280px] max-w-md">
+                  <Input
+                    placeholder="Ajouter une mesure manuellement..."
+                    value={manualMeasureInput}
+                    onChange={(e) => setManualMeasureInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (manualMeasureInput.trim()) {
+                          createActionMutation.mutate({
+                            title: manualMeasureInput.trim(),
+                            description: undefined,
+                            priority: "medium",
+                          });
+                        }
+                      }
+                    }}
+                    className="h-9 text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 flex-shrink-0"
+                    onClick={() => {
+                      if (manualMeasureInput.trim()) {
+                        createActionMutation.mutate({
+                          title: manualMeasureInput.trim(),
+                          description: undefined,
+                          priority: "medium",
+                        });
+                      }
+                    }}
+                    disabled={!manualMeasureInput.trim() || createActionMutation.isPending}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="rounded-md border overflow-hidden">
@@ -576,6 +666,106 @@ export default function PlanActionStep({
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Mesures de prévention existantes (complémentaires) — à la fin des risques */}
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">Mesures de prévention existantes</h3>
+              <Badge variant="outline" className="text-xs">{complementaryActions.length} mesure(s)</Badge>
+            </div>
+            {complementaryActions.length > 0 && (
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs">Mesure</TableHead>
+                      {!readOnly && (
+                        <TableHead className="w-[100px] text-right text-xs">Actions</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {complementaryActions.map((action) => (
+                      <TableRow key={action.id}>
+                        <TableCell className="text-sm py-2">{action.title}</TableCell>
+                        {!readOnly && (
+                          <TableCell className="text-right py-2">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setEditAction(action)}
+                                title="Voir / Modifier"
+                              >
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteActionMutation.mutate(action.id)}
+                                title="Supprimer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {!readOnly && suggestedMeasuresList.length > 0 && (
+              <div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-blue-600 dark:text-blue-400 h-7 px-2"
+                  onClick={() => setShowSuggestionsPlan(!showSuggestionsPlan)}
+                >
+                  {showSuggestionsPlan ? "Masquer les suggestions" : `Voir ${suggestedMeasuresList.length} suggestion(s) pour « ${suggestionFamily} »`}
+                </Button>
+                {showSuggestionsPlan && (
+                  <div className="space-y-2 mt-2 p-3 border rounded-md bg-muted/30 max-h-[220px] overflow-y-auto">
+                    <Select value={suggestionFamily} onValueChange={setSuggestionFamily}>
+                      <SelectTrigger className="h-8 w-48 text-xs">
+                        <SelectValue placeholder="Famille" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {familiesWithSuggestions.map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {f}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="space-y-1">
+                      {(SUGGESTED_MEASURES[suggestionFamily] || []).map((measure, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="w-full text-left text-sm p-2 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                          onClick={() => {
+                            createActionMutation.mutate({
+                              title: measure,
+                              description: undefined,
+                              priority: "medium",
+                            });
+                          }}
+                        >
+                          <Plus className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span>{measure}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
