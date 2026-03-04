@@ -81,23 +81,20 @@ export async function createUser(data: {
     throw new Error("Un compte existe déjà avec cet email");
   }
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
-  const [user] = await db
-    .insert(users)
-    .values({
-      email,
-      passwordHash,
-      firstName: data.firstName ?? null,
-      lastName: data.lastName ?? null,
-      role: data.role ?? "user",
-    })
-    .returning();
-  if (!user) throw new Error("Création utilisateur échouée");
+  // Insert avec colonnes explicites pour éviter l'erreur si must_change_password / is_active n'existent pas encore en base
+  const result = await db.execute(sql`
+    INSERT INTO users (email, password_hash, first_name, last_name, role)
+    VALUES (${email}, ${passwordHash}, ${data.firstName ?? null}, ${data.lastName ?? null}, ${data.role ?? "user"})
+    RETURNING id, email, first_name, last_name, role
+  `);
+  const row = Array.isArray(result.rows) ? result.rows[0] : (result as { rows?: unknown[] }).rows?.[0];
+  if (!row) throw new Error("Création utilisateur échouée");
   return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: user.role ?? "user",
+    id: row.id as number,
+    email: row.email as string,
+    firstName: (row.first_name as string) ?? null,
+    lastName: (row.last_name as string) ?? null,
+    role: (row.role as string) ?? "user",
   };
 }
 
