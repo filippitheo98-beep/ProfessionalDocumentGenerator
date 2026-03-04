@@ -70,6 +70,8 @@ export interface IStorage {
   getActionsByDuerp(duerpId: number): Promise<Action[]>;
   createAction(action: Omit<Action, 'id' | 'createdAt' | 'updatedAt'>): Promise<Action>;
   updateAction(id: number, updates: Partial<Action>): Promise<Action>;
+  deleteAction(id: number): Promise<void>;
+  extractRisksAndMeasuresFromDuerp(doc: DuerpDocument): { risks: Array<{ id: string; type?: string; danger: string; measures: string; priority?: string; family?: string }>; measures: Array<{ id: string; description: string; priority?: string; responsible?: string; deadline?: string }> };
   
   // Comment operations
   getCommentsByDuerp(duerpId: number): Promise<Comment[]>;
@@ -857,6 +859,68 @@ Répondez en JSON valide: { "risks": [...] }`;
       throw new Error(`Action with id ${id} not found`);
     }
     return action;
+  }
+
+  async deleteAction(id: number): Promise<void> {
+    await db.delete(actions).where(eq(actions.id, id));
+  }
+
+  extractRisksAndMeasuresFromDuerp(doc: DuerpDocument): { risks: Array<{ id: string; type?: string; danger: string; measures: string; priority?: string; family?: string }>; measures: Array<{ id: string; description: string; priority?: string; responsible?: string; deadline?: string }> } {
+    const risks: Array<{ id: string; type?: string; danger: string; measures: string; priority?: string; family?: string }> = [];
+    const measures: Array<{ id: string; description: string; priority?: string; responsible?: string; deadline?: string }> = [];
+    const workUnits = (doc.workUnitsData as WorkUnit[]) || [];
+    for (const unit of workUnits) {
+      for (const risk of (unit.risks || [])) {
+        if (risk.measures && risk.measures.trim()) {
+          risks.push({
+            id: risk.id,
+            type: risk.type,
+            danger: risk.danger || '',
+            measures: risk.measures,
+            priority: risk.priority,
+            family: typeof risk.family === 'string' ? risk.family : undefined,
+          });
+        }
+      }
+      for (const measure of (unit.preventionMeasures || [])) {
+        if (measure.description?.trim()) {
+          measures.push({
+            id: measure.id,
+            description: measure.description,
+            priority: measure.priority,
+            responsible: measure.responsible,
+            deadline: measure.deadline,
+          });
+        }
+      }
+    }
+    const finalRisks = (doc.finalRisks as Risk[]) || [];
+    for (const risk of finalRisks) {
+      if (risk.measures && risk.measures.trim() && !risks.some(r => r.id === risk.id)) {
+        risks.push({
+          id: risk.id,
+          type: risk.type,
+          danger: risk.danger || '',
+          measures: risk.measures,
+          priority: risk.priority,
+          family: typeof risk.family === 'string' ? risk.family : undefined,
+        });
+      }
+    }
+    const globalMeasures = (doc.globalPreventionMeasures as PreventionMeasure[]) || [];
+    const legacyMeasures = (doc.preventionMeasures as PreventionMeasure[]) || [];
+    for (const measure of [...globalMeasures, ...legacyMeasures]) {
+      if (measure.description?.trim() && !measures.some(m => m.id === measure.id)) {
+        measures.push({
+          id: measure.id,
+          description: measure.description,
+          priority: measure.priority,
+          responsible: measure.responsible,
+          deadline: measure.deadline,
+        });
+      }
+    }
+    return { risks, measures };
   }
 
   // Comment operations

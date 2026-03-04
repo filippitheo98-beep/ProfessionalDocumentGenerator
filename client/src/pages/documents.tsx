@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Trash2
+  Trash2,
+  ListTodo
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
@@ -295,6 +296,12 @@ export default function Documents() {
                           <Link href={`/duerp-generator?edit=${doc.id}`}>
                             <Edit className="h-4 w-4 mr-1.5" />
                             Modifier
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/plan-action/${doc.id}`}>
+                            <ListTodo className="h-4 w-4 mr-1.5" />
+                            Plan d&apos;action
                           </Link>
                         </Button>
                         {doc.status === 'active' && (

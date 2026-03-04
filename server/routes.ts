@@ -924,7 +924,225 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
+  // ========== Plan d'action (actions par DUERP) ==========
+  async function ensureDocumentAccess(documentId: number, userId: number | undefined): Promise<{ doc: any; company: any } | { notFound: true } | { forbidden: true }> {
+    if (isReplitEnv) {
+      const doc = await storage.getDuerpDocumentById(documentId);
+      return doc ? { doc, company: await storage.getCompany(doc.companyId) } : { notFound: true };
+    }
+    const doc = await storage.getDuerpDocumentById(documentId);
+    if (!doc) return { notFound: true };
+    const company = await storage.getCompany(doc.companyId);
+    if (!company || !canAccessCompany(company, userId)) return { forbidden: true };
+    return { doc, company };
+  }
 
+  function riskPriorityToActionPriority(p: string | undefined): string {
+    if (!p) return 'medium';
+    if (p.includes('Priorité 1') || p.includes('Forte')) return 'critical';
+    if (p.includes('Priorité 2') || p.includes('Moyenne')) return 'high';
+    if (p.includes('Priorité 3') || p.includes('Modéré')) return 'medium';
+    return 'low';
+  }
+  function measurePriorityToActionPriority(p: string | undefined): string {
+    if (!p) return 'medium';
+    if (p === 'Élevée') return 'high';
+    if (p === 'Faible') return 'low';
+    return 'medium';
+  }
+
+  app.get('/api/duerp-documents/:documentId/actions', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const list = await storage.getActionsByDuerp(documentId);
+      res.json(list);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors de la récupération des actions' });
+    }
+  });
+
+  app.post('/api/duerp-documents/:documentId/actions', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const { title, description, priority, status, assignedTo, dueDate, sourceType, sourceId } = req.body;
+      if (!title || !title.trim()) return res.status(400).json({ message: 'Le titre est requis' });
+      const action = await storage.createAction({
+        duerpId: documentId,
+        title: title.trim(),
+        description: description || null,
+        priority: priority || 'medium',
+        status: status || 'pending',
+        assignedTo: assignedTo ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        sourceType: sourceType || null,
+        sourceId: sourceId || null,
+      });
+      res.status(201).json(action);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors de la création de l\'action' });
+    }
+  });
+
+  app.put('/api/duerp-documents/:documentId/actions/:actionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const actionId = parseInt(req.params.actionId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const existing = await storage.getActionsByDuerp(documentId);
+      const action = existing.find((a: any) => a.id === actionId);
+      if (!action) return res.status(404).json({ message: 'Action non trouvée' });
+      const { title, description, priority, status, assignedTo, dueDate, completedAt } = req.body;
+      const updates: any = {};
+      if (title !== undefined) updates.title = title;
+      if (description !== undefined) updates.description = description;
+      if (priority !== undefined) updates.priority = priority;
+      if (status !== undefined) updates.status = status;
+      if (assignedTo !== undefined) updates.assignedTo = assignedTo;
+      if (dueDate !== undefined) updates.dueDate = dueDate ? new Date(dueDate) : null;
+      if (completedAt !== undefined) updates.completedAt = completedAt ? new Date(completedAt) : null;
+      const updated = await storage.updateAction(actionId, updates);
+      res.json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'action' });
+    }
+  });
+
+  app.delete('/api/duerp-documents/:documentId/actions/:actionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const actionId = parseInt(req.params.actionId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const existing = await storage.getActionsByDuerp(documentId);
+      const action = existing.find((a: any) => a.id === actionId);
+      if (!action) return res.status(404).json({ message: 'Action non trouvée' });
+      await storage.deleteAction(actionId);
+      res.json({ success: true });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors de la suppression de l\'action' });
+    }
+  });
+
+  app.post('/api/duerp-documents/:documentId/actions/generate-from-duerp', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const doc = 'doc' in access ? access.doc : await storage.getDuerpDocumentById(documentId);
+      if (!doc) return res.status(404).json({ message: 'Document non trouvé' });
+      const { risks, measures } = storage.extractRisksAndMeasuresFromDuerp(doc);
+      const existingTitles = new Set((await storage.getActionsByDuerp(documentId)).map((a: any) => a.title?.toLowerCase()));
+      const created: any[] = [];
+      for (const r of risks) {
+        const title = r.measures.slice(0, 200);
+        if (!existingTitles.has(title.toLowerCase())) {
+          const action = await storage.createAction({
+            duerpId: documentId,
+            title,
+            description: r.danger ? `Risque: ${r.danger}` : undefined,
+            priority: riskPriorityToActionPriority(r.priority),
+            status: 'pending',
+            sourceType: 'risk',
+            sourceId: r.id,
+          });
+          created.push(action);
+          existingTitles.add(title.toLowerCase());
+        }
+      }
+      for (const m of measures) {
+        const title = m.description.slice(0, 200);
+        if (!existingTitles.has(title.toLowerCase())) {
+          const action = await storage.createAction({
+            duerpId: documentId,
+            title,
+            description: m.responsible ? `Responsable: ${m.responsible}` : undefined,
+            priority: measurePriorityToActionPriority(m.priority),
+            status: 'pending',
+            dueDate: m.deadline ? new Date(m.deadline) : null,
+            sourceType: 'measure',
+            sourceId: m.id,
+          });
+          created.push(action);
+          existingTitles.add(title.toLowerCase());
+        }
+      }
+      res.json(created);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors de la génération du plan d\'action' });
+    }
+  });
+
+  app.post('/api/duerp-documents/:documentId/actions/suggest-by-ai', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const doc = 'doc' in access ? access.doc : await storage.getDuerpDocumentById(documentId);
+      if (!doc) return res.status(404).json({ message: 'Document non trouvé' });
+      const { risks, measures } = storage.extractRisksAndMeasuresFromDuerp(doc);
+      const context = [
+        risks.length ? `Risques et mesures à mettre en place:\n${risks.map(r => `- ${r.danger || r.type}: ${r.measures}`).join('\n')}` : '',
+        measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
+      ].filter(Boolean).join('\n\n');
+      const apiKey = process.env.OPENAI_API_KEY?.trim();
+      if (!apiKey) return res.status(503).json({ message: 'OPENAI_API_KEY non configurée' });
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey });
+      const prompt = `Tu es un expert en prévention des risques professionnels. À partir du contexte DUERP suivant, propose entre 5 et 10 actions concrètes pour un plan d'action (titre court, description optionnelle, priorité: low, medium, high ou critical). Réponds en JSON: { "suggestions": [ { "title": "...", "description": "...", "priority": "medium" } ] }.\n\nContexte:\n${context || 'Aucun risque ou mesure renseigné.'}`;
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        temperature: 0.6,
+        max_tokens: 2000,
+      });
+      const content = response.choices[0]?.message?.content || '{"suggestions":[]}';
+      const data = JSON.parse(content);
+      const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+      res.json(suggestions);
+    } catch (e) {
+      console.error(e);
+      if (String(e).includes('OPENAI')) return res.status(503).json({ message: 'Service IA indisponible' });
+      res.status(500).json({ message: 'Erreur lors des suggestions IA' });
+    }
+  });
+
+  app.post('/api/duerp-documents/:documentId/actions/suggest-from-library', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const doc = 'doc' in access ? access.doc : await storage.getDuerpDocumentById(documentId);
+      if (!doc) return res.status(404).json({ message: 'Document non trouvé' });
+      const { risks } = storage.extractRisksAndMeasuresFromDuerp(doc);
+      const families = [...new Set(risks.map(r => r.family).filter(Boolean))] as string[];
+      let conditions: any[] = [eq(riskLibrary.isActive, true)];
+      if (families.length) conditions.push(inArray(riskLibrary.family, families));
+      const libRisks = await db.select({ id: riskLibrary.id, measures: riskLibrary.measures, family: riskLibrary.family }).from(riskLibrary).where(and(...conditions)).limit(30);
+      const suggestions = libRisks.map(r => ({ id: r.id, measures: r.measures, family: r.family }));
+      res.json(suggestions);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: 'Erreur lors des suggestions bibliothèque' });
+    }
+  });
 
   // Export to Excel endpoint
   app.post('/api/export/excel', async (req, res) => {

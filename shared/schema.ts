@@ -66,7 +66,7 @@ export const duerpDocuments = pgTable("duerp_documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Actions and tasks table
+// Actions and tasks table (plan d'action suite DUERP)
 export const actions = pgTable("actions", {
   id: serial("id").primaryKey(),
   duerpId: integer("duerp_id").references(() => duerpDocuments.id).notNull(),
@@ -77,6 +77,8 @@ export const actions = pgTable("actions", {
   assignedTo: integer("assigned_to").references(() => users.id),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
+  sourceType: varchar("source_type", { length: 20 }), // risk, measure, ai, library, manual
+  sourceId: text("source_id"), // id risque/mesure DUERP ou id bibliothèque
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
