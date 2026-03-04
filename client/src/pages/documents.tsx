@@ -22,7 +22,7 @@ import {
   CheckCircle,
   Clock,
   Trash2,
-  ListTodo
+  FileSpreadsheet
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
@@ -56,9 +56,40 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired' | 'draft'>('all');
+  const [exportingPlanId, setExportingPlanId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+
+  const exportPlanActionExcel = async (documentId: number) => {
+    setExportingPlanId(documentId);
+    try {
+      const response = await fetch(`/api/duerp-documents/${documentId}/actions/export.xlsx`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Export échoué');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `plan_action_${documentId}_${dateStr}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast({ title: 'Export réussi', description: 'Le plan d\'action a été téléchargé.' });
+    } catch (e: any) {
+      toast({
+        title: 'Erreur',
+        description: e?.message || 'Impossible d\'exporter le plan d\'action.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingPlanId(null);
+    }
+  };
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['/api/documents'],
@@ -298,11 +329,18 @@ export default function Documents() {
                             Modifier
                           </Link>
                         </Button>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/duerp-generator?edit=${doc.id}&step=4`}>
-                            <ListTodo className="h-4 w-4 mr-1.5" />
-                            Plan d&apos;action
-                          </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => exportPlanActionExcel(doc.id)}
+                          disabled={exportingPlanId === doc.id}
+                        >
+                          {exportingPlanId === doc.id ? (
+                            <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+                          ) : (
+                            <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                          )}
+                          Export Excel (plan d&apos;action)
                         </Button>
                         {doc.status === 'active' && (
                           <Button 

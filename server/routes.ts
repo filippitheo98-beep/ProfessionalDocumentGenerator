@@ -1036,6 +1036,28 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     }
   });
 
+  app.get('/api/duerp-documents/:documentId/actions/export.xlsx', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = parseInt(req.params.documentId);
+      const access = await ensureDocumentAccess(documentId, req.user?.id);
+      if ('notFound' in access) return res.status(404).json({ message: 'Document non trouvé' });
+      if ('forbidden' in access) return res.status(403).json({ message: 'Accès non autorisé' });
+      const { risks, documentId: docId } = await storage.getPlanActionForExport(documentId);
+      const buffer = await generateRisksExportExcel(risks, docId);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `plan_action_${docId}_${dateStr}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error: any) {
+      console.error('Error exporting plan action to Excel:', error);
+      if (error.message?.includes('non trouvé')) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: 'Erreur lors de l\'export Excel du plan d\'action' });
+    }
+  });
+
   app.post('/api/duerp-documents/:documentId/actions/generate-from-duerp', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = parseInt(req.params.documentId);

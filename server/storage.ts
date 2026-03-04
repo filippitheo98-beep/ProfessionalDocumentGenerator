@@ -36,6 +36,7 @@ export interface IStorage {
   getDuerpDocumentById(id: number): Promise<DuerpDocument | undefined>;
   getDuerpDocuments(companyId: number): Promise<DuerpDocument[]>;
   getRisksForExport(documentId: number): Promise<{ risks: Array<Record<string, string | number>>; documentId: number }>;
+  getPlanActionForExport(documentId: number): Promise<{ risks: Array<Record<string, string | number>>; documentId: number }>;
   createDuerpDocument(data: {
     companyId: number;
     title: string;
@@ -225,6 +226,59 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    return { risks: flatRisks, documentId };
+  }
+
+  async getPlanActionForExport(documentId: number): Promise<{ risks: Array<Record<string, string | number>>; documentId: number }> {
+    const doc = await this.getDuerpDocumentById(documentId);
+    if (!doc) throw new Error(`Document ${documentId} non trouvé`);
+    const actionsList = await this.getActionsByDuerp(documentId);
+    const actionByRiskId = new Map<string, string>();
+    for (const a of actionsList) {
+      if (a.sourceType === 'risk' && a.sourceId != null) {
+        actionByRiskId.set(String(a.sourceId), a.title || '');
+      }
+    }
+    const flatRisks: Array<Record<string, string | number>> = [];
+    const toRow = (risk: Risk, lieuUnite: string) => ({
+      'Lieu / Unité de travail': lieuUnite,
+      'Danger': risk.danger || '',
+      'Situation dangereuse': risk.type || '',
+      'Risque': (risk as Risk & { family?: string }).family || '',
+      'Gravité': risk.gravity || '',
+      'Fréquence/Probabilité': risk.frequency || '',
+      'Maîtrise': risk.control || '',
+      'Score': risk.riskScore ?? 0,
+      'Mesures existantes': Array.isArray(risk.existingMeasures) ? risk.existingMeasures.join(' ; ') : '',
+      'Mesures à mettre en place': actionByRiskId.get(risk.id) ?? risk.measures ?? '',
+      'Responsable': '',
+      'Échéance': '',
+      'Statut': (risk as Risk & { isValidated?: boolean }).isValidated ? 'Validé' : 'Non validé',
+      'Commentaires': ''
+    });
+    const workUnits = (doc.workUnitsData as WorkUnit[]) || [];
+    for (const unit of workUnits) {
+      for (const risk of (unit.risks || [])) {
+        flatRisks.push(toRow(this.recalculateRiskValues(risk), unit.name));
+      }
+    }
+    const sites = (doc.sites as Site[]) || [];
+    for (const site of sites) {
+      for (const risk of (site.risks || [])) {
+        flatRisks.push(toRow(this.recalculateRiskValues(risk), site.name));
+      }
+      for (const unit of site.workUnits || []) {
+        for (const risk of (unit.risks || [])) {
+          flatRisks.push(toRow(this.recalculateRiskValues(risk), `${site.name} > ${unit.name}`));
+        }
+      }
+    }
+    if (flatRisks.length === 0) {
+      const finalRisks = (doc.finalRisks as Risk[]) || [];
+      for (const risk of finalRisks) {
+        flatRisks.push(toRow(risk, risk.source || '-'));
+      }
+    }
     return { risks: flatRisks, documentId };
   }
 
