@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute, useLocation } from "wouter";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,16 +33,16 @@ import {
   Plus,
   Sparkles,
   Library,
-  ArrowLeft,
   Pencil,
   Trash2,
   CheckCircle,
   Loader2,
+  Save,
 } from "lucide-react";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-interface ActionRow {
+export interface ActionRow {
   id: number;
   duerpId: number;
   title: string;
@@ -73,10 +71,18 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Annulée",
 };
 
-export default function PlanAction() {
-  const [match, params] = useRoute("/plan-action/:documentId");
-  const documentId = params?.documentId ? parseInt(params.documentId, 10) : null;
-  const [, navigate] = useLocation();
+interface PlanActionStepProps {
+  documentId: string | null;
+  onSave: () => void;
+  readOnly?: boolean;
+}
+
+export default function PlanActionStep({
+  documentId,
+  onSave,
+  readOnly = false,
+}: PlanActionStepProps) {
+  const docIdNum = documentId ? parseInt(documentId, 10) : null;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -88,31 +94,32 @@ export default function PlanAction() {
   const [newPriority, setNewPriority] = useState("medium");
   const [selectedAi, setSelectedAi] = useState<Set<number>>(new Set());
   const [selectedLibrary, setSelectedLibrary] = useState<Set<number>>(new Set());
-
-  const { data: document, isLoading: docLoading } = useQuery({
-    queryKey: [`/api/duerp/document/${documentId}`],
-    queryFn: () =>
-      apiRequest(`/api/duerp/document/${documentId}`).then((d: any) => d),
-    enabled: !!documentId,
-  });
+  const [aiSuggestions, setAiSuggestions] = useState<
+    Array<{ title: string; description?: string; priority: string }>
+  >([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [librarySuggestions, setLibrarySuggestions] = useState<
+    Array<{ id: number; measures: string; family?: string }>
+  >([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
 
   const {
     data: actions = [],
     isLoading: actionsLoading,
   } = useQuery<ActionRow[]>({
-    queryKey: [`/api/duerp-documents/${documentId}/actions`],
+    queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
     queryFn: getQueryFn(),
-    enabled: !!documentId,
+    enabled: !!docIdNum,
   });
 
   const generateMutation = useMutation({
     mutationFn: () =>
-      apiRequest(`/api/duerp-documents/${documentId}/actions/generate-from-duerp`, {
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions/generate-from-duerp`, {
         method: "POST",
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       toast({ title: "Plan généré", description: "Actions créées à partir du DUERP." });
     },
@@ -125,21 +132,12 @@ export default function PlanAction() {
     },
   });
 
-  const [aiSuggestions, setAiSuggestions] = useState<
-    Array<{ title: string; description?: string; priority: string }>
-  >([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [librarySuggestions, setLibrarySuggestions] = useState<
-    Array<{ id: number; measures: string; family?: string }>
-  >([]);
-  const [libraryLoading, setLibraryLoading] = useState(false);
-
   const fetchAiSuggestions = async () => {
     setAiLoading(true);
     setAiSuggestionsOpen(true);
     try {
       const list = await apiRequest(
-        `/api/duerp-documents/${documentId}/actions/suggest-by-ai`,
+        `/api/duerp-documents/${docIdNum}/actions/suggest-by-ai`,
         { method: "POST" }
       );
       setAiSuggestions(Array.isArray(list) ? list : []);
@@ -161,7 +159,7 @@ export default function PlanAction() {
     setLibrarySuggestionsOpen(true);
     try {
       const list = await apiRequest(
-        `/api/duerp-documents/${documentId}/actions/suggest-from-library`,
+        `/api/duerp-documents/${docIdNum}/actions/suggest-from-library`,
         { method: "POST" }
       );
       setLibrarySuggestions(Array.isArray(list) ? list : []);
@@ -180,29 +178,23 @@ export default function PlanAction() {
 
   const addFromAi = useMutation({
     mutationFn: async (indices: number[]) => {
-      const created = [];
       for (const i of indices) {
         const s = aiSuggestions[i];
         if (!s?.title) continue;
-        const action = await apiRequest(
-          `/api/duerp-documents/${documentId}/actions`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              title: s.title,
-              description: s.description || undefined,
-              priority: s.priority || "medium",
-              sourceType: "ai",
-            }),
-          }
-        );
-        created.push(action);
+        await apiRequest(`/api/duerp-documents/${docIdNum}/actions`, {
+          method: "POST",
+          body: JSON.stringify({
+            title: s.title,
+            description: s.description || undefined,
+            priority: s.priority || "medium",
+            sourceType: "ai",
+          }),
+        });
       }
-      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       setAiSuggestionsOpen(false);
       toast({ title: "Actions ajoutées" });
@@ -214,7 +206,7 @@ export default function PlanAction() {
       for (const i of indices) {
         const s = librarySuggestions[i];
         if (!s?.measures) continue;
-        await apiRequest(`/api/duerp-documents/${documentId}/actions`, {
+        await apiRequest(`/api/duerp-documents/${docIdNum}/actions`, {
           method: "POST",
           body: JSON.stringify({
             title: s.measures.slice(0, 200),
@@ -227,7 +219,7 @@ export default function PlanAction() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       setLibrarySuggestionsOpen(false);
       toast({ title: "Actions ajoutées" });
@@ -235,18 +227,14 @@ export default function PlanAction() {
   });
 
   const createActionMutation = useMutation({
-    mutationFn: (body: {
-      title: string;
-      description?: string;
-      priority: string;
-    }) =>
-      apiRequest(`/api/duerp-documents/${documentId}/actions`, {
+    mutationFn: (body: { title: string; description?: string; priority: string }) =>
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions`, {
         method: "POST",
         body: JSON.stringify({ ...body, sourceType: "manual" }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       setAddOpen(false);
       setNewTitle("");
@@ -263,20 +251,14 @@ export default function PlanAction() {
     mutationFn: ({
       actionId,
       updates,
-    }: {
-      actionId: number;
-      updates: Partial<ActionRow>;
-    }) =>
-      apiRequest(
-        `/api/duerp-documents/${documentId}/actions/${actionId}`,
-        {
-          method: "PUT",
-          body: JSON.stringify(updates),
-        }
-      ),
+    }: { actionId: number; updates: Partial<ActionRow> }) =>
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions/${actionId}`, {
+        method: "PUT",
+        body: JSON.stringify(updates),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       setEditAction(null);
       toast({ title: "Action mise à jour" });
@@ -285,177 +267,178 @@ export default function PlanAction() {
 
   const deleteActionMutation = useMutation({
     mutationFn: (actionId: number) =>
-      apiRequest(
-        `/api/duerp-documents/${documentId}/actions/${actionId}`,
-        { method: "DELETE" }
-      ),
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions/${actionId}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
       toast({ title: "Action supprimée" });
     },
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: ({
-      actionId,
-      status,
-    }: {
-      actionId: number;
-      status: string;
-    }) =>
-      apiRequest(
-        `/api/duerp-documents/${documentId}/actions/${actionId}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            status,
-            ...(status === "completed"
-              ? { completedAt: new Date().toISOString() }
-              : {}),
-          }),
-        }
-      ),
+    mutationFn: ({ actionId, status }: { actionId: number; status: string }) =>
+      apiRequest(`/api/duerp-documents/${docIdNum}/actions/${actionId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status,
+          ...(status === "completed" ? { completedAt: new Date().toISOString() } : {}),
+        }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/duerp-documents/${documentId}/actions`],
+        queryKey: [`/api/duerp-documents/${docIdNum}/actions`],
       });
     },
   });
 
-  if (!match || documentId == null) {
-    navigate("/documents");
-    return null;
+  if (!docIdNum) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5" />
+            Plan d&apos;action
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground mb-4">
+            Sauvegardez le DUERP pour accéder au plan d&apos;action et générer les actions à partir des risques et mesures.
+          </p>
+          <Button onClick={onSave} className="gap-2">
+            <Save className="h-4 w-4" />
+            Sauvegarder le DUERP
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
-  const docTitle = document?.title ?? `Document #${documentId}`;
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="container py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/documents")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <ListTodo className="h-7 w-7" />
-              Plan d&apos;action
-            </h1>
-            <p className="text-muted-foreground">{docTitle}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button
-            variant="outline"
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending || docLoading}
-          >
-            {generateMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <ListTodo className="h-4 w-4 mr-2" />
-            )}
-            Générer à partir du DUERP
-          </Button>
-          <Button
-            variant="outline"
-            onClick={fetchAiSuggestions}
-            disabled={aiLoading || docLoading}
-          >
-            {aiLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-2" />
-            )}
-            Suggérer par IA
-          </Button>
-          <Button
-            variant="outline"
-            onClick={fetchLibrarySuggestions}
-            disabled={libraryLoading || docLoading}
-          >
-            {libraryLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Library className="h-4 w-4 mr-2" />
-            )}
-            Suggérer depuis la bibliothèque
-          </Button>
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter une action
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Tableau des actions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-              {actionsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5" />
+            Plan d&apos;action
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending || readOnly}
+            >
+              {generateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Titre</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Priorité</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Échéance</TableHead>
-                      <TableHead>Origine</TableHead>
+                <ListTodo className="h-4 w-4 mr-2" />
+              )}
+              Générer à partir du DUERP
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchAiSuggestions}
+              disabled={aiLoading || readOnly}
+            >
+              {aiLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Suggérer par IA
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchLibrarySuggestions}
+              disabled={libraryLoading || readOnly}
+            >
+              {libraryLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Library className="h-4 w-4 mr-2" />
+              )}
+              Suggérer depuis la bibliothèque
+            </Button>
+            {!readOnly && (
+              <Button size="sm" onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter une action
+              </Button>
+            )}
+          </div>
+
+          <div className="rounded-md border">
+            {actionsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titre</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Priorité</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Échéance</TableHead>
+                    <TableHead>Origine</TableHead>
+                    {!readOnly && (
                       <TableHead className="text-right">Actions</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actions.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={readOnly ? 6 : 7}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        Aucune action. Générez à partir du DUERP ou ajoutez des actions.
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {actions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Aucune action. Générez à partir du DUERP ou ajoutez des actions.
+                  ) : (
+                    actions.map((action) => (
+                      <TableRow key={action.id}>
+                        <TableCell className="font-medium">{action.title}</TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {action.description || "—"}
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      actions.map((action) => (
-                        <TableRow key={action.id}>
-                          <TableCell className="font-medium">{action.title}</TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {action.description || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {PRIORITY_LABELS[action.priority] ?? action.priority}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                action.status === "completed"
-                                  ? "default"
-                                  : "outline"
-                              }
-                            >
-                              {STATUS_LABELS[action.status] ?? action.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {action.dueDate
-                              ? new Date(action.dueDate).toLocaleDateString("fr-FR")
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {action.sourceType === "risk" && "Risque"}
-                            {action.sourceType === "measure" && "Mesure"}
-                            {action.sourceType === "ai" && "IA"}
-                            {action.sourceType === "library" && "Bibliothèque"}
-                            {action.sourceType === "manual" && "Manuelle"}
-                            {!action.sourceType && "—"}
-                          </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {PRIORITY_LABELS[action.priority] ?? action.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              action.status === "completed" ? "default" : "outline"
+                            }
+                          >
+                            {STATUS_LABELS[action.status] ?? action.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {action.dueDate
+                            ? new Date(action.dueDate).toLocaleDateString("fr-FR")
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {action.sourceType === "risk" && "Risque"}
+                          {action.sourceType === "measure" && "Mesure"}
+                          {action.sourceType === "ai" && "IA"}
+                          {action.sourceType === "library" && "Bibliothèque"}
+                          {action.sourceType === "manual" && "Manuelle"}
+                          {!action.sourceType && "—"}
+                        </TableCell>
+                        {!readOnly && (
                           <TableCell className="text-right">
                             {action.status !== "completed" && (
                               <Button
@@ -484,21 +467,24 @@ export default function PlanAction() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive"
-                              onClick={() => deleteActionMutation.mutate(action.id)}
+                              onClick={() =>
+                                deleteActionMutation.mutate(action.id)
+                              }
                               title="Supprimer"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-          </CardContent>
-        </Card>
-      </main>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Modal Ajouter */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -525,10 +511,7 @@ export default function PlanAction() {
             </div>
             <div>
               <Label>Priorité</Label>
-              <Select
-                value={newPriority}
-                onValueChange={setNewPriority}
-              >
+              <Select value={newPriority} onValueChange={setNewPriority}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -591,10 +574,7 @@ export default function PlanAction() {
       </Dialog>
 
       {/* Modal Suggestions IA */}
-      <Dialog
-        open={aiSuggestionsOpen}
-        onOpenChange={setAiSuggestionsOpen}
-      >
+      <Dialog open={aiSuggestionsOpen} onOpenChange={setAiSuggestionsOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Suggestions par IA</DialogTitle>
@@ -638,9 +618,7 @@ export default function PlanAction() {
               Fermer
             </Button>
             <Button
-              onClick={() =>
-                addFromAi.mutate(Array.from(selectedAi))
-              }
+              onClick={() => addFromAi.mutate(Array.from(selectedAi))}
               disabled={selectedAi.size === 0 || addFromAi.isPending}
             >
               Ajouter les {selectedAi.size} sélectionnée(s)
@@ -697,17 +675,17 @@ export default function PlanAction() {
               Fermer
             </Button>
             <Button
-              onClick={() =>
-                addFromLibrary.mutate(Array.from(selectedLibrary))
+              onClick={() => addFromLibrary.mutate(Array.from(selectedLibrary))}
+              disabled={
+                selectedLibrary.size === 0 || addFromLibrary.isPending
               }
-              disabled={selectedLibrary.size === 0 || addFromLibrary.isPending}
             >
               Ajouter les {selectedLibrary.size} sélectionnée(s)
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

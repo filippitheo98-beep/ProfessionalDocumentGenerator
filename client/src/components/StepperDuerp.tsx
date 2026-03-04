@@ -7,6 +7,7 @@ import {
   Building, 
   MapPin, 
   FileText, 
+  ListTodo,
   BarChart3, 
   Save, 
   ArrowLeft, 
@@ -45,6 +46,12 @@ const steps = [
   },
   {
     id: 4,
+    title: "Plan d'action",
+    description: "Actions issues des risques et mesures",
+    icon: ListTodo
+  },
+  {
+    id: 5,
     title: "Analyse et graphiques",
     description: "Visualisation des risques",
     icon: BarChart3
@@ -85,7 +92,7 @@ export default function StepperDuerp({
         <Progress value={progress} className="mt-2" />
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {steps.map((step) => {
             const isActive = step.id === currentStep;
             const isCompleted = completedSteps.includes(step.id);

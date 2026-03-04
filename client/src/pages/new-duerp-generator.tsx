@@ -14,6 +14,7 @@ import RiskGenerationStep from '@/components/steps/RiskGenerationStep';
 import HierarchicalRiskSummaryStep from '@/components/steps/HierarchicalRiskSummaryStep';
 import PreventionMeasuresStep from '@/components/steps/PreventionMeasuresStep';
 import AnalyticsStep from '@/components/steps/AnalyticsStep';
+import PlanActionStep from '@/components/steps/PlanActionStep';
 import type { 
   Company, 
   Location, 
@@ -55,6 +56,8 @@ export default function NewDuerpGenerator() {
   const viewDocumentId = urlParams.get('view') || urlParams.get('viewDocumentId');
   const documentId = editDocumentId || viewDocumentId || (savedDocumentId ? String(savedDocumentId) : null);
   const isViewMode = !!viewDocumentId;
+  const stepFromUrl = urlParams.get('step');
+  const initialStep = stepFromUrl ? Math.min(5, Math.max(1, parseInt(stepFromUrl, 10))) : null;
 
   // Types pour les résultats de requêtes
   interface DuerpDocument {
@@ -103,11 +106,18 @@ export default function NewDuerpGenerator() {
       }
       const hasUnitRisks = existingDocument.workUnitsData?.some(u => (u.risks?.length ?? 0) > 0);
       if (hasUnitRisks || (existingDocument.finalRisks?.length ?? 0) > 0) {
-        completed.push(3, 4);
+        completed.push(3, 4, 5); // 4 = plan d'action, 5 = analyse
       }
       setCompletedSteps(completed);
     }
   }, [existingDocument, existingCompany]);
+
+  // Ouvrir directement sur l'étape demandée par l'URL (?step=4)
+  useEffect(() => {
+    if (initialStep != null && initialStep >= 1 && initialStep <= 5) {
+      setCurrentStep(initialStep);
+    }
+  }, []);
 
   // Synchroniser finalRisks depuis les unités de travail
   useEffect(() => {
@@ -740,7 +750,7 @@ export default function NewDuerpGenerator() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <StepperDuerp
           currentStep={currentStep}
-          totalSteps={4}
+          totalSteps={5}
           onStepChange={setCurrentStep}
           onSave={handleSaveProgress}
           isSaving={saveDuerpMutation.isPending}
@@ -793,6 +803,14 @@ export default function NewDuerpGenerator() {
             )}
 
             {currentStep === 4 && (
+              <PlanActionStep
+                documentId={documentId}
+                onSave={handleSaveProgress}
+                readOnly={isViewMode}
+              />
+            )}
+
+            {currentStep === 5 && (
               <AnalyticsStep
                 risks={finalRisks}
                 companyName={company?.name || 'Entreprise'}

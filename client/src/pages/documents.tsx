@@ -299,7 +299,7 @@ export default function Documents() {
                           </Link>
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/plan-action/${doc.id}`}>
+                          <Link href={`/duerp-generator?edit=${doc.id}&step=4`}>
                             <ListTodo className="h-4 w-4 mr-1.5" />
                             Plan d&apos;action
                           </Link>

@@ -16,7 +16,6 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import ChangePassword from "@/pages/ChangePassword";
-import PlanAction from "@/pages/PlanAction";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthGuard } from "./components/AuthGuard";
 import { AdminGuard } from "./components/AdminGuard";
@@ -50,11 +49,6 @@ function Router() {
       <Route path="/documents">
         <AuthGuard>
           <Documents />
-        </AuthGuard>
-      </Route>
-      <Route path="/plan-action/:documentId">
-        <AuthGuard>
-          <PlanAction />
         </AuthGuard>
       </Route>
       <Route path="/revisions">
