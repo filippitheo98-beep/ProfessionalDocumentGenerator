@@ -23,6 +23,7 @@ try {
 
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
+import { ensureActionsSourceColumns } from "./migrateActionsColumns";
 import { log, serveStatic } from "./static";
 
 async function syncSequences(): Promise<void> {
@@ -88,6 +89,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await syncSequences();
+  await ensureActionsSourceColumns();
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
