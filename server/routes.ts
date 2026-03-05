@@ -528,9 +528,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (msg.includes('OPENAI_API_KEY')) {
         return res.status(503).json({ message: msg });
       }
-      res.status(400).json({ 
-        message: error instanceof z.ZodError ? "Données invalides" : "Erreur lors de la génération des risques" 
-      });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Données invalides" });
+      }
+      res.status(500).json({ message: msg || "Erreur lors de la génération des risques" });
     }
   });
 
@@ -599,7 +600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error generating hierarchical risks:", error);
       res.status(500).json({ 
-        message: "Erreur lors de la génération des risques" 
+        message: msg || "Erreur lors de la génération des risques" 
       });
     }
   });

@@ -464,9 +464,11 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
         max_tokens: 2000
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
+      const content = response.choices?.[0]?.message?.content;
+      const result = content ? JSON.parse(content) : { risks: [] };
+      const risksArray = Array.isArray(result?.risks) ? result.risks : [];
       
-      return result.risks.map((risk: any) => {
+      return risksArray.map((risk: any) => {
         const gravity = risk.gravity || 'Moyenne';
         const frequency = risk.frequency || 'Mensuelle';
         const control = risk.control || 'Moyenne';
@@ -496,6 +498,8 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       });
     } catch (error) {
       console.error('Error calling OpenAI API:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('OPENAI_API_KEY')) throw error;
       return [];
     }
   }
@@ -605,9 +609,16 @@ Répondez en JSON valide: { "risks": [...] }`;
         max_tokens: 3000
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{"risks": []}');
+      const content = response.choices?.[0]?.message?.content;
+      let result: { risks?: unknown };
+      try {
+        result = content ? JSON.parse(content) : { risks: [] };
+      } catch (_) {
+        throw new Error('Réponse IA invalide (JSON attendu). Vérifiez la clé API et le quota OpenAI.');
+      }
+      const risksArray = Array.isArray(result?.risks) ? result.risks : [];
       
-      return result.risks.map((risk: any) => {
+      return risksArray.map((risk: any) => {
         const gravity = risk.gravity || 'Moyenne';
         const frequency = risk.frequency || 'Mensuelle';
         const control = risk.control || 'Moyenne';
@@ -650,7 +661,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('OPENAI_API_KEY')) throw error;
       console.error('Error generating hierarchical risks:', error);
-      return [];
+      throw new Error(msg || 'Erreur lors de l\'appel à l\'IA pour la génération des risques.');
     }
   }
 
