@@ -22,6 +22,30 @@ export function isGeminiConfigured(): boolean {
   return Boolean(process.env[API_KEY_ENV]?.trim());
 }
 
+/**
+ * Extrait le JSON brut d'une réponse pouvant contenir des blocs markdown ou du texte parasite.
+ * Gemini peut renvoyer ```json\n{...}\n``` ou du texte avant/après le JSON.
+ */
+function extractJson(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+
+  // Bloc ```json ... ```
+  const jsonBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonBlockMatch) {
+    return jsonBlockMatch[1].trim();
+  }
+
+  // Objet JSON : premier { jusqu'au dernier }
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
 export interface GenerateJsonOptions {
   systemPrompt?: string;
   temperature?: number;
@@ -61,5 +85,5 @@ export async function generateJson(
   if (!text || typeof text !== 'string') {
     throw new Error('Réponse IA vide ou invalide.');
   }
-  return text;
+  return extractJson(text);
 }
