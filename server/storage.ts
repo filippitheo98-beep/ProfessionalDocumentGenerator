@@ -22,7 +22,7 @@ import {
 import { db } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
-import OpenAI from 'openai';
+import { generateJson } from './ai-gemini';
 
 export interface IStorage {
   // Company operations
@@ -390,7 +390,7 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY')) throw error;
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
       console.error('Error generating AI risks:', error);
     }
 
@@ -426,12 +426,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d\'environnement (ex. Railway) pour activer la génération par IA.');
-    }
-    const openai = new OpenAI({ apiKey });
-    
     const descriptionContext = companyDescription ? `
 
 Description détaillée de l'entreprise : ${companyDescription}
@@ -453,18 +447,11 @@ IMPORTANT : Utilisez exactement ces valeurs pour gravity, frequency et control.
 Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous les risques identifiés.`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [
-          { role: "system", content: "Vous êtes un expert en évaluation des risques professionnels français. Répondez uniquement avec du JSON valide." },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" },
+      const content = await generateJson(prompt, {
+        systemPrompt: "Vous êtes un expert en évaluation des risques professionnels français. Répondez uniquement avec du JSON valide.",
         temperature: 0.7,
-        max_tokens: 2000
+        maxOutputTokens: 2000
       });
-
-      const content = response.choices?.[0]?.message?.content;
       const result = content ? JSON.parse(content) : { risks: [] };
       const risksArray = Array.isArray(result?.risks) ? result.risks : [];
       
@@ -497,9 +484,9 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
         };
       });
     } catch (error) {
-      console.error('Error calling OpenAI API:', error);
+      console.error('Error calling Gemini API:', error);
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY')) throw error;
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
       return [];
     }
   }
@@ -511,11 +498,6 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
     companyActivity: string,
     context: string
   ): Promise<Risk[]> {
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d\'environnement (ex. Railway) pour activer la génération par IA.');
-    }
-    const openai = new OpenAI({ apiKey });
     
     const levelRules: Record<string, { allowed: string; forbidden: string }> = {
       'Site': {
@@ -598,23 +580,16 @@ Le résultat doit être directement transposable dans un tableau DUERP avec :
 Répondez en JSON valide: { "risks": [...] }`;
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement." },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" },
+      const content = await generateJson(prompt, {
+        systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
         temperature: 0.7,
-        max_tokens: 3000
+        maxOutputTokens: 3000
       });
-
-      const content = response.choices?.[0]?.message?.content;
       let result: { risks?: unknown };
       try {
         result = content ? JSON.parse(content) : { risks: [] };
       } catch (_) {
-        throw new Error('Réponse IA invalide (JSON attendu). Vérifiez la clé API et le quota OpenAI.');
+        throw new Error('Réponse IA invalide (JSON attendu). Vérifiez la clé API et le quota Gemini.');
       }
       const risksArray = Array.isArray(result?.risks) ? result.risks : [];
       
@@ -659,7 +634,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY')) throw error;
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
       console.error('Error generating hierarchical risks:', error);
       throw new Error(msg || 'Erreur lors de l\'appel à l\'IA pour la génération des risques.');
     }

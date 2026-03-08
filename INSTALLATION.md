@@ -78,13 +78,13 @@ npm run dev
 
 ## Configuration Optionnelle
 
-### Clé API OpenAI (pour l'IA)
+### Clé API Google Gemini (pour l'IA)
 Si vous voulez utiliser les fonctionnalités d'intelligence artificielle :
-1. Créez un compte sur https://platform.openai.com
-2. Générez une clé API
+1. Créez un compte sur https://aistudio.google.com/
+2. Générez une clé API (Get API key)
 3. Ajoutez cette ligne dans votre fichier `.env` :
    ```env
-   OPENAI_API_KEY=votre-cle-openai
+   GOOGLE_GEMINI_API_KEY=votre-cle-gemini
    ```
 
 ### Clé API Anthropic (alternative)

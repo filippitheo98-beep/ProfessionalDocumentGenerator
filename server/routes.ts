@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY')) {
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
         return res.status(503).json({ message: msg });
       }
       if (error instanceof z.ZodError) {
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY')) {
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
         return res.status(503).json({ message: msg });
       }
       console.error("Error generating hierarchical risks:", error);
@@ -614,15 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Workstations and company activity are required" });
       }
 
-      const apiKey = process.env.OPENAI_API_KEY?.trim();
-      if (!apiKey) {
-        return res.status(503).json({
-          message: "OPENAI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d'environnement (ex. Railway) pour activer le regroupement par IA."
-        });
-      }
-      const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey });
-
+      const { generateJson } = await import('./ai-gemini');
       const prompt = `Tu es un expert en santé et sécurité au travail. Tu dois regrouper intelligemment des postes de travail en unités de travail cohérentes pour un DUERP.
 
 Contexte:
@@ -642,20 +634,20 @@ Règles de regroupement:
 
 Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations": ["poste1", "poste2"] }] }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP. JSON uniquement." },
-          { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" },
+      const content = await generateJson(prompt, {
+        systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP. JSON uniquement.",
         temperature: 0.5,
-        max_tokens: 2000
+        maxOutputTokens: 2000
       });
-
-      const result = JSON.parse(response.choices[0].message.content || '{"groups": []}');
+      const result = JSON.parse(content || '{"groups": []}');
       res.json(result);
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
+        return res.status(503).json({
+          message: "GOOGLE_GEMINI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d'environnement (ex. Railway) pour activer le regroupement par IA."
+        });
+      }
       console.error("Error grouping workstations:", error);
       res.status(500).json({ message: "Erreur lors du regroupement des postes" });
     }
@@ -1157,25 +1149,19 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
         risks.length ? `Risques et mesures à mettre en place:\n${risks.map(r => `- ${r.danger || r.type}: ${r.measures}`).join('\n')}` : '',
         measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
       ].filter(Boolean).join('\n\n');
-      const apiKey = process.env.OPENAI_API_KEY?.trim();
-      if (!apiKey) return res.status(503).json({ message: 'OPENAI_API_KEY non configurée' });
-      const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey });
+      const { generateJson } = await import('./ai-gemini');
       const prompt = `Tu es un expert en prévention des risques professionnels. À partir du contexte DUERP suivant, propose entre 5 et 10 actions concrètes pour un plan d'action (titre court, description optionnelle, priorité: low, medium, high ou critical). Réponds en JSON: { "suggestions": [ { "title": "...", "description": "...", "priority": "medium" } ] }.\n\nContexte:\n${context || 'Aucun risque ou mesure renseigné.'}`;
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
+      const content = await generateJson(prompt, {
         temperature: 0.6,
-        max_tokens: 2000,
-      });
-      const content = response.choices[0]?.message?.content || '{"suggestions":[]}';
+        maxOutputTokens: 2000
+      }) || '{"suggestions":[]}';
       const data = JSON.parse(content);
       const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
       res.json(suggestions);
     } catch (e) {
       console.error(e);
-      if (String(e).includes('OPENAI')) return res.status(503).json({ message: 'Service IA indisponible' });
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('GOOGLE_GEMINI_API_KEY')) return res.status(503).json({ message: 'Service IA indisponible (clé Gemini non configurée)' });
       res.status(500).json({ message: 'Erreur lors des suggestions IA' });
     }
   });

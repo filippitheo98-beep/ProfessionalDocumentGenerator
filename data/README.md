@@ -47,12 +47,12 @@ Avec `--replace`, la table est vidée avant import (utile si vous avez des doubl
 npm run db:seed-risk-library
 ```
 
-### Génération par IA (OpenAI / ChatGPT)
+### Génération par IA (Google Gemini)
 
-Pour que la génération de risques par IA et le regroupement de postes fonctionnent (comme sur Replit) :
+Pour que la génération de risques par IA et le regroupement de postes fonctionnent :
 
 - **En local** : ajoutez dans votre fichier `.env` :  
-  `OPENAI_API_KEY=votre-cle-openai`
-- **Sur Railway** : dans le projet Railway → Variables, ajoutez la variable `OPENAI_API_KEY` avec votre clé API OpenAI.
+  `GOOGLE_GEMINI_API_KEY=votre-cle-gemini`
+- **Sur Railway** : dans le projet Railway → Variables, ajoutez la variable `GOOGLE_GEMINI_API_KEY` avec votre clé API Gemini (obtenue sur https://aistudio.google.com/).
 
 Sans cette variable, l’application renverra un message explicite (503) invitant à configurer la clé ; le reste de l’app fonctionne sans IA.
