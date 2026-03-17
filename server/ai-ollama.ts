@@ -70,7 +70,7 @@ export async function generateJson(
       body: JSON.stringify({
       model,
       stream: false,
-format: json,
+      format: 'json',
       messages,
       options: {
         temperature: options.temperature ?? 0.7,
