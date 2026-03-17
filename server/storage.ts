@@ -583,7 +583,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
         temperature: 0.7,
-        maxOutputTokens: 1000
+        maxOutputTokens: 200
       });
       let result: { risks?: unknown };
       try {
