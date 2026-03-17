@@ -540,18 +540,21 @@ Contraintes:
   frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
   control: Très élevée|Élevée|Moyenne|Absente
 
-Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas):
+Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas). Toutes les clés doivent être présentes:
 {"risks":[{"family":"Ergonomique","situation":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"...","existingMeasures":[]}]}`;
 
     try {
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
-        temperature: 0.7,
-        maxOutputTokens: 200
+        temperature: 0.2,
+        maxOutputTokens: 350
       });
       let result: { risks?: unknown };
       try {
-        result = content ? JSON.parse(content) : { risks: [] };
+        const trimmed = typeof content === 'string' ? content.trim() : '';
+        // Tolérance: certains modèles renvoient parfois `"risks":[...]` sans l'objet racine.
+        const normalized = trimmed.startsWith('"risks"') ? `{${trimmed}}` : trimmed;
+        result = normalized ? JSON.parse(normalized) : { risks: [] };
       } catch (parseErr) {
         const preview = typeof content === 'string' ? content.slice(0, 400) : '';
         console.error('Ollama JSON parse failed. Preview:', preview);
