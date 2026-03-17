@@ -520,25 +520,25 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
-    const prompt = `Génère des situations de risques DUERP. JSON uniquement.
+    const prompt = `DUERP risques (niveau ${level}). JSON uniquement.
 
 Contexte:
-level=${level}
 name=${elementName}
 activity=${companyActivity}
 env=${elementDescription || 'N/A'}
-${context ? `extra=${context}` : ''}
 
-Règles:
-- Respecter le filtrage niveau: allowed="${levelRules[level].allowed}" forbidden="${levelRules[level].forbidden}"
-- Sortie: 3 à 6 risques max, familles pertinentes seulement, pas de doublons.
-- Texte court (1 phrase) pour situation/danger/measures.
+Contraintes:
+- Filtrage: allowed="${levelRules[level].allowed}" forbidden="${levelRules[level].forbidden}"
+- 2 à 3 risques MAX, sans doublons.
+- Champs très courts (quelques mots).
+- family doit être dans: ${familyList.join(', ')}
 - Valeurs exactes:
   gravity: Faible|Moyenne|Grave|Très Grave
   frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
   control: Très élevée|Élevée|Moyenne|Absente
 
-Schema JSON: {"risks":[{"family":"${familyList.join('|')}","situation":"...","danger":"...","gravity":"...","frequency":"...","control":"...","measures":"...","existingMeasures":["..."]}]}`;
+Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas):
+{"risks":[{"family":"Ergonomique","situation":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"...","existingMeasures":[]}]}`;
 
     try {
       const content = await generateJson(prompt, {
