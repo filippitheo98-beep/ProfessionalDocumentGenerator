@@ -432,19 +432,23 @@ Description détaillée de l'entreprise : ${companyDescription}
 
 Utilisez cette description pour mieux comprendre le contexte spécifique de l'entreprise et identifier des risques plus précis et pertinents.` : '';
     
-    const prompt = `En tant qu'expert en santé et sécurité au travail français, analysez le poste "${workUnitName}" dans le lieu "${locationName}" d'une entreprise de "${companyActivity}".${descriptionContext}
+    const prompt = `Génère des risques DUERP. JSON uniquement.
 
-Identifiez TOUS les risques professionnels pertinents selon la réglementation française. Soyez exhaustif mais restez cohérent avec le contexte. Pour chaque risque identifié, indiquez :
-- type: Type de risque (TMS, Chute, Bruit, Incendie, Chimique, Électrique, etc.)
-- danger: Description précise du danger
-- gravity: "Faible", "Moyenne", "Grave", ou "Très Grave"
-- frequency: "Annuelle", "Mensuelle", "Hebdomadaire", ou "Journalière"
-- control: "Très élevée", "Élevée", "Moyenne", ou "Absente"
-- measures: Mesures de prévention spécifiques
+Contexte:
+workUnit=${workUnitName}
+location=${locationName}
+activity=${companyActivity}
+${companyDescription ? `desc=${companyDescription}` : ''}
 
-IMPORTANT : Utilisez exactement ces valeurs pour gravity, frequency et control.
+Règles:
+- 4 à 7 risques max, pertinents, sans doublons.
+- danger et measures courts (1 phrase).
+- Valeurs exactes:
+  gravity: Faible|Moyenne|Grave|Très Grave
+  frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
+  control: Très élevée|Élevée|Moyenne|Absente
 
-Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous les risques identifiés.`;
+Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":"...","control":"...","measures":"..."}]}`;
 
     try {
       const content = await generateJson(prompt, {
@@ -516,68 +520,25 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
-    const prompt = `Tu interviens pour générer des SITUATIONS DE RISQUES PROFESSIONNELLES pour une application DUERP.
+    const prompt = `Génère des situations de risques DUERP. JSON uniquement.
 
-🧱 CONTEXTE
+Contexte:
+level=${level}
+name=${elementName}
+activity=${companyActivity}
+env=${elementDescription || 'N/A'}
+${context ? `extra=${context}` : ''}
 
-Niveau : ${level}
-Nom de l'élément : ${elementName}
-Secteur d'activité : ${companyActivity}
-Environnement de travail : ${elementDescription || 'Non précisé'}
-${context ? `\nInformations complémentaires:\n${context}` : ''}
+Règles:
+- Respecter le filtrage niveau: allowed="${levelRules[level].allowed}" forbidden="${levelRules[level].forbidden}"
+- Sortie: 3 à 6 risques max, familles pertinentes seulement, pas de doublons.
+- Texte court (1 phrase) pour situation/danger/measures.
+- Valeurs exactes:
+  gravity: Faible|Moyenne|Grave|Très Grave
+  frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
+  control: Très élevée|Élevée|Moyenne|Absente
 
-🎯 OBJECTIF IMPÉRATIF
-
-👉 Générer PLUSIEURS SITUATIONS DE RISQUE DISTINCTES PAR FAMILLE DE RISQUE, lorsque pertinent.
-
-Une famille de risque peut comporter 2 à 5 situations différentes.
-Chaque situation doit être indépendante, exploitable dans un tableau DUERP.
-
-📌 RÈGLES ESSENTIELLES
-
-1️⃣ FAMILLE ≠ RISQUE
-- La famille de risque est un regroupement
-- Le risque réel est la SITUATION D'EXPOSITION
-
-Exemple attendu :
-- Famille: Ergonomique → Situation 1: Travail prolongé sur écran
-- Famille: Ergonomique → Situation 2: Postures statiques prolongées  
-- Famille: Ergonomique → Situation 3: Mobilier inadapté
-
-2️⃣ FILTRAGE PAR NIVEAU "${level}"
-AUTORISÉ : ${levelRules[level].allowed}
-INTERDIT : ${levelRules[level].forbidden}
-
-3️⃣ STRUCTURE OBLIGATOIRE de chaque situation :
-{
-  "family": "Famille (parmi: ${familyList.join(', ')})",
-  "situation": "Situation d'exposition (courte et précise)",
-  "danger": "Description de la situation de danger",
-  "gravity": "Faible | Moyenne | Grave | Très Grave",
-  "frequency": "Annuelle | Mensuelle | Hebdomadaire | Journalière",
-  "control": "Très élevée | Élevée | Moyenne | Absente",
-  "measures": "Mesures de prévention recommandées (génériques, non pédagogiques)",
-  "existingMeasures": ["Mesure existante 1", "Mesure existante 2"]
-}
-
-4️⃣ QUANTITÉ ATTENDUE
-- Entre 4 et 8 situations de risque AU TOTAL
-- Réparties sur PLUSIEURS familles
-- Ne jamais forcer une famille non pertinente
-
-5️⃣ QUALITÉ ATTENDUE
-- Langage strictement DUERP
-- Exploitable tel quel dans un tableau INRS/EvRP
-- Pas de doublons
-- Pas de généralités vagues
-- Pas d'explications réglementaires
-
-🎯 RÉSULTAT ATTENDU
-Le résultat doit être directement transposable dans un tableau DUERP avec :
-- Plusieurs lignes pour une même famille de risque
-- Une logique identique à un tableau EvRP professionnel
-
-Répondez en JSON valide: { "risks": [...] }`;
+Schema JSON: {"risks":[{"family":"${familyList.join('|')}","situation":"...","danger":"...","gravity":"...","frequency":"...","control":"...","measures":"...","existingMeasures":["..."]}]}`;
 
     try {
       const content = await generateJson(prompt, {

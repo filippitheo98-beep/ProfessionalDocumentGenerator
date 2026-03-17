@@ -615,29 +615,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateJson } = await import('./ai-ollama');
-      const prompt = `Tu es un expert en santé et sécurité au travail. Tu dois regrouper intelligemment des postes de travail en unités de travail cohérentes pour un DUERP.
+      const prompt = `Regroupe des postes en unités de travail DUERP. JSON uniquement.
 
 Contexte:
-- Activité de l'entreprise: ${companyActivity}
-${companyDescription ? `- Description: ${companyDescription}` : ''}
-${siteName ? `- Site: ${siteName}` : ''}
+activity=${companyActivity}
+${companyDescription ? `desc=${companyDescription}` : ''}
+${siteName ? `site=${siteName}` : ''}
 
-Postes de travail à regrouper:
-${workstations.map((ws: string, i: number) => `${i + 1}. ${ws}`).join('\n')}
+Workstations:
+${workstations.map((ws: string) => `- ${ws}`).join('\n')}
 
-Règles de regroupement:
-1. Regrouper les postes qui partagent des risques similaires ou un environnement de travail commun
-2. Chaque unité de travail doit avoir un nom clair et descriptif
-3. Un poste peut appartenir à une seule unité
-4. Si un poste est très spécifique, il peut constituer sa propre unité
-5. Créer entre 2 et ${Math.max(3, Math.ceil(workstations.length / 2))} unités de travail
+Règles:
+- 2 à ${Math.max(3, Math.ceil(workstations.length / 2))} groupes max
+- noms courts, explicites
+- chaque poste apparaît 1 seule fois
 
-Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations": ["poste1", "poste2"] }] }`;
+Schema JSON: {"groups":[{"name":"...","workstations":["..."]}]}`;
 
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP. JSON uniquement.",
         temperature: 0.5,
-        maxOutputTokens: 2000
+        maxOutputTokens: 400
       });
       const result = JSON.parse(content || '{"groups": []}');
       res.json(result);
@@ -1146,10 +1144,20 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
         measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
       ].filter(Boolean).join('\n\n');
       const { generateJson } = await import('./ai-ollama');
-      const prompt = `Tu es un expert en prévention des risques professionnels. À partir du contexte DUERP suivant, propose entre 5 et 10 actions concrètes pour un plan d'action (titre court, description optionnelle, priorité: low, medium, high ou critical). Réponds en JSON: { "suggestions": [ { "title": "...", "description": "...", "priority": "medium" } ] }.\n\nContexte:\n${context || 'Aucun risque ou mesure renseigné.'}`;
+      const prompt = `Propose des actions DUERP. JSON uniquement.
+
+Contexte:
+${context || 'N/A'}
+
+Règles:
+- 3 à 6 suggestions max
+- title très court
+- priority: low|medium|high|critical
+
+Schema JSON: {"suggestions":[{"title":"...","description":"...","priority":"medium"}]}`;
       const content = await generateJson(prompt, {
         temperature: 0.6,
-        maxOutputTokens: 2000
+        maxOutputTokens: 350
       }) || '{"suggestions":[]}';
       const data = JSON.parse(content);
       const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
