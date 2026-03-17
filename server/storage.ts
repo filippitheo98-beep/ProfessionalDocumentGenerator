@@ -22,7 +22,7 @@ import {
 import { db } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
-import { generateJson } from './ai-gemini';
+import { generateJson } from './ai-ollama';
 
 export interface IStorage {
   // Company operations
@@ -390,7 +390,7 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
+      if (msg.includes('OPENAI_API_KEY') || msg.includes('Service Ollama indisponible')) throw error;
       console.error('Error generating AI risks:', error);
     }
 
@@ -484,9 +484,9 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
         };
       });
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
+      console.error('Error calling Ollama:', error);
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
+      if (msg.includes('Service Ollama indisponible')) throw error;
       return [];
     }
   }
@@ -589,7 +589,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       try {
         result = content ? JSON.parse(content) : { risks: [] };
       } catch (_) {
-        throw new Error('Réponse IA invalide (JSON attendu). Vérifiez la clé API et le quota Gemini.');
+        throw new Error('Réponse IA invalide (JSON attendu). Vérifiez Ollama (modèle, accès réseau).');
       }
       const risksArray = Array.isArray(result?.risks) ? result.risks : [];
       
@@ -634,7 +634,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) throw error;
+      if (msg.includes('Service Ollama indisponible')) throw error;
       console.error('Error generating hierarchical risks:', error);
       throw new Error(msg || 'Erreur lors de l\'appel à l\'IA pour la génération des risques.');
     }

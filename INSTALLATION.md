@@ -78,13 +78,14 @@ npm run dev
 
 ## Configuration Optionnelle
 
-### Clé API Google Gemini (pour l'IA)
-Si vous voulez utiliser les fonctionnalités d'intelligence artificielle :
-1. Créez un compte sur https://aistudio.google.com/
-2. Générez une clé API (Get API key)
-3. Ajoutez cette ligne dans votre fichier `.env` :
+### Ollama (pour l'IA)
+Si vous voulez utiliser les fonctionnalités d'intelligence artificielle avec un Ollama auto-hébergé :
+1. Installez Ollama sur un serveur (ou sur votre machine)
+2. Téléchargez un modèle (ex. `llama3.2`)
+3. Ajoutez dans votre fichier `.env` :
    ```env
-   GOOGLE_GEMINI_API_KEY=votre-cle-gemini
+   OLLAMA_BASE_URL=http://54.38.26.215:11434
+   OLLAMA_MODEL=llama3.2
    ```
 
 ### Clé API Anthropic (alternative)

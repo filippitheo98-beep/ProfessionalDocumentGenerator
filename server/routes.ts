@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
+      if (msg.includes('Service Ollama indisponible')) {
         return res.status(503).json({ message: msg });
       }
       if (error instanceof z.ZodError) {
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
+      if (msg.includes('Service Ollama indisponible')) {
         return res.status(503).json({ message: msg });
       }
       console.error("Error generating hierarchical risks:", error);
@@ -614,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Workstations and company activity are required" });
       }
 
-      const { generateJson } = await import('./ai-gemini');
+      const { generateJson } = await import('./ai-ollama');
       const prompt = `Tu es un expert en santé et sécurité au travail. Tu dois regrouper intelligemment des postes de travail en unités de travail cohérentes pour un DUERP.
 
 Contexte:
@@ -643,11 +643,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
       res.json(result);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) {
-        return res.status(503).json({
-          message: "GOOGLE_GEMINI_API_KEY non configurée. Ajoutez-la dans .env ou dans les variables d'environnement (ex. Railway) pour activer le regroupement par IA."
-        });
-      }
+      if (msg.includes('Service Ollama indisponible')) return res.status(503).json({ message: 'Service IA indisponible (Ollama)' });
       console.error("Error grouping workstations:", error);
       res.status(500).json({ message: "Erreur lors du regroupement des postes" });
     }
@@ -1149,7 +1145,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
         risks.length ? `Risques et mesures à mettre en place:\n${risks.map(r => `- ${r.danger || r.type}: ${r.measures}`).join('\n')}` : '',
         measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
       ].filter(Boolean).join('\n\n');
-      const { generateJson } = await import('./ai-gemini');
+      const { generateJson } = await import('./ai-ollama');
       const prompt = `Tu es un expert en prévention des risques professionnels. À partir du contexte DUERP suivant, propose entre 5 et 10 actions concrètes pour un plan d'action (titre court, description optionnelle, priorité: low, medium, high ou critical). Réponds en JSON: { "suggestions": [ { "title": "...", "description": "...", "priority": "medium" } ] }.\n\nContexte:\n${context || 'Aucun risque ou mesure renseigné.'}`;
       const content = await generateJson(prompt, {
         temperature: 0.6,
@@ -1161,7 +1157,7 @@ Réponds en JSON valide: { "groups": [{ "name": "Nom de l'unité", "workstations
     } catch (e) {
       console.error(e);
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('GOOGLE_GEMINI_API_KEY')) return res.status(503).json({ message: 'Service IA indisponible (clé Gemini non configurée)' });
+      if (msg.includes('Service Ollama indisponible')) return res.status(503).json({ message: 'Service IA indisponible (Ollama)' });
       res.status(500).json({ message: 'Erreur lors des suggestions IA' });
     }
   });

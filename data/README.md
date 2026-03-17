@@ -47,12 +47,13 @@ Avec `--replace`, la table est vidée avant import (utile si vous avez des doubl
 npm run db:seed-risk-library
 ```
 
-### Génération par IA (Google Gemini)
+### Génération par IA (Ollama self-hosted)
 
 Pour que la génération de risques par IA et le regroupement de postes fonctionnent :
 
 - **En local** : ajoutez dans votre fichier `.env` :  
-  `GOOGLE_GEMINI_API_KEY=votre-cle-gemini`
-- **Sur Railway** : dans le projet Railway → Variables, ajoutez la variable `GOOGLE_GEMINI_API_KEY` avec votre clé API Gemini (obtenue sur https://aistudio.google.com/).
+  `OLLAMA_BASE_URL=http://54.38.26.215:11434`  
+  `OLLAMA_MODEL=llama3.2`
+- **Sur Railway** : dans le projet Railway → Variables, ajoutez `OLLAMA_BASE_URL` et `OLLAMA_MODEL` (pas de clé API).
 
 Sans cette variable, l’application renverra un message explicite (503) invitant à configurer la clé ; le reste de l’app fonctionne sans IA.
