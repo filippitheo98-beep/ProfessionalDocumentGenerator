@@ -450,7 +450,7 @@ Répondez uniquement avec un JSON valide contenant un tableau "risks" avec tous 
       const content = await generateJson(prompt, {
         systemPrompt: "Vous êtes un expert en évaluation des risques professionnels français. Répondez uniquement avec du JSON valide.",
         temperature: 0.7,
-        maxOutputTokens: 1000
+        maxOutputTokens: 600
       });
       const result = content ? JSON.parse(content) : { risks: [] };
       const risksArray = Array.isArray(result?.risks) ? result.risks : [];
@@ -561,7 +561,7 @@ INTERDIT : ${levelRules[level].forbidden}
 }
 
 4️⃣ QUANTITÉ ATTENDUE
-- Entre 5 et 12 situations de risque AU TOTAL
+- Entre 4 et 8 situations de risque AU TOTAL
 - Réparties sur PLUSIEURS familles
 - Ne jamais forcer une famille non pertinente
 
@@ -583,7 +583,7 @@ Répondez en JSON valide: { "risks": [...] }`;
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
         temperature: 0.7,
-        maxOutputTokens: 1000
+        maxOutputTokens: 600
       });
       let result: { risks?: unknown };
       try {
