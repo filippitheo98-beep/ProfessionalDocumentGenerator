@@ -42,6 +42,7 @@ export interface GenerateJsonOptions {
   systemPrompt?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  responseJsonSchema?: unknown;
 }
 
 /**
@@ -68,16 +69,17 @@ export async function generateJson(
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-      model,
-      stream: false,
-      format: 'json',
-      messages,
-      options: {
-        temperature: options.temperature ?? 0.7,
-        // Ollama utilise num_predict pour limiter la taille de sortie
-        num_predict: options.maxOutputTokens ?? 2000,
-      },
-    }),
+        model,
+        stream: false,
+        // `format` peut être "json" ou un JSON Schema (plus robuste)
+        format: options.responseJsonSchema ?? 'json',
+        messages,
+        options: {
+          temperature: options.temperature ?? 0.7,
+          // Ollama utilise num_predict pour limiter la taille de sortie
+          num_predict: options.maxOutputTokens ?? 2000,
+        },
+      }),
     });
   } catch (err: any) {
     clearTimeout(timeoutId);

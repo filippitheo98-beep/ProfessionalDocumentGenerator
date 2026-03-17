@@ -544,10 +544,39 @@ Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas). Toutes
 {"risks":[{"family":"Ergonomique","situation":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"...","existingMeasures":[]}]}`;
 
     try {
+      const schema = {
+        type: 'object',
+        properties: {
+          risks: {
+            type: 'array',
+            minItems: desiredCount,
+            maxItems: desiredCount,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                family: { type: 'string', enum: familyList },
+                situation: { type: 'string' },
+                danger: { type: 'string' },
+                gravity: { type: 'string', enum: ['Faible', 'Moyenne', 'Grave', 'Très Grave'] },
+                frequency: { type: 'string', enum: ['Annuelle', 'Mensuelle', 'Hebdomadaire', 'Journalière'] },
+                control: { type: 'string', enum: ['Très élevée', 'Élevée', 'Moyenne', 'Absente'] },
+                measures: { type: 'string' },
+                existingMeasures: { type: 'array', items: { type: 'string' } },
+              },
+              required: ['family', 'situation', 'danger', 'gravity', 'frequency', 'control', 'measures', 'existingMeasures'],
+            },
+          },
+        },
+        required: ['risks'],
+        additionalProperties: false,
+      };
+
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
         temperature: 0.2,
-        maxOutputTokens: 350
+        maxOutputTokens: 450,
+        responseJsonSchema: schema
       });
       let result: { risks?: unknown };
       try {
