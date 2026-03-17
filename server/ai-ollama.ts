@@ -59,7 +59,7 @@ export async function generateJson(
   messages.push({ role: 'user', content: prompt });
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90_000); // 90 s max
+  const timeoutId = setTimeout(() => controller.abort(), 180_000); // 3 min (Ollama sur CPU peut être lent)
 
   let res: Response;
   try {
