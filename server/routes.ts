@@ -538,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate hierarchical risks for specific level (Site, Zone, Unité, Activité)
   app.post("/api/generate-hierarchical-risks", async (req, res) => {
     try {
-      const { level, elementName, elementDescription, companyActivity, companyDescription, companyId, siteName, workstationNames, inheritedRisks, uploadedDocumentsContext } = req.body;
+      const { level, elementName, elementDescription, companyActivity, companyDescription, companyId, siteName, workstationNames, inheritedRisks, uploadedDocumentsContext, count, existingRisks } = req.body;
       
       if (!level || !elementName || !companyActivity) {
         return res.status(400).json({ message: "Level, element name, and company activity are required" });
@@ -584,12 +584,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         context += `\n\n${uploadedDocumentsContext}`;
       }
 
+      // Avoid duplicates when user requests more risks
+      if (Array.isArray(existingRisks) && existingRisks.length > 0) {
+        const existingLines = existingRisks
+          .map((r: any) => `${r.family ? `[${r.family}] ` : ''}${r.situation || r.type || ''} - ${r.danger || ''}`.trim())
+          .filter(Boolean)
+          .slice(0, 20);
+        if (existingLines.length) {
+          context += `\n\n=== RISQUES DÉJÀ GÉNÉRÉS (NE PAS RÉPÉTER) ===\n` + existingLines.map(l => `- ${l}`).join('\n');
+        }
+      }
+
       const risks = await storage.generateHierarchicalRisks(
         level,
         elementName,
         elementDescription || '',
         companyActivity,
-        context
+        context,
+        typeof count === 'number' ? count : undefined
       );
       
       res.json({ risks });

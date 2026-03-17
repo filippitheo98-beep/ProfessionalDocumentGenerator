@@ -89,6 +89,7 @@ export default function HierarchicalEditorStep({
   const [filterUnit, setFilterUnit] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+  const [generatingMore, setGeneratingMore] = useState(false);
   const [selectedAddUnit, setSelectedAddUnit] = useState<string>('');
 
   const [pendingRisks, setPendingRisks] = useState<{
@@ -149,6 +150,7 @@ export default function HierarchicalEditorStep({
           companyId,
           workstationNames,
           siteNames,
+          count: 3,
         }),
       });
 
@@ -167,6 +169,60 @@ export default function HierarchicalEditorStep({
       });
     } finally {
       setGeneratingFor(null);
+    }
+  };
+
+  const generateMoreRisks = async () => {
+    if (!pendingRisks) return;
+    const unit = workUnits.find(u => u.id === pendingRisks.unitId);
+    if (!unit) return;
+    const workstationNames = unit.workstations?.map(w => w.name) || [];
+    const siteNames = (unit.unitSites || []).map(s => s.name);
+
+    setGeneratingMore(true);
+    try {
+      const response = await apiRequest('/api/generate-hierarchical-risks', {
+        method: 'POST',
+        body: JSON.stringify({
+          level: 'Unité',
+          elementName: unit.name,
+          elementDescription: unit.description || '',
+          companyActivity,
+          companyDescription: companyDescription || '',
+          companyId,
+          workstationNames,
+          siteNames,
+          count: 3,
+          existingRisks: [...(unit.risks || []), ...(pendingRisks.risks || [])].map(r => ({
+            family: (r as any).family,
+            situation: (r as any).situation,
+            type: (r as any).type,
+            danger: (r as any).danger,
+          })),
+        }),
+      });
+
+      const newRisks: Risk[] = Array.isArray(response?.risks) ? response.risks : [];
+      if (newRisks.length > 0) {
+        const merged = [...pendingRisks.risks, ...newRisks];
+        setPendingRisks({ ...pendingRisks, risks: merged });
+        setSelectedPendingRisks(prev => {
+          const next = new Set(prev);
+          newRisks.forEach(r => next.add(r.id));
+          return next;
+        });
+      } else {
+        toast({ title: "Aucun risque supplémentaire", description: "L'IA n'a pas généré de nouveaux risques." });
+      }
+    } catch (error: any) {
+      console.error('Erreur génération IA (more):', error);
+      toast({
+        title: "Erreur de génération",
+        description: error?.message || "Impossible de générer les risques. Vérifiez votre connexion.",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingMore(false);
     }
   };
 
@@ -526,6 +582,14 @@ export default function HierarchicalEditorStep({
               <Button variant="outline" onClick={() => { setPendingRisks(null); setSelectedPendingRisks(new Set()); }}>
                 <X className="h-4 w-4 mr-2" />
                 Annuler
+              </Button>
+              <Button variant="secondary" onClick={generateMoreRisks} disabled={generatingMore}>
+                {generatingMore ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Générer +3
               </Button>
               <Button onClick={validateSelectedRisks} disabled={selectedPendingRisks.size === 0}>
                 <Check className="h-4 w-4 mr-2" />

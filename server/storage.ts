@@ -500,7 +500,8 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
     elementName: string,
     elementDescription: string,
     companyActivity: string,
-    context: string
+    context: string,
+    count?: number
   ): Promise<Risk[]> {
     
     const levelRules: Record<string, { allowed: string; forbidden: string }> = {
@@ -520,18 +521,20 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
+    const desiredCount = Math.max(1, Math.min(3, count ?? 3));
     const prompt = `DUERP risques (niveau ${level}). JSON uniquement.
 
 Contexte:
 name=${elementName}
 activity=${companyActivity}
 env=${elementDescription || 'N/A'}
+${context ? `\nextra=${context}` : ''}
 
 Contraintes:
 - Filtrage: allowed="${levelRules[level].allowed}" forbidden="${levelRules[level].forbidden}"
-- 2 à 3 risques MAX, sans doublons.
+- Générer EXACTEMENT ${desiredCount} risques, sans doublons.
 - Champs très courts (quelques mots).
-- family doit être dans: ${familyList.join(', ')}
+- family doit être UNE valeur parmi: ${familyList.join(', ')}
 - Valeurs exactes:
   gravity: Faible|Moyenne|Grave|Très Grave
   frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
