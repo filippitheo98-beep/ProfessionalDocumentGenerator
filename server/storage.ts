@@ -583,12 +583,14 @@ Répondez en JSON valide: { "risks": [...] }`;
       const content = await generateJson(prompt, {
         systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
         temperature: 0.7,
-        maxOutputTokens: 600
+        maxOutputTokens: 1000
       });
       let result: { risks?: unknown };
       try {
         result = content ? JSON.parse(content) : { risks: [] };
-      } catch (_) {
+      } catch (parseErr) {
+        const preview = typeof content === 'string' ? content.slice(0, 400) : '';
+        console.error('Ollama JSON parse failed. Preview:', preview);
         throw new Error('Réponse IA invalide (JSON attendu). Vérifiez Ollama (modèle, accès réseau).');
       }
       const risksArray = Array.isArray(result?.risks) ? result.risks : [];
