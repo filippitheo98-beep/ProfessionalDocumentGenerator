@@ -58,10 +58,16 @@ export async function generateJson(
   if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt });
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(`${baseUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90_000); // 90 s max
+
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
       model,
       stream: false,
       messages,
@@ -71,7 +77,15 @@ export async function generateJson(
         num_predict: options.maxOutputTokens ?? 2000,
       },
     }),
-  });
+    });
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err?.name === 'AbortError') {
+      throw new Error('Service Ollama indisponible : délai dépassé (vérifiez le pare-feu et que Ollama écoute sur 0.0.0.0).');
+    }
+    throw new Error(`Service Ollama indisponible : ${err?.message || err}. Vérifiez OLLAMA_BASE_URL et le pare-feu (port 11434).`);
+  }
+  clearTimeout(timeoutId);
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
