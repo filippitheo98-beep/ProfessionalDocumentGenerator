@@ -150,7 +150,7 @@ export default function HierarchicalEditorStep({
           companyId,
           workstationNames,
           siteNames,
-          count: 3,
+          count: 8,
         }),
       });
 
@@ -192,7 +192,7 @@ export default function HierarchicalEditorStep({
           companyId,
           workstationNames,
           siteNames,
-          count: 3,
+          count: 8,
           existingRisks: [...(unit.risks || []), ...(pendingRisks.risks || [])].map(r => ({
             family: (r as any).family,
             situation: (r as any).situation,

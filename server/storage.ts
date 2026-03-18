@@ -23,6 +23,7 @@ import { db } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
 import { generateJson } from './ai-ollama';
+import { DUERP_JSON_SYSTEM_PROMPT } from './ai-prompts';
 
 export interface IStorage {
   // Company operations
@@ -455,9 +456,8 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
 
     try {
       const content = await generateJson(prompt, {
-        systemPrompt: "Vous êtes un expert en évaluation des risques professionnels français. Répondez uniquement avec du JSON valide.",
-        temperature: 0.7,
-        maxOutputTokens: 600
+        systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
+        maxOutputTokens: 900
       });
       const result = content ? JSON.parse(content) : { risks: [] };
       const risksArrayRaw = Array.isArray(result?.risks) ? result.risks : [];
@@ -527,7 +527,8 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
       'Routier', 'Environnemental', 'Organisationnel'
     ];
     
-    const desiredCount = Math.max(1, Math.min(3, count ?? 3));
+    const desiredCount = Math.max(1, Math.min(8, count ?? 8));
+    const tokenBudget = Math.max(450, Math.min(2200, 280 * desiredCount));
     const prompt = `DUERP risques (niveau ${level}). JSON uniquement.
 
 Contexte:
@@ -579,9 +580,9 @@ Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas). Toutes
       };
 
       const content = await generateJson(prompt, {
-        systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP et recommandations INRS. JSON uniquement.",
-        temperature: 0.2,
-        maxOutputTokens: 450,
+        systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
+        // 8 risques => plus de tokens pour éviter un JSON tronqué
+        maxOutputTokens: tokenBudget,
         responseJsonSchema: schema
       });
       let result: { risks?: unknown };
@@ -589,7 +590,21 @@ Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas). Toutes
         const trimmed = typeof content === 'string' ? content.trim() : '';
         // Tolérance: certains modèles renvoient parfois `"risks":[...]` sans l'objet racine.
         const normalized = trimmed.startsWith('"risks"') ? `{${trimmed}}` : trimmed;
-        result = normalized ? JSON.parse(normalized) : { risks: [] };
+        try {
+          result = normalized ? JSON.parse(normalized) : { risks: [] };
+        } catch (firstErr) {
+          // Tolérance: réponse tronquée (souvent lorsque la limite de tokens est trop basse).
+          // On tente de couper au dernier caractère '}' et de fermer l'objet.
+          const lastBrace = normalized.lastIndexOf('}');
+          const lastBracket = normalized.lastIndexOf(']');
+          const cutAt = Math.max(lastBrace, lastBracket);
+          if (cutAt > 0) {
+            const repaired = normalized.slice(0, cutAt + 1);
+            result = JSON.parse(repaired);
+          } else {
+            throw firstErr;
+          }
+        }
       } catch (parseErr) {
         const preview = typeof content === 'string' ? content.slice(0, 400) : '';
         console.error('Ollama JSON parse failed. Preview:', preview);

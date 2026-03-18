@@ -12,6 +12,7 @@ import { z } from "zod";
 import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExportExcel, generateRisksAndPlanActionExportExcel } from './exportUtils';
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql, ilike, or, and, inArray } from "drizzle-orm";
+import { DUERP_JSON_SYSTEM_PROMPT } from "./ai-prompts";
 
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
@@ -645,9 +646,8 @@ Règles:
 Schema JSON: {"groups":[{"name":"...","workstations":["..."]}]}`;
 
       const content = await generateJson(prompt, {
-        systemPrompt: "Expert en prévention des risques professionnels français. Réponses conformes aux exigences DUERP. JSON uniquement.",
-        temperature: 0.5,
-        maxOutputTokens: 400
+        systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
+        maxOutputTokens: 600
       });
       const result = JSON.parse(content || '{"groups": []}');
       res.json(result);
@@ -1168,8 +1168,8 @@ Règles:
 
 Schema JSON: {"suggestions":[{"title":"...","description":"...","priority":"medium"}]}`;
       const content = await generateJson(prompt, {
-        temperature: 0.6,
-        maxOutputTokens: 350
+        systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
+        maxOutputTokens: 450
       }) || '{"suggestions":[]}';
       const data = JSON.parse(content);
       const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];

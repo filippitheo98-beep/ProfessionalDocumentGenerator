@@ -8,12 +8,32 @@ const OLLAMA_MODEL_ENV = 'OLLAMA_MODEL';
 
 const OLLAMA_LOCAL_ONLY_ENV = 'OLLAMA_LOCAL_ONLY';
 
+const OLLAMA_TEMPERATURE_ENV = 'OLLAMA_TEMPERATURE';
+const OLLAMA_TOP_P_ENV = 'OLLAMA_TOP_P';
+const OLLAMA_TOP_K_ENV = 'OLLAMA_TOP_K';
+const OLLAMA_REPEAT_PENALTY_ENV = 'OLLAMA_REPEAT_PENALTY';
+const OLLAMA_NUM_CTX_ENV = 'OLLAMA_NUM_CTX';
+const OLLAMA_NUM_PREDICT_ENV = 'OLLAMA_NUM_PREDICT';
+
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = 'llama3.2';
+
+const DEFAULT_TEMPERATURE = 0.3;
+const DEFAULT_TOP_P = 0.9;
+const DEFAULT_TOP_K = 40;
+const DEFAULT_REPEAT_PENALTY = 1.1;
+const DEFAULT_NUM_PREDICT = 2000;
 
 function isLocalhostHostname(hostname: string): boolean {
   const h = hostname.toLowerCase();
   return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+}
+
+function parseNumberEnv(name: string): number | undefined {
+  const raw = process.env[name]?.trim();
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 function getBaseUrl(): string {
@@ -40,6 +60,21 @@ function getModel(): string {
   return process.env[OLLAMA_MODEL_ENV]?.trim() || DEFAULT_MODEL;
 }
 
+function getOllamaDefaults() {
+  const temperature = parseNumberEnv(OLLAMA_TEMPERATURE_ENV) ?? DEFAULT_TEMPERATURE;
+  const top_p = parseNumberEnv(OLLAMA_TOP_P_ENV) ?? DEFAULT_TOP_P;
+  const top_k = parseNumberEnv(OLLAMA_TOP_K_ENV) ?? DEFAULT_TOP_K;
+  const repeat_penalty = parseNumberEnv(OLLAMA_REPEAT_PENALTY_ENV) ?? DEFAULT_REPEAT_PENALTY;
+
+  // num_ctx: si non défini, on laisse Ollama choisir son défaut (peut varier selon modèle)
+  const num_ctx = parseNumberEnv(OLLAMA_NUM_CTX_ENV);
+
+  // num_predict limite la taille de sortie; valeur par défaut stable mais configurable
+  const num_predict = parseNumberEnv(OLLAMA_NUM_PREDICT_ENV) ?? DEFAULT_NUM_PREDICT;
+
+  return { temperature, top_p, top_k, repeat_penalty, num_ctx, num_predict };
+}
+
 /**
  * Extrait le JSON brut d'une réponse pouvant contenir des blocs markdown ou du texte parasite.
  */
@@ -64,6 +99,10 @@ function extractJson(text: string): string {
 export interface GenerateJsonOptions {
   systemPrompt?: string;
   temperature?: number;
+  topP?: number;
+  topK?: number;
+  repeatPenalty?: number;
+  contextTokens?: number;
   maxOutputTokens?: number;
   responseJsonSchema?: unknown;
 }
@@ -77,6 +116,7 @@ export async function generateJson(
 ): Promise<string> {
   const baseUrl = getBaseUrl();
   const model = getModel();
+  const defaults = getOllamaDefaults();
 
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
   if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt });
@@ -98,9 +138,17 @@ export async function generateJson(
         format: options.responseJsonSchema ?? 'json',
         messages,
         options: {
-          temperature: options.temperature ?? 0.7,
+          temperature: options.temperature ?? defaults.temperature,
+          top_p: options.topP ?? defaults.top_p,
+          top_k: options.topK ?? defaults.top_k,
+          repeat_penalty: options.repeatPenalty ?? defaults.repeat_penalty,
+          ...(Number.isFinite(options.contextTokens as number)
+            ? { num_ctx: options.contextTokens }
+            : defaults.num_ctx !== undefined
+              ? { num_ctx: defaults.num_ctx }
+              : {}),
           // Ollama utilise num_predict pour limiter la taille de sortie
-          num_predict: options.maxOutputTokens ?? 2000,
+          num_predict: options.maxOutputTokens ?? defaults.num_predict,
         },
       }),
     });
