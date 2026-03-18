@@ -6,11 +6,34 @@
 const OLLAMA_BASE_URL_ENV = 'OLLAMA_BASE_URL';
 const OLLAMA_MODEL_ENV = 'OLLAMA_MODEL';
 
-const DEFAULT_BASE_URL = 'http://54.38.26.215:11434';
+const OLLAMA_LOCAL_ONLY_ENV = 'OLLAMA_LOCAL_ONLY';
+
+const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = 'llama3.2';
 
+function isLocalhostHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+}
+
 function getBaseUrl(): string {
-  return (process.env[OLLAMA_BASE_URL_ENV]?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const raw = (process.env[OLLAMA_BASE_URL_ENV]?.trim() || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const localOnly = (process.env[OLLAMA_LOCAL_ONLY_ENV] ?? 'true').trim().toLowerCase() !== 'false';
+
+  if (localOnly) {
+    try {
+      const url = new URL(raw);
+      if (!isLocalhostHostname(url.hostname)) {
+        throw new Error(
+          `OLLAMA_BASE_URL doit pointer vers localhost (ex: http://127.0.0.1:11434). Reçu: ${raw}`
+        );
+      }
+    } catch {
+      throw new Error(`OLLAMA_BASE_URL invalide. Reçu: ${raw}`);
+    }
+  }
+
+  return raw;
 }
 
 function getModel(): string {

@@ -51,9 +51,11 @@ npm run db:seed-risk-library
 
 Pour que la génération de risques par IA et le regroupement de postes fonctionnent :
 
-- **En local** : ajoutez dans votre fichier `.env` :  
-  `OLLAMA_BASE_URL=http://54.38.26.215:11434`  
+- **En local (recommandé)** : ajoutez dans votre fichier `.env` :  
+  `OLLAMA_BASE_URL=http://127.0.0.1:11434`  
   `OLLAMA_MODEL=llama3.2`
-- **Sur Railway** : dans le projet Railway → Variables, ajoutez `OLLAMA_BASE_URL` et `OLLAMA_MODEL` (pas de clé API).
+
+Par défaut, l’application refuse une URL Ollama non-locale. Si vous devez pointer un Ollama distant :
+`OLLAMA_LOCAL_ONLY=false`
 
 Sans cette variable, l’application renverra un message explicite (503) invitant à configurer la clé ; le reste de l’app fonctionne sans IA.

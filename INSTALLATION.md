@@ -79,14 +79,19 @@ npm run dev
 ## Configuration Optionnelle
 
 ### Ollama (pour l'IA)
-Si vous voulez utiliser les fonctionnalités d'intelligence artificielle avec un Ollama auto-hébergé :
-1. Installez Ollama sur un serveur (ou sur votre machine)
+Si vous voulez utiliser les fonctionnalités d'intelligence artificielle avec Ollama **en local** :
+1. Installez Ollama sur votre machine
 2. Téléchargez un modèle (ex. `llama3.2`)
 3. Ajoutez dans votre fichier `.env` :
    ```env
-   OLLAMA_BASE_URL=http://54.38.26.215:11434
+   OLLAMA_BASE_URL=http://127.0.0.1:11434
    OLLAMA_MODEL=llama3.2
    ```
+
+Par défaut, l’application refuse une URL Ollama non-locale. Si vous devez vraiment pointer un Ollama distant, ajoutez :
+```env
+OLLAMA_LOCAL_ONLY=false
+```
 
 ### Clé API Anthropic (alternative)
 Vous pouvez aussi utiliser Anthropic Claude :

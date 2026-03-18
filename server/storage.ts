@@ -382,7 +382,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async generateRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
-    // Use OpenAI to generate contextual risks
+    // Utilise Ollama (local) pour générer des risques contextuels
     try {
       const aiRisks = await this.generateAIRisks(workUnitName, locationName, companyActivity, companyDescription);
       if (aiRisks.length > 0) {
@@ -390,7 +390,7 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('OPENAI_API_KEY') || msg.includes('Service Ollama indisponible')) throw error;
+      if (msg.includes('Service Ollama indisponible') || msg.includes('OLLAMA_BASE_URL')) throw error;
       console.error('Error generating AI risks:', error);
     }
 
