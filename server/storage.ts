@@ -432,6 +432,9 @@ Description détaillée de l'entreprise : ${companyDescription}
 
 Utilisez cette description pour mieux comprendre le contexte spécifique de l'entreprise et identifier des risques plus précis et pertinents.` : '';
     
+    const desiredMax = 8;
+    const desiredMin = 7;
+
     const prompt = `Génère des risques DUERP. JSON uniquement.
 
 Contexte:
@@ -441,7 +444,7 @@ activity=${companyActivity}
 ${companyDescription ? `desc=${companyDescription}` : ''}
 
 Règles:
-- 4 à 7 risques max, pertinents, sans doublons.
+- 7 à 8 risques, pertinents, sans doublons (vise 8 si possible).
 - danger et measures courts (1 phrase).
 - Valeurs exactes:
   gravity: Faible|Moyenne|Grave|Très Grave
@@ -457,8 +460,11 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
         maxOutputTokens: 600
       });
       const result = content ? JSON.parse(content) : { risks: [] };
-      const risksArray = Array.isArray(result?.risks) ? result.risks : [];
+      const risksArrayRaw = Array.isArray(result?.risks) ? result.risks : [];
+      const risksArray = risksArrayRaw.slice(0, desiredMax);
       
+      // Si l'IA renvoie plus de risques, on tronque. Si elle en renvoie moins, on accepte quand même.
+      // Le prompt vise 7-8 risques, mais on garde une tolérance pour ne pas casser le flux.
       return risksArray.map((risk: any) => {
         const gravity = risk.gravity || 'Moyenne';
         const frequency = risk.frequency || 'Mensuelle';
