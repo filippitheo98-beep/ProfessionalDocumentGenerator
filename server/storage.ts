@@ -427,32 +427,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async generateAIRisks(workUnitName: string, locationName: string, companyActivity: string, companyDescription?: string): Promise<Risk[]> {
-    const descriptionContext = companyDescription ? `
-
-Description détaillée de l'entreprise : ${companyDescription}
-
-Utilisez cette description pour mieux comprendre le contexte spécifique de l'entreprise et identifier des risques plus précis et pertinents.` : '';
-    
     const desiredMax = 8;
-    const desiredMin = 7;
 
-    const prompt = `Génère des risques DUERP. JSON uniquement.
-
-Contexte:
-workUnit=${workUnitName}
-location=${locationName}
-activity=${companyActivity}
-${companyDescription ? `desc=${companyDescription}` : ''}
-
-Règles:
-- 7 à 8 risques, pertinents, sans doublons (vise 8 si possible).
-- danger et measures courts (1 phrase).
-- Valeurs exactes:
-  gravity: Faible|Moyenne|Grave|Très Grave
-  frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
-  control: Très élevée|Élevée|Moyenne|Absente
-
-Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":"...","control":"...","measures":"..."}]}`;
+    const prompt = [
+      `Tâche: générer 7 à 8 risques DUERP (viser 8), pertinents et sans doublons.`,
+      ``,
+      `Contexte:`,
+      `- unité=${workUnitName}`,
+      `- lieu=${locationName}`,
+      `- activité=${companyActivity}`,
+      companyDescription ? `- description=${companyDescription}` : ``,
+      ``,
+      `Contraintes:`,
+      `- textes courts (1 phrase max) pour danger et measures`,
+      `- enums:`,
+      `  - gravity: Faible|Moyenne|Grave|Très Grave`,
+      `  - frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière`,
+      `  - control: Très élevée|Élevée|Moyenne|Absente`,
+      ``,
+      `JSON attendu: {"risks":[{"type":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"..."}]}`,
+    ].filter(Boolean).join('\n');
 
     try {
       const content = await generateJson(prompt, {
@@ -529,26 +523,26 @@ Schema JSON: {"risks":[{"type":"...","danger":"...","gravity":"...","frequency":
     
     const desiredCount = Math.max(1, Math.min(8, count ?? 8));
     const tokenBudget = Math.max(450, Math.min(2200, 280 * desiredCount));
-    const prompt = `DUERP risques (niveau ${level}). JSON uniquement.
-
-Contexte:
-name=${elementName}
-activity=${companyActivity}
-env=${elementDescription || 'N/A'}
-${context ? `\nextra=${context}` : ''}
-
-Contraintes:
-- Filtrage: allowed="${levelRules[level].allowed}" forbidden="${levelRules[level].forbidden}"
-- Générer EXACTEMENT ${desiredCount} risques, sans doublons.
-- Champs très courts (quelques mots).
-- family doit être UNE valeur parmi: ${familyList.join(', ')}
-- Valeurs exactes:
-  gravity: Faible|Moyenne|Grave|Très Grave
-  frequency: Annuelle|Mensuelle|Hebdomadaire|Journalière
-  control: Très élevée|Élevée|Moyenne|Absente
-
-Répondre EXACTEMENT avec ce JSON (pas de texte, pas de trailing commas). Toutes les clés doivent être présentes:
-{"risks":[{"family":"Ergonomique","situation":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"...","existingMeasures":[]}]}`;
+    const prompt = [
+      `Tâche: générer EXACTEMENT ${desiredCount} risques DUERP (niveau ${level}), sans doublons.`,
+      ``,
+      `Contexte:`,
+      `- nom=${elementName}`,
+      `- activité=${companyActivity}`,
+      `- environnement=${elementDescription || 'N/A'}`,
+      context ? `- extra=${context}` : ``,
+      ``,
+      `Filtrage (à respecter):`,
+      `- allowed=${levelRules[level].allowed}`,
+      `- forbidden=${levelRules[level].forbidden}`,
+      ``,
+      `Contraintes:`,
+      `- family ∈ {${familyList.join(', ')}}`,
+      `- champs courts`,
+      `- enums: gravity=Faible|Moyenne|Grave|Très Grave ; frequency=Annuelle|Mensuelle|Hebdomadaire|Journalière ; control=Très élevée|Élevée|Moyenne|Absente`,
+      ``,
+      `JSON attendu: {"risks":[{"family":"Ergonomique","situation":"...","danger":"...","gravity":"Moyenne","frequency":"Mensuelle","control":"Moyenne","measures":"...","existingMeasures":[]}]}`,
+    ].filter(Boolean).join('\n');
 
     try {
       const schema = {

@@ -628,22 +628,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateJson } = await import('./ai-ollama');
-      const prompt = `Regroupe des postes en unités de travail DUERP. JSON uniquement.
-
-Contexte:
-activity=${companyActivity}
-${companyDescription ? `desc=${companyDescription}` : ''}
-${siteName ? `site=${siteName}` : ''}
-
-Workstations:
-${workstations.map((ws: string) => `- ${ws}`).join('\n')}
-
-Règles:
-- 2 à ${Math.max(3, Math.ceil(workstations.length / 2))} groupes max
-- noms courts, explicites
-- chaque poste apparaît 1 seule fois
-
-Schema JSON: {"groups":[{"name":"...","workstations":["..."]}]}`;
+      const prompt = [
+        `Tâche: regrouper des postes en unités de travail DUERP.`,
+        ``,
+        `Contexte:`,
+        `- activité=${companyActivity}`,
+        companyDescription ? `- description=${companyDescription}` : ``,
+        siteName ? `- site=${siteName}` : ``,
+        ``,
+        `Postes:`,
+        ...workstations.map((ws: string) => `- ${ws}`),
+        ``,
+        `Contraintes:`,
+        `- 2 à ${Math.max(3, Math.ceil(workstations.length / 2))} groupes max`,
+        `- noms courts et explicites`,
+        `- chaque poste apparaît 1 seule fois`,
+        ``,
+        `JSON attendu: {"groups":[{"name":"...","workstations":["..."]}]}`,
+      ].filter(Boolean).join('\n');
 
       const content = await generateJson(prompt, {
         systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
@@ -1156,17 +1158,19 @@ Schema JSON: {"groups":[{"name":"...","workstations":["..."]}]}`;
         measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
       ].filter(Boolean).join('\n\n');
       const { generateJson } = await import('./ai-ollama');
-      const prompt = `Propose des actions DUERP. JSON uniquement.
-
-Contexte:
-${context || 'N/A'}
-
-Règles:
-- 3 à 6 suggestions max
-- title très court
-- priority: low|medium|high|critical
-
-Schema JSON: {"suggestions":[{"title":"...","description":"...","priority":"medium"}]}`;
+      const prompt = [
+        `Tâche: proposer 3 à 6 actions DUERP concrètes (éviter les doublons).`,
+        ``,
+        `Contexte:`,
+        context || 'N/A',
+        ``,
+        `Contraintes:`,
+        `- title très court (<= 8 mots)`,
+        `- description courte (1 phrase)`,
+        `- priority ∈ {low, medium, high, critical}`,
+        ``,
+        `JSON attendu: {"suggestions":[{"title":"...","description":"...","priority":"medium"}]}`,
+      ].filter(Boolean).join('\n');
       const content = await generateJson(prompt, {
         systemPrompt: DUERP_JSON_SYSTEM_PROMPT,
         maxOutputTokens: 450
