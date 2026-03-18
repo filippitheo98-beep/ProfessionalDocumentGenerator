@@ -28,7 +28,7 @@ async function ensureDbSchema(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   try {
     log("Pushing database schema...");
-    execSync("npx drizzle-kit push", {
+    execSync("npx drizzle-kit push --force", {
       stdio: "inherit",
       env: process.env,
     });
@@ -119,11 +119,14 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const isWindows = process.platform === "win32";
+  const host = app.get("env") === "development" ? "127.0.0.1" : "0.0.0.0";
+
+  // `reusePort` n'est pas supporté sur Windows.
+  server.listen(
+    isWindows ? { port, host } : { port, host, reusePort: true },
+    () => {
     log(`serving on port ${port}`);
-  });
+    },
+  );
 })();
