@@ -433,10 +433,10 @@ export class DatabaseStorage implements IStorage {
       `Tâche: générer 7 à 8 risques DUERP (viser 8), pertinents et sans doublons.`,
       ``,
       `Contexte:`,
-      `- unité=${workUnitName}`,
+      `- unité_de_travail=${workUnitName}`,
       `- lieu=${locationName}`,
       `- activité=${companyActivity}`,
-      companyDescription ? `- description=${companyDescription}` : ``,
+      companyDescription ? `- description_entreprise=${companyDescription}` : ``,
       ``,
       `Contraintes:`,
       `- textes courts (1 phrase max) pour danger et measures`,
@@ -523,6 +523,7 @@ export class DatabaseStorage implements IStorage {
     
     const desiredCount = Math.max(1, Math.min(8, count ?? 8));
     const tokenBudget = Math.max(450, Math.min(2200, 280 * desiredCount));
+    const extraContext = typeof context === 'string' ? context.trim() : '';
     const prompt = [
       `Tâche: générer EXACTEMENT ${desiredCount} risques DUERP (niveau ${level}), sans doublons.`,
       ``,
@@ -530,7 +531,8 @@ export class DatabaseStorage implements IStorage {
       `- nom=${elementName}`,
       `- activité=${companyActivity}`,
       `- environnement=${elementDescription || 'N/A'}`,
-      context ? `- extra=${context}` : ``,
+      ``,
+      extraContext ? `Contexte additionnel (inclut éventuellement "NE PAS RÉPÉTER"):\n${extraContext}` : ``,
       ``,
       `Filtrage (à respecter):`,
       `- allowed=${levelRules[level].allowed}`,

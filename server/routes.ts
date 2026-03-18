@@ -633,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ``,
         `Contexte:`,
         `- activité=${companyActivity}`,
-        companyDescription ? `- description=${companyDescription}` : ``,
+        companyDescription ? `- description_entreprise=${companyDescription}` : ``,
         siteName ? `- site=${siteName}` : ``,
         ``,
         `Postes:`,
