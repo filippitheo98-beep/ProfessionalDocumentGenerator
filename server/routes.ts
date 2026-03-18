@@ -13,6 +13,7 @@ import { generateExcelFile, generatePDFFile, generateWordFile, generateRisksExpo
 import { db } from "./db";
 import { eq, desc, count, lt, ne, sql, ilike, or, and, inArray } from "drizzle-orm";
 import { DUERP_JSON_SYSTEM_PROMPT } from "./ai-prompts";
+import { buildCompactDocumentsBlock, normalizeText } from "./ai-context";
 
 // Helper function to extract risks from hierarchical structure with full metadata
 interface HierarchicalRisk extends Risk {
@@ -491,30 +492,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = generateRisksRequestSchema.parse(req.body);
       
       // Build full context including uploaded documents
-      let fullDescription = validatedData.companyDescription || '';
+      let fullDescription = normalizeText(validatedData.companyDescription || "");
       
       // Add uploaded documents context if company ID is provided
       if (validatedData.companyId) {
         const uploadedDocs = await storage.getUploadedDocuments(validatedData.companyId);
         if (uploadedDocs.length > 0) {
-          const docsContext = uploadedDocs.map(doc => {
-            let context = `\n\n--- Document de référence: ${doc.fileName} ---`;
-            if (doc.description) {
-              context += `\nDescription: ${doc.description}`;
-            }
-            if (doc.extractedText) {
-              context += `\nContenu: ${doc.extractedText}`;
-            }
-            return context;
-          }).join('');
-          
-          fullDescription += `\n\n=== DOCUMENTS DE RÉFÉRENCE ===` + docsContext;
+          const block = buildCompactDocumentsBlock(
+            uploadedDocs.map(d => ({ title: d.fileName, description: d.description, extractedText: d.extractedText })),
+            { maxDocs: 3, maxCharsPerDoc: 1000, maxTotalChars: 2800 }
+          );
+          fullDescription = normalizeText(
+            [fullDescription, `=== DOCUMENTS DE RÉFÉRENCE (extraits) ===`, block].filter(Boolean).join("\n\n")
+          );
         }
       }
       
       // Also add any explicitly passed document context
       if (validatedData.uploadedDocumentsContext) {
-        fullDescription += `\n\n${validatedData.uploadedDocumentsContext}`;
+        fullDescription = normalizeText([fullDescription, validatedData.uploadedDocumentsContext].filter(Boolean).join("\n\n"));
       }
       
       const risks = await storage.generateRisks(
@@ -526,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible')) {
+      if (msg.includes('Service IA indisponible')) {
         return res.status(503).json({ message: msg });
       }
       if (error instanceof z.ZodError) {
@@ -546,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Build hierarchical context for AI
-      let context = companyDescription || '';
+      let context = normalizeText(companyDescription || "");
       
       // Add hierarchical path context
       let hierarchyContext = `\nNiveau hiérarchique: ${level}`;
@@ -572,17 +568,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (companyId) {
         const uploadedDocs = await storage.getUploadedDocuments(companyId);
         if (uploadedDocs.length > 0) {
-          const docsContext = uploadedDocs.map(doc => {
-            let docCtx = `\n\n--- Document: ${doc.fileName} ---`;
-            if (doc.extractedText) docCtx += `\n${doc.extractedText}`;
-            return docCtx;
-          }).join('');
-          context += `\n\n=== DOCUMENTS DE RÉFÉRENCE ===${docsContext}`;
+          const block = buildCompactDocumentsBlock(
+            uploadedDocs.map(d => ({ title: d.fileName, description: d.description, extractedText: d.extractedText })),
+            { maxDocs: 3, maxCharsPerDoc: 1000, maxTotalChars: 2800 }
+          );
+          context = normalizeText([context, `=== DOCUMENTS DE RÉFÉRENCE (extraits) ===`, block].filter(Boolean).join("\n\n"));
         }
       }
       
       if (uploadedDocumentsContext) {
-        context += `\n\n${uploadedDocumentsContext}`;
+        context = normalizeText([context, uploadedDocumentsContext].filter(Boolean).join("\n\n"));
       }
 
       // Avoid duplicates when user requests more risks
@@ -608,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ risks });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible')) {
+      if (msg.includes('Service IA indisponible')) {
         return res.status(503).json({ message: msg });
       }
       console.error("Error generating hierarchical risks:", error);
@@ -627,7 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Workstations and company activity are required" });
       }
 
-      const { generateJson } = await import('./ai-ollama');
+      const { generateJson } = await import('./ai-openai');
       const prompt = [
         `Tâche: regrouper des postes en unités de travail DUERP.`,
         ``,
@@ -655,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible')) return res.status(503).json({ message: 'Service IA indisponible (Ollama)' });
+      if (msg.includes('Service IA indisponible')) return res.status(503).json({ message: 'Service IA indisponible' });
       console.error("Error grouping workstations:", error);
       res.status(500).json({ message: "Erreur lors du regroupement des postes" });
     }
@@ -1157,7 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         risks.length ? `Risques et mesures à mettre en place:\n${risks.map(r => `- ${r.danger || r.type}: ${r.measures}`).join('\n')}` : '',
         measures.length ? `Mesures de prévention:\n${measures.map(m => `- ${m.description}`).join('\n')}` : '',
       ].filter(Boolean).join('\n\n');
-      const { generateJson } = await import('./ai-ollama');
+      const { generateJson } = await import('./ai-openai');
       const prompt = [
         `Tâche: proposer 3 à 6 actions DUERP concrètes (éviter les doublons).`,
         ``,
@@ -1181,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       console.error(e);
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('Service Ollama indisponible')) return res.status(503).json({ message: 'Service IA indisponible (Ollama)' });
+      if (msg.includes('Service IA indisponible')) return res.status(503).json({ message: 'Service IA indisponible' });
       res.status(500).json({ message: 'Erreur lors des suggestions IA' });
     }
   });

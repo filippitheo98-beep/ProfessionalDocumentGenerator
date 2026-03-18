@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { enqueueRequest, flushQueue } from "./offlineQueue";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -21,12 +22,28 @@ export async function apiRequest(
   url: string,
   options: RequestInit = {}
 ): Promise<any> {
+  const method = (options.method || "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as any),
+  };
+
+  // Mode hybride: si offline, on met en file d’attente les mutations.
+  if (typeof window !== "undefined" && window.navigator && window.navigator.onLine === false && method !== "GET") {
+    enqueueRequest({
+      url,
+      method,
+      headers,
+      body: typeof options.body === "string" ? options.body : undefined,
+    });
+    throw new Error(
+      "Hors-ligne: la demande a été mise en attente et sera synchronisée automatiquement à la reconnexion."
+    );
+  }
+
   const res = await fetch(url, {
-    method: options.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    method,
+    headers,
     body: options.body,
     credentials: "include",
     ...options,
@@ -68,3 +85,15 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Flush automatique au chargement + à la reconnexion
+if (typeof window !== "undefined") {
+  const flush = () => {
+    if (window.navigator.onLine !== false) {
+      void flushQueue();
+    }
+  };
+  window.addEventListener("online", flush);
+  // petit flush à froid
+  setTimeout(flush, 1500);
+}

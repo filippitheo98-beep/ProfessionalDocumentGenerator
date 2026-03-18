@@ -22,7 +22,7 @@ import {
 import { db } from "./db";
 import { eq, desc, and, lt, asc, ne } from "drizzle-orm";
 import crypto from 'crypto';
-import { generateJson } from './ai-ollama';
+import { generateJson } from './ai-openai';
 import { DUERP_JSON_SYSTEM_PROMPT } from './ai-prompts';
 
 export interface IStorage {
@@ -391,7 +391,7 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible') || msg.includes('OLLAMA_BASE_URL')) throw error;
+      if (msg.includes('Service IA indisponible')) throw error;
       console.error('Error generating AI risks:', error);
     }
 
@@ -490,7 +490,7 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error calling Ollama:', error);
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible')) throw error;
+      if (msg.includes('Service IA indisponible')) throw error;
       return [];
     }
   }
@@ -649,7 +649,7 @@ export class DatabaseStorage implements IStorage {
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('Service Ollama indisponible')) throw error;
+      if (msg.includes('Service IA indisponible')) throw error;
       console.error('Error generating hierarchical risks:', error);
       throw new Error(msg || 'Erreur lors de l\'appel à l\'IA pour la génération des risques.');
     }

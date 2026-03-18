@@ -7,6 +7,8 @@
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.prod.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.js",
     "start": "cross-env NODE_ENV=production node dist/index.js",
+    "desktop:dev": "electron desktop/main.cjs",
+    "desktop:dist": "npm run build && electron-builder",
     "check": "tsc",
     "db:push": "drizzle-kit push --force",
     "db:import-csv": "tsx scripts/import-csv.ts",
@@ -70,6 +72,7 @@
     "memoizee": "^0.4.17",
     "memorystore": "^1.6.7",
     "next-themes": "^0.4.6",
+    "openai": "^6.32.0",
     "openid-client": "^6.6.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
@@ -112,6 +115,8 @@
     "csv-parse": "^5.6.0",
     "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.30.4",
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
@@ -121,5 +126,30 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "build": {
+    "appId": "com.duerp.app",
+    "productName": "DUERP",
+    "directories": {
+      "buildResources": "desktop/resources",
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "desktop/**",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
